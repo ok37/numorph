@@ -1,29 +1,9 @@
-# README #
+# NuMorph #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+NuMoprh is a set of image analysis tools for quanityfing nuclei and classifying cell-types in tissue cleared whole brain images. 
+While the functions in the current release were used to quantify cortical cell-types in our intial Top1 study, 
+it has not been fully tested on other brain samples and not fully ready for general use. We are working diligently to integrate 
+all the pieces of NuMorph and provide additional documentation. Check back soon for updates. 
 
-### What is this repository for? ###
-
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
-
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+### Contact ###
+* ok37@email.unc.edu
