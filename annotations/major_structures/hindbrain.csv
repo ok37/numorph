@@ -1,0 +1,133 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+882,1065,132,343,3,/997/8/343/1065/,FF9B88,Hindbrain,HB
+883,771,237,1065,4,/997/8/343/1065/771/,FF9B88,Pons,P
+884,1132,282,771,5,/997/8/343/1065/771/1132/,FFAE6F,Pons sensory related,P-sen
+885,612,217,1132,6,/997/8/343/1065/771/1132/612/,FFAE6F,Nucleus of the lateral lemniscus,NLL
+886,82,434,612,7,/997/8/343/1065/771/1132/612/82/,FFAE6F,Nucleus of the lateral lemniscus dorsal part,NLLd
+887,90,435,612,7,/997/8/343/1065/771/1132/612/90/,FFAE6F,Nucleus of the lateral lemniscus horizontal part,NLLh
+888,99,436,612,7,/997/8/343/1065/771/1132/612/99/,FFAE6F,Nucleus of the lateral lemniscus ventral part,NLLv
+889,7,283,1132,6,/997/8/343/1065/771/1132/7/,FFAE6F,Principal sensory nucleus of the trigeminal,PSV
+890,867,249,1132,6,/997/8/343/1065/771/1132/867/,FFAE6F,Parabrachial nucleus,PB
+891,123,156,867,7,/997/8/343/1065/771/1132/867/123/,FFAE6F,Koelliker-Fuse subnucleus,KF
+892,881,251,867,7,/997/8/343/1065/771/1132/867/881/,FFAE6F,Parabrachial nucleus lateral division,PBl
+893,860,814,881,8,/997/8/343/1065/771/1132/867/881/860/,FFAE6F,Parabrachial nucleus lateral division central lateral part,PBlc
+894,868,815,881,8,/997/8/343/1065/771/1132/867/881/868/,FFAE6F,Parabrachial nucleus lateral division dorsal lateral part,PBld
+895,875,816,881,8,/997/8/343/1065/771/1132/867/881/875/,FFAE6F,Parabrachial nucleus lateral division external lateral part,PBle
+896,883,817,881,8,/997/8/343/1065/771/1132/867/881/883/,FFAE6F,Parabrachial nucleus lateral division superior lateral part,PBls
+897,891,818,881,8,/997/8/343/1065/771/1132/867/881/891/,FFAE6F,Parabrachial nucleus lateral division ventral lateral part,PBlv
+898,890,252,867,7,/997/8/343/1065/771/1132/867/890/,FFAE6F,Parabrachial nucleus medial division,PBm
+899,899,819,890,8,/997/8/343/1065/771/1132/867/890/899/,FFAE6F,Parabrachial nucleus medial division external medial part,PBme
+900,915,821,890,8,/997/8/343/1065/771/1132/867/890/915/,FFAE6F,Parabrachial nucleus medial division medial medial part,PBmm
+901,923,822,890,8,/997/8/343/1065/771/1132/867/890/923/,FFAE6F,Parabrachial nucleus medial division ventral medial part,PBmv
+902,398,332,1132,6,/997/8/343/1065/771/1132/398/,FFAE6F,Superior olivary complex,SOC
+903,122,439,398,7,/997/8/343/1065/771/1132/398/122/,FFAE6F,Superior olivary complex periolivary region,POR
+904,105,437,398,7,/997/8/343/1065/771/1132/398/105/,FFAE6F,Superior olivary complex medial part,SOCm
+905,114,438,398,7,/997/8/343/1065/771/1132/398/114/,FFAE6F,Superior olivary complex lateral part,SOCl
+906,987,264,771,5,/997/8/343/1065/771/987/,FFBA86,Pons motor related,P-mot
+907,280,34,987,6,/997/8/343/1065/771/987/280/,FFBA86,Barrington's nucleus,B
+908,880,109,987,6,/997/8/343/1065/771/987/880/,FFBA86,Dorsal tegmental nucleus,DTN
+909,283,176,987,6,/997/8/343/1065/771/987/283/,FFBA86,Lateral tegmental nucleus,LTN
+910,599626927,,987,6,/997/8/343/1065/771/987/599626927/,FFBA86,Posterodorsal tegmental nucleus,PDTg
+911,898,253,987,6,/997/8/343/1065/771/987/898/,FFBA86,Pontine central gray,PCG
+912,931,823,987,6,/997/8/343/1065/771/987/931/,FFBA86,Pontine gray,PG
+913,1093,277,987,6,/997/8/343/1065/771/987/1093/,FFBA86,Pontine reticular nucleus caudal part,PRNc
+914,552,917,987,6,/997/8/343/1065/771/987/552/,FFBA86,Pontine reticular nucleus ventral part,PRNv
+915,318,322,987,6,/997/8/343/1065/771/987/318/,FFBA86,Supragenual nucleus,SG
+916,462,340,987,6,/997/8/343/1065/771/987/462/,FFBA86,Superior salivatory nucleus,SSN
+917,534,349,987,6,/997/8/343/1065/771/987/534/,FFBA86,Supratrigeminal nucleus,SUT
+918,574,354,987,6,/997/8/343/1065/771/987/574/,FFBA86,Tegmental reticular nucleus,TRN
+919,621,360,987,6,/997/8/343/1065/771/987/621/,FFBA86,Motor nucleus of trigeminal,V
+920,549009215,,987,6,/997/8/343/1065/771/987/549009215/,FFBA86,Peritrigeminal zone,P5
+921,549009219,,987,6,/997/8/343/1065/771/987/549009219/,FFBA86,Accessory trigeminal nucleus,Acs5
+922,549009223,,987,6,/997/8/343/1065/771/987/549009223/,FFBA86,Parvicellular motor 5 nucleus,PC5
+923,549009227,,987,6,/997/8/343/1065/771/987/549009227/,FFBA86,Intertrigeminal nucleus,I5
+924,1117,280,771,5,/997/8/343/1065/771/1117/,FFC395,Pons behavioral state related,P-sat
+925,679,84,1117,6,/997/8/343/1065/771/1117/679/,FFC395,Superior central nucleus raphe,CS
+926,137,441,679,7,/997/8/343/1065/771/1117/679/137/,FFC395,Superior central nucleus raphe lateral part,CSl
+927,130,440,679,7,/997/8/343/1065/771/1117/679/130/,FFC395,Superior central nucleus raphe medial part,CSm
+928,147,159,1117,6,/997/8/343/1065/771/1117/147/,FFC395,Locus ceruleus,LC
+929,162,161,1117,6,/997/8/343/1065/771/1117/162/,FFC395,Laterodorsal tegmental nucleus,LDT
+930,604,216,1117,6,/997/8/343/1065/771/1117/604/,FFC395,Nucleus incertus,NI
+931,146,442,1117,6,/997/8/343/1065/771/1117/146/,FFC395,Pontine reticular nucleus,PRNr
+932,238,312,1117,6,/997/8/343/1065/771/1117/238/,FFC395,Nucleus raphe pontis,RPO
+933,350,326,1117,6,/997/8/343/1065/771/1117/350/,FFC395,Subceruleus nucleus,SLC
+934,358,327,1117,6,/997/8/343/1065/771/1117/358/,FFC395,Sublaterodorsal nucleus,SLD
+935,354,185,1065,4,/997/8/343/1065/354/,FF9BCD,Medulla,MY
+936,386,189,354,5,/997/8/343/1065/354/386/,FFA5D2,Medulla sensory related,MY-sen
+937,207,25,386,6,/997/8/343/1065/354/386/207/,FFA5D2,Area postrema,AP
+938,607,75,386,6,/997/8/343/1065/354/386/607/,FFA5D2,Cochlear nuclei,CN
+939,112,862,607,7,/997/8/343/1065/354/386/607/112/,FFA5D2,Granular lamina of the cochlear nuclei,CNlam
+940,560,918,607,7,/997/8/343/1065/354/386/607/560/,FFA5D2,Cochlear nucleus subpedunclular granular region,CNspg
+941,96,860,607,7,/997/8/343/1065/354/386/607/96/,FFA5D2,Dorsal cochlear nucleus,DCO
+942,101,861,607,7,/997/8/343/1065/354/386/607/101/,FFA5D2,Ventral cochlear nucleus,VCO
+943,720,89,386,6,/997/8/343/1065/354/386/720/,FFA5D2,Dorsal column nuclei,DCN
+944,711,88,720,7,/997/8/343/1065/354/386/720/711/,FFA5D2,Cuneate nucleus,CU
+945,1039,129,720,7,/997/8/343/1065/354/386/720/1039/,FFA5D2,Gracile nucleus,GR
+946,903,112,386,6,/997/8/343/1065/354/386/903/,FFA5D2,External cuneate nucleus,ECU
+947,642,221,386,6,/997/8/343/1065/354/386/642/,FFA5D2,Nucleus of the trapezoid body,NTB
+948,651,222,386,6,/997/8/343/1065/354/386/651/,FFA5D2,Nucleus of the solitary tract,NTS
+949,659,223,651,7,/997/8/343/1065/354/386/651/659/,FFA5D2,Nucleus of the solitary tract central part,NTSce
+950,666,224,651,7,/997/8/343/1065/354/386/651/666/,FFA5D2,Nucleus of the solitary tract commissural part,NTSco
+951,674,225,651,7,/997/8/343/1065/354/386/651/674/,FFA5D2,Nucleus of the solitary tract gelatinous part,NTSge
+952,682,226,651,7,/997/8/343/1065/354/386/651/682/,FFA5D2,Nucleus of the solitary tract lateral part,NTSl
+953,691,227,651,7,/997/8/343/1065/354/386/651/691/,FFA5D2,Nucleus of the solitary tract medial part,NTSm
+954,429,336,386,6,/997/8/343/1065/354/386/429/,FFA5D2,Spinal nucleus of the trigeminal caudal part,SPVC
+955,437,337,386,6,/997/8/343/1065/354/386/437/,FFA5D2,Spinal nucleus of the trigeminal interpolar part,SPVI
+956,445,338,386,6,/997/8/343/1065/354/386/445/,FFA5D2,Spinal nucleus of the trigeminal oral part,SPVO
+957,77,858,445,7,/997/8/343/1065/354/386/445/77/,FFA5D2,Spinal nucleus of the trigeminal oral part caudal dorsomedial part,SPVOcdm
+958,53,855,445,7,/997/8/343/1065/354/386/445/53/,FFA5D2,Spinal nucleus of the trigeminal oral part middle dorsomedial part dorsal zone,SPVOmdmd
+959,61,856,445,7,/997/8/343/1065/354/386/445/61/,FFA5D2,Spinal nucleus of the trigeminal oral part middle dorsomedial part ventral zone,SPVOmdmv
+960,45,854,445,7,/997/8/343/1065/354/386/445/45/,FFA5D2,Spinal nucleus of the trigeminal oral part rostral dorsomedial part,SPVOrdm
+961,69,857,445,7,/997/8/343/1065/354/386/445/69/,FFA5D2,Spinal nucleus of the trigeminal oral part ventrolateral part,SPVOvl
+962,589508451,,386,6,/997/8/343/1065/354/386/589508451/,FFA5D2,Paratrigeminal nucleus,Pa5
+963,789,381,386,6,/997/8/343/1065/354/386/789/,FFA5D2,Nucleus z,z
+964,370,187,354,5,/997/8/343/1065/354/370/,FFB3D9,Medulla motor related,MY-mot
+965,653,364,370,6,/997/8/343/1065/354/370/653/,FFB3D9,Abducens nucleus,VI
+966,568,919,370,6,/997/8/343/1065/354/370/568/,FFB3D9,Accessory abducens nucleus,ACVI
+967,661,365,370,6,/997/8/343/1065/354/370/661/,FFB3D9,Facial motor nucleus,VII
+968,576,920,370,6,/997/8/343/1065/354/370/576/,FFB3D9,Accessory facial motor nucleus,ACVII
+969,640,928,370,6,/997/8/343/1065/354/370/640/,FFB3D9,Efferent vestibular nucleus,EV
+970,135,16,370,6,/997/8/343/1065/354/370/135/,FFB3D9,Nucleus ambiguus,AMB
+971,939,824,135,7,/997/8/343/1065/354/370/135/939/,FFB3D9,Nucleus ambiguus dorsal division,AMBd
+972,143,17,135,7,/997/8/343/1065/354/370/135/143/,FFB3D9,Nucleus ambiguus ventral division,AMBv
+973,839,104,370,6,/997/8/343/1065/354/370/839/,FFB3D9,Dorsal motor nucleus of the vagus nerve,DMX
+974,887,110,370,6,/997/8/343/1065/354/370/887/,FFB3D9,Efferent cochlear group,ECO
+975,1048,130,370,6,/997/8/343/1065/354/370/1048/,FFB3D9,Gigantocellular reticular nucleus,GRN
+976,372,470,370,6,/997/8/343/1065/354/370/372/,FFB3D9,Infracerebellar nucleus,ICB
+977,83,151,370,6,/997/8/343/1065/354/370/83/,FFB3D9,Inferior olivary complex,IO
+978,136,865,370,6,/997/8/343/1065/354/370/136/,FFB3D9,Intermediate reticular nucleus,IRN
+979,106,154,370,6,/997/8/343/1065/354/370/106/,FFB3D9,Inferior salivatory nucleus,ISN
+980,203,166,370,6,/997/8/343/1065/354/370/203/,FFB3D9,Linear nucleus of the medulla,LIN
+981,235,170,370,6,/997/8/343/1065/354/370/235/,FFB3D9,Lateral reticular nucleus,LRN
+982,955,826,235,7,/997/8/343/1065/354/370/235/955/,FFB3D9,Lateral reticular nucleus magnocellular part,LRNm
+983,963,827,235,7,/997/8/343/1065/354/370/235/963/,FFB3D9,Lateral reticular nucleus parvicellular part,LRNp
+984,307,179,370,6,/997/8/343/1065/354/370/307/,FFB3D9,Magnocellular reticular nucleus,MARN
+985,395,190,370,6,/997/8/343/1065/354/370/395/,FFB3D9,Medullary reticular nucleus,MDRN
+986,1098,844,395,7,/997/8/343/1065/354/370/395/1098/,FFB3D9,Medullary reticular nucleus dorsal part,MDRNd
+987,1107,845,395,7,/997/8/343/1065/354/370/395/1107/,FFB3D9,Medullary reticular nucleus ventral part,MDRNv
+988,852,247,370,6,/997/8/343/1065/354/370/852/,FFB3D9,Parvicellular reticular nucleus,PARN
+989,859,248,370,6,/997/8/343/1065/354/370/859/,FFB3D9,Parasolitary nucleus,PAS
+990,938,258,370,6,/997/8/343/1065/354/370/938/,FFB3D9,Paragigantocellular reticular nucleus,PGRN
+991,970,828,938,7,/997/8/343/1065/354/370/938/970/,FFB3D9,Paragigantocellular reticular nucleus dorsal part,PGRNd
+992,978,829,938,7,/997/8/343/1065/354/370/938/978/,FFB3D9,Paragigantocellular reticular nucleus lateral part,PGRNl
+993,154,443,370,6,/997/8/343/1065/354/370/154/,FFB3D9,Perihypoglossal nuclei,PHY
+994,161,444,154,7,/997/8/343/1065/354/370/154/161/,FFB3D9,Nucleus intercalatus,NIS
+995,177,446,154,7,/997/8/343/1065/354/370/154/177/,FFB3D9,Nucleus of Roller,NR
+996,169,445,154,7,/997/8/343/1065/354/370/154/169/,FFB3D9,Nucleus prepositus,PRP
+997,995,265,370,6,/997/8/343/1065/354/370/995/,FFB3D9,Paramedian reticular nucleus,PMR
+998,1069,274,370,6,/997/8/343/1065/354/370/1069/,FFB3D9,Parapyramidal nucleus,PPY
+999,185,447,1069,7,/997/8/343/1065/354/370/1069/185/,FFB3D9,Parapyramidal nucleus deep part,PPYd
+1000,193,448,1069,7,/997/8/343/1065/354/370/1069/193/,FFB3D9,Parapyramidal nucleus superficial part,PPYs
+1001,701,370,370,6,/997/8/343/1065/354/370/701/,FFB3D9,Vestibular nuclei,VNC
+1002,209,450,701,7,/997/8/343/1065/354/370/701/209/,FFB3D9,Lateral vestibular nucleus,LAV
+1003,202,449,701,7,/997/8/343/1065/354/370/701/202/,FFB3D9,Medial vestibular nucleus,MV
+1004,225,452,701,7,/997/8/343/1065/354/370/701/225/,FFB3D9,Spinal vestibular nucleus,SPIV
+1005,217,451,701,7,/997/8/343/1065/354/370/701/217/,FFB3D9,Superior vestibular nucleus,SUV
+1006,765,378,370,6,/997/8/343/1065/354/370/765/,FFB3D9,Nucleus x,x
+1007,773,379,370,6,/997/8/343/1065/354/370/773/,FFB3D9,Hypoglossal nucleus,XII
+1008,781,380,370,6,/997/8/343/1065/354/370/781/,FFB3D9,Nucleus y,y
+1009,76,150,370,6,/997/8/343/1065/354/370/76/,FFB3D9,Interstitial nucleus of the vestibular nerve,INV
+1010,379,188,354,5,/997/8/343/1065/354/379/,FFC6E2,Medulla behavioral state related,MY-sat
+1011,206,308,379,6,/997/8/343/1065/354/379/206/,FFC6E2,Nucleus raphe magnus,RM
+1012,230,311,379,6,/997/8/343/1065/354/379/230/,FFC6E2,Nucleus raphe pallidus,RPA
+1013,222,310,379,6,/997/8/343/1065/354/379/222/,FFC6E2,Nucleus raphe obscurus,RO

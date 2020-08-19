@@ -1,0 +1,44 @@
+index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+6,184,871,315,6,/997/8/567/688/695/315/184/,268F45,Frontal pole cerebral cortex,FRP
+18,985,830,500,7,/997/8/567/688/695/315/500/985/,1F9D5A,Primary motor area,MOp
+24,993,831,500,7,/997/8/567/688/695/315/500/993/,1F9D5A,Secondary motor area,MOs
+44,353,751,322,8,/997/8/567/688/695/315/453/322/353/,188064,Primary somatosensory area nose,SSp-n
+51,329,748,322,8,/997/8/567/688/695/315/453/322/329/,188064,Primary somatosensory area barrel field,SSp-bfd
+65,337,749,322,8,/997/8/567/688/695/315/453/322/337/,188064,Primary somatosensory area lower limb,SSp-ll
+72,345,750,322,8,/997/8/567/688/695/315/453/322/345/,188064,Primary somatosensory area mouth,SSp-m
+79,369,753,322,8,/997/8/567/688/695/315/453/322/369/,188064,Primary somatosensory area upper limb,SSp-ul
+86,361,752,322,8,/997/8/567/688/695/315/453/322/361/,188064,Primary somatosensory area trunk,SSp-tr
+93,182305689,,322,8,/997/8/567/688/695/315/453/322/182305689/,188064,Primary somatosensory area unassigned,SSp-un
+100,378,754,453,7,/997/8/567/688/695/315/453/378/,188064,Supplemental somatosensory area,SSs
+107,1057,131,315,6,/997/8/567/688/695/315/1057/,009C75,Gustatory areas,GU
+114,677,367,315,6,/997/8/567/688/695/315/677/,11AD83,Visceral area,VISC
+122,1011,833,247,7,/997/8/567/688/695/315/247/1011/,19399,Dorsal auditory area,AUDd
+136,1002,832,247,7,/997/8/567/688/695/315/247/1002/,19399,Primary auditory area,AUDp
+143,1027,835,247,7,/997/8/567/688/695/315/247/1027/,19399,Posterior auditory area,AUDpo
+150,1018,834,247,7,/997/8/567/688/695/315/247/1018/,19399,Ventral auditory area,AUDv
+164,402,757,669,7,/997/8/567/688/695/315/669/402/,08858C,Anterolateral visual area,VISal
+171,394,756,669,7,/997/8/567/688/695/315/669/394/,08858C,Anteromedial visual area,VISam
+178,409,758,669,7,/997/8/567/688/695/315/669/409/,08858C,Lateral visual area,VISl
+185,385,755,669,7,/997/8/567/688/695/315/669/385/,08858C,Primary visual area,VISp
+192,425,760,669,7,/997/8/567/688/695/315/669/425/,08858C,Posterolateral visual area,VISpl
+199,533,915,669,7,/997/8/567/688/695/315/669/533/,08858C,posteromedial visual area,VISpm
+206,312782574,,669,7,/997/8/567/688/695/315/669/312782574/,08858C,Laterointermediate area,VISli
+213,312782628,,669,7,/997/8/567/688/695/315/669/312782628/,08858C,Postrhinal area,VISpor
+226,39,4,31,7,/997/8/567/688/695/315/31/39/,40A666,Anterior cingulate area dorsal part,ACAd
+232,48,5,31,7,/997/8/567/688/695/315/31/48/,40A666,Anterior cingulate area ventral part,ACAv
+238,972,262,315,6,/997/8/567/688/695/315/972/,2FA850,Prelimbic area,PL
+245,44,146,315,6,/997/8/567/688/695/315/44/,59B363,Infralimbic area,ILA
+258,723,231,714,7,/997/8/567/688/695/315/714/723/,248A5E,Orbital area lateral part,ORBl
+264,731,232,714,7,/997/8/567/688/695/315/714/731/,248A5E,Orbital area medial part,ORBm
+272,746,234,714,7,/997/8/567/688/695/315/714/746/,248A5E,Orbital area ventrolateral part,ORBvl
+279,104,12,95,7,/997/8/567/688/695/315/95/104/,219866,Agranular insular area dorsal part,AId
+285,111,13,95,7,/997/8/567/688/695/315/95/111/,219866,Agranular insular area posterior part,AIp
+291,119,14,95,7,/997/8/567/688/695/315/95/119/,219866,Agranular insular area ventral part,AIv
+298,894,394,254,7,/997/8/567/688/695/315/254/894/,1AA698,Retrosplenial area lateral agranular part,RSPagl
+325,879,392,254,7,/997/8/567/688/695/315/254/879/,1AA698,Retrosplenial area dorsal part,RSPd
+332,886,393,254,7,/997/8/567/688/695/315/254/886/,1AA698,Retrosplenial area ventral part,RSPv
+346,312782546,,22,7,/997/8/567/688/695/315/22/312782546/,009FAC,Anterior area,VISa
+353,417,759,22,7,/997/8/567/688/695/315/22/417/,009FAC,Rostrolateral visual area,VISrl
+360,541,350,315,6,/997/8/567/688/695/315/541/,15B0B3,Temporal association areas,TEa
+367,922,256,315,6,/997/8/567/688/695/315/922/,0E9684,Perirhinal area,PERI
+373,895,111,315,6,/997/8/567/688/695/315/895/,0D9F91,Ectorhinal area,ECT

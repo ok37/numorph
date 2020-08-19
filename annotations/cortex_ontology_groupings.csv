@@ -1,0 +1,39 @@
+index,id,structure_id_path,acronym,color_hex_triplet,name,divisionLabel
+339,22,/997/8/567/688/695/315/22/,PTLp,009FAC,"Posterior parietal association areas",Isocortex
+226,39,/997/8/567/688/695/315/31/39/,ACAd,40A666,"Anterior cingulate area, dorsal part",Isocortex
+245,44,/997/8/567/688/695/315/44/,ILA,59B363,"Infralimbic area",Isocortex
+232,48,/997/8/567/688/695/315/31/48/,ACAv,40A666,"Anterior cingulate area, ventral part",Isocortex
+279,104,/997/8/567/688/695/315/95/104/,AId,219866,"Agranular insular area, dorsal part",Isocortex
+285,111,/997/8/567/688/695/315/95/111/,AIp,219866,"Agranular insular area, posterior part",Isocortex
+291,119,/997/8/567/688/695/315/95/119/,AIv,219866,"Agranular insular area, ventral part",Isocortex
+6,184,/997/8/567/688/695/315/184/,FRP,268F45,"Frontal pole, cerebral cortex",Isocortex
+51,329,/997/8/567/688/695/315/453/322/329/,SSp-bfd,188064,"Primary somatosensory area, barrel field",Isocortex
+65,337,/997/8/567/688/695/315/453/322/337/,SSp-ll,188064,"Primary somatosensory area, lower limb",Isocortex
+72,345,/997/8/567/688/695/315/453/322/345/,SSp-m,188064,"Primary somatosensory area, mouth",Isocortex
+44,353,/997/8/567/688/695/315/453/322/353/,SSp-n,188064,"Primary somatosensory area, nose",Isocortex
+86,361,/997/8/567/688/695/315/453/322/361/,SSp-tr,188064,"Primary somatosensory area, trunk",Isocortex
+79,369,/997/8/567/688/695/315/453/322/369/,SSp-ul,188064,"Primary somatosensory area, upper limb",Isocortex
+100,378,/997/8/567/688/695/315/453/378/,SSs,188064,"Supplemental somatosensory area",Isocortex
+185,385,/997/8/567/688/695/315/669/385/,VISp,08858C,"Primary visual area",Isocortex
+171,394,/997/8/567/688/695/315/669/394/,VISam,08858C,"Anteromedial visual area",Isocortex
+164,402,/997/8/567/688/695/315/669/402/,VISal,08858C,"Anterolateral visual area",Isocortex
+178,409,/997/8/567/688/695/315/669/409/,VISl,08858C,"Lateral visual area",Isocortex
+192,425,/997/8/567/688/695/315/669/425/,VISpl,08858C,"Posterolateral visual area",Isocortex
+199,533,/997/8/567/688/695/315/669/533/,VISpm,08858C,"posteromedial visual area",Isocortex
+360,541,/997/8/567/688/695/315/541/,TEa,15B0B3,"Temporal association areas",Isocortex
+114,677,/997/8/567/688/695/315/677/,VISC,11AD83,"Visceral area",Isocortex
+258,723,/997/8/567/688/695/315/714/723/,ORBl,248A5E,"Orbital area, lateral part",Isocortex
+264,731,/997/8/567/688/695/315/714/731/,ORBm,248A5E,"Orbital area, medial part",Isocortex
+272,746,/997/8/567/688/695/315/714/746/,ORBvl,248A5E,"Orbital area, ventrolateral part",Isocortex
+325,879,/997/8/567/688/695/315/254/879/,RSPd,1AA698,"Retrosplenial area, dorsal part",Isocortex
+332,886,/997/8/567/688/695/315/254/886/,RSPv,1AA698,"Retrosplenial area, ventral part",Isocortex
+298,894,/997/8/567/688/695/315/254/894/,RSPagl,1AA698,"Retrosplenial area, lateral agranular part",Isocortex
+373,895,/997/8/567/688/695/315/895/,ECT,0D9F91,"Ectorhinal area",Isocortex
+367,922,/997/8/567/688/695/315/922/,PERI,0E9684,"Perirhinal area",Isocortex
+238,972,/997/8/567/688/695/315/972/,PL,2FA850,"Prelimbic area",Isocortex
+18,985,/997/8/567/688/695/315/500/985/,MOp,1F9D5A,"Primary motor area",Isocortex
+24,993,/997/8/567/688/695/315/500/993/,MOs,1F9D5A,"Secondary motor area",Isocortex
+136,1002,/997/8/567/688/695/315/247/1002/,AUDp,019399,"Primary auditory area",Isocortex
+122,1011,/997/8/567/688/695/315/247/1011/,AUDd,019399,"Dorsal auditory area",Isocortex
+150,1018,/997/8/567/688/695/315/247/1018/,AUDv,019399,"Ventral auditory area",Isocortex
+107,1057,/997/8/567/688/695/315/1057/,GU,009C75,"Gustatory areas",Isocortex

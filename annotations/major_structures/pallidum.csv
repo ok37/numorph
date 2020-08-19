@@ -1,0 +1,32 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+608,803,241,623,4,/997/8/567/623/803/,8599CC,Pallidum,PAL
+609,818,243,803,5,/997/8/567/623/803/818/,8599CC,Pallidum dorsal region,PALd
+610,1022,127,818,6,/997/8/567/623/803/818/1022/,8599CC,Globus pallidus external segment,GPe
+611,1031,128,818,6,/997/8/567/623/803/818/1031/,8599CC,Globus pallidus internal segment,GPi
+612,835,245,803,5,/997/8/567/623/803/835/,A2B1D8,Pallidum ventral region,PALv
+613,342,325,835,6,/997/8/567/623/803/835/342/,A2B1D8,Substantia innominata,SI
+614,298,178,835,6,/997/8/567/623/803/835/298/,A2B1D8,Magnocellular nucleus,MA
+615,826,244,803,5,/997/8/567/623/803/826/,96A7D3,Pallidum medial region,PALm
+616,904,395,826,6,/997/8/567/623/803/826/904/,96A7D3,Medial septal complex,MSC
+617,564,211,904,7,/997/8/567/623/803/826/904/564/,96A7D3,Medial septal nucleus,MS
+618,596,215,904,7,/997/8/567/623/803/826/904/596/,96A7D3,Diagonal band nucleus,NDB
+619,581,355,826,6,/997/8/567/623/803/826/581/,96A7D3,Triangular nucleus of septum,TRS
+620,809,242,803,5,/997/8/567/623/803/809/,B3C0DF,Pallidum caudal region,PALc
+621,351,43,809,6,/997/8/567/623/803/809/351/,B3C0DF,Bed nuclei of the stria terminalis,BST
+622,359,44,351,7,/997/8/567/623/803/809/351/359/,B3C0DF,Bed nuclei of the stria terminalis anterior division,BSTa
+623,537,774,359,8,/997/8/567/623/803/809/351/359/537/,B3C0DF,Bed nuclei of the stria terminalis anterior division anterolateral area,BSTal
+624,498,769,359,8,/997/8/567/623/803/809/351/359/498/,B3C0DF,Bed nuclei of the stria terminalis anterior division anteromedial area,BSTam
+625,505,770,359,8,/997/8/567/623/803/809/351/359/505/,B3C0DF,Bed nuclei of the stria terminalis anterior division dorsomedial nucleus,BSTdm
+626,513,771,359,8,/997/8/567/623/803/809/351/359/513/,B3C0DF,Bed nuclei of the stria terminalis anterior division fusiform nucleus,BSTfu
+627,546,775,359,8,/997/8/567/623/803/809/351/359/546/,B3C0DF,Bed nuclei of the stria terminalis anterior division juxtacapsular nucleus,BSTju
+628,521,772,359,8,/997/8/567/623/803/809/351/359/521/,B3C0DF,Bed nuclei of the stria terminalis anterior division magnocellular nucleus,BSTmg
+629,554,776,359,8,/997/8/567/623/803/809/351/359/554/,B3C0DF,Bed nuclei of the stria terminalis anterior division oval nucleus,BSTov
+630,562,777,359,8,/997/8/567/623/803/809/351/359/562/,B3C0DF,Bed nuclei of the stria terminalis anterior division rhomboid nucleus,BSTrh
+631,529,773,359,8,/997/8/567/623/803/809/351/359/529/,B3C0DF,Bed nuclei of the stria terminalis anterior division ventral nucleus,BSTv
+632,367,45,351,7,/997/8/567/623/803/809/351/367/,B3C0DF,Bed nuclei of the stria terminalis posterior division,BSTp
+633,569,778,367,8,/997/8/567/623/803/809/351/367/569/,B3C0DF,Bed nuclei of the stria terminalis posterior division dorsal nucleus,BSTd
+634,578,779,367,8,/997/8/567/623/803/809/351/367/578/,B3C0DF,Bed nuclei of the stria terminalis posterior division principal nucleus,BSTpr
+635,585,780,367,8,/997/8/567/623/803/809/351/367/585/,B3C0DF,Bed nuclei of the stria terminalis posterior division interfascicular nucleus,BSTif
+636,594,781,367,8,/997/8/567/623/803/809/351/367/594/,B3C0DF,Bed nuclei of the stria terminalis posterior division transverse nucleus,BSTtr
+637,602,782,367,8,/997/8/567/623/803/809/351/367/602/,B3C0DF,Bed nuclei of the stria terminalis posterior division strial extension,BSTse
+638,287,35,809,6,/997/8/567/623/803/809/287/,B3C0DF,Bed nucleus of the anterior commissure,BAC

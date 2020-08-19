@@ -1,0 +1,38 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+571,477,342,623,4,/997/8/567/623/477/,98D6F9,Striatum,STR
+572,485,343,477,5,/997/8/567/623/477/485/,98D6F9,Striatum dorsal region,STRd
+573,672,83,485,6,/997/8/567/623/477/485/672/,98D6F9,Caudoputamen,CP
+574,493,344,477,5,/997/8/567/623/477/493/,80CDF8,Striatum ventral region,STRv
+575,56,6,493,6,/997/8/567/623/477/493/56/,80CDF8,Nucleus accumbens,ACB
+576,998,124,493,6,/997/8/567/623/477/493/998/,80CDF8,Fundus of striatum,FS
+577,754,235,493,6,/997/8/567/623/477/493/754/,80CDF8,Olfactory tubercle,OT
+578,481,767,754,7,/997/8/567/623/477/493/754/481/,80CDF8,Islands of Calleja,isl
+579,489,768,754,7,/997/8/567/623/477/493/754/489/,80CDF8,Major island of Calleja,islm
+580,144,866,754,7,/997/8/567/623/477/493/754/144/,80CDF8,Olfactory tubercle layers 1-3,OT1-3
+581,458,764,754,7,/997/8/567/623/477/493/754/458/,80CDF8,Olfactory tubercle molecular layer,OT1
+582,465,765,754,7,/997/8/567/623/477/493/754/465/,80CDF8,Olfactory tubercle pyramidal layer,OT2
+583,473,766,754,7,/997/8/567/623/477/493/754/473/,80CDF8,Olfactory tubercle polymorph layer,OT3
+584,549009199,,493,6,/997/8/567/623/477/493/549009199/,80CDF8,Lateral strip of striatum,LSS
+585,275,175,477,5,/997/8/567/623/477/275/,90CBED,Lateral septal complex,LSX
+586,242,171,275,6,/997/8/567/623/477/275/242/,90CBED,Lateral septal nucleus,LS
+587,250,172,242,7,/997/8/567/623/477/275/242/250/,90CBED,Lateral septal nucleus caudal (caudodorsal) part,LSc
+588,258,173,242,7,/997/8/567/623/477/275/242/258/,90CBED,Lateral septal nucleus rostral (rostroventral) part,LSr
+589,266,174,242,7,/997/8/567/623/477/275/242/266/,90CBED,Lateral septal nucleus ventral part,LSv
+590,310,321,275,6,/997/8/567/623/477/275/310/,90CBED,Septofimbrial nucleus,SF
+591,333,324,275,6,/997/8/567/623/477/275/333/,90CBED,Septohippocampal nucleus,SH
+592,278,317,477,5,/997/8/567/623/477/278/,80C0E2,Striatum-like amygdalar nuclei,sAMY
+593,23,2,278,6,/997/8/567/623/477/278/23/,80C0E2,Anterior amygdalar area,AAA
+594,292,460,278,6,/997/8/567/623/477/278/292/,80C0E2,Bed nucleus of the accessory olfactory tract,BA
+595,536,66,278,6,/997/8/567/623/477/278/536/,80C0E2,Central amygdalar nucleus,CEA
+596,544,67,536,7,/997/8/567/623/477/278/536/544/,80C0E2,Central amygdalar nucleus capsular part,CEAc
+597,551,68,536,7,/997/8/567/623/477/278/536/551/,80C0E2,Central amygdalar nucleus lateral part,CEAl
+598,559,69,536,7,/997/8/567/623/477/278/536/559/,80C0E2,Central amygdalar nucleus medial part,CEAm
+599,1105,137,278,6,/997/8/567/623/477/278/1105/,80C0E2,Intercalated amygdalar nucleus,IA
+600,403,191,278,6,/997/8/567/623/477/278/403/,80C0E2,Medial amygdalar nucleus,MEA
+601,411,192,403,7,/997/8/567/623/477/278/403/411/,80C0E2,Medial amygdalar nucleus anterodorsal part,MEAad
+602,418,193,403,7,/997/8/567/623/477/278/403/418/,80C0E2,Medial amygdalar nucleus anteroventral part,MEAav
+603,426,194,403,7,/997/8/567/623/477/278/403/426/,80C0E2,Medial amygdalar nucleus posterodorsal part,MEApd
+604,472,907,426,8,/997/8/567/623/477/278/403/426/472/,80C0E2,Medial amygdalar nucleus posterodorsal part sublayer a,MEApd-a
+605,480,908,426,8,/997/8/567/623/477/278/403/426/480/,80C0E2,Medial amygdalar nucleus posterodorsal part sublayer b,MEApd-b
+606,487,909,426,8,/997/8/567/623/477/278/403/426/487/,80C0E2,Medial amygdalar nucleus posterodorsal part sublayer c,MEApd-c
+607,435,195,403,7,/997/8/567/623/477/278/403/435/,80C0E2,Medial amygdalar nucleus posteroventral part,MEApv

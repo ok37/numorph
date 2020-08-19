@@ -1,0 +1,16 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+555,703,87,688,4,/997/8/567/688/703/,8ADA87,Cortical subplate,CTXsp
+556,16,1,703,5,/997/8/567/688/703/16/,8ADA87,Layer 6b isocortex,6b
+557,583,72,703,5,/997/8/567/688/703/583/,8ADA87,Claustrum,CLA
+558,942,117,703,5,/997/8/567/688/703/942/,A0EE9D,Endopiriform nucleus,EP
+559,952,118,942,6,/997/8/567/688/703/942/952/,A0EE9D,Endopiriform nucleus dorsal part,EPd
+560,966,120,942,6,/997/8/567/688/703/942/966/,A0EE9D,Endopiriform nucleus ventral part,EPv
+561,131,157,703,5,/997/8/567/688/703/131/,90EB8D,Lateral amygdalar nucleus,LA
+562,295,36,703,5,/997/8/567/688/703/295/,9DE79C,Basolateral amygdalar nucleus,BLA
+563,303,37,295,6,/997/8/567/688/703/295/303/,9DE79C,Basolateral amygdalar nucleus anterior part,BLAa
+564,311,38,295,6,/997/8/567/688/703/295/311/,9DE79C,Basolateral amygdalar nucleus posterior part,BLAp
+565,451,763,295,6,/997/8/567/688/703/295/451/,9DE79C,Basolateral amygdalar nucleus ventral part,BLAv
+566,319,39,703,5,/997/8/567/688/703/319/,84EA81,Basomedial amygdalar nucleus,BMA
+567,327,40,319,6,/997/8/567/688/703/319/327/,84EA81,Basomedial amygdalar nucleus anterior part,BMAa
+568,334,41,319,6,/997/8/567/688/703/319/334/,84EA81,Basomedial amygdalar nucleus posterior part,BMAp
+569,780,238,703,5,/997/8/567/688/703/780/,97EC93,Posterior amygdalar nucleus,PA

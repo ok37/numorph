@@ -1,0 +1,77 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+806,313,180,343,3,/997/8/343/313/,FF64FF,Midbrain,MB
+807,339,183,313,4,/997/8/343/313/339/,FF7AFF,Midbrain sensory related,MBsen
+808,302,320,339,5,/997/8/343/313/339/302/,FF7AFF,Superior colliculus sensory related,SCs
+809,851,813,302,6,/997/8/343/313/339/302/851/,FF7AFF,Superior colliculus optic layer,SCop
+810,842,812,302,6,/997/8/343/313/339/302/842/,FF7AFF,Superior colliculus superficial gray layer,SCsg
+811,834,811,302,6,/997/8/343/313/339/302/834/,FF7AFF,Superior colliculus zonal layer,SCzo
+812,4,141,339,5,/997/8/343/313/339/4/,FF7AFF,Inferior colliculus,IC
+813,811,808,4,6,/997/8/343/313/339/4/811/,FF7AFF,Inferior colliculus central nucleus,ICc
+814,820,809,4,6,/997/8/343/313/339/4/820/,FF7AFF,Inferior colliculus dorsal nucleus,ICd
+815,828,810,4,6,/997/8/343/313/339/4/828/,FF7AFF,Inferior colliculus external nucleus,ICe
+816,580,213,339,5,/997/8/343/313/339/580/,FF7AFF,Nucleus of the brachium of the inferior colliculus,NB
+817,271,316,339,5,/997/8/343/313/339/271/,FF7AFF,Nucleus sagulum,SAG
+818,874,250,339,5,/997/8/343/313/339/874/,FF7AFF,Parabigeminal nucleus,PBG
+819,460,198,339,5,/997/8/343/313/339/460/,FF7AFF,Midbrain trigeminal nucleus,MEV
+820,599626923,,339,5,/997/8/343/313/339/599626923/,FF7AFF,Subcommissural organ,SCO
+821,323,181,313,4,/997/8/343/313/323/,FF90FF,Midbrain motor related,MBmot
+822,381,330,323,5,/997/8/343/313/323/381/,FF90FF,Substantia nigra reticular part,SNr
+823,749,376,323,5,/997/8/343/313/323/749/,FF90FF,Ventral tegmental area,VTA
+824,607344830,,323,5,/997/8/343/313/323/607344830/,FF90FF,Paranigral nucleus,PN
+825,246,313,323,5,/997/8/343/313/323/246/,FF90FF,Midbrain reticular nucleus retrorubral area,RR
+826,128,864,323,5,/997/8/343/313/323/128/,FF90FF,Midbrain reticular nucleus,MRN
+827,539,208,128,6,/997/8/343/313/323/128/539/,FF90FF,Midbrain reticular nucleus magnocellular part,MRNm
+828,548,209,128,6,/997/8/343/313/323/128/548/,FF90FF,Midbrain reticular nucleus magnocellular part general,MRNmg
+829,555,210,128,6,/997/8/343/313/323/128/555/,FF90FF,Midbrain reticular nucleus parvicellular part,MRNp
+830,294,319,323,5,/997/8/343/313/323/294/,FF90FF,Superior colliculus motor related,SCm
+831,26,427,294,6,/997/8/343/313/323/294/26/,FF90FF,Superior colliculus motor related deep gray layer,SCdg
+832,42,429,294,6,/997/8/343/313/323/294/42/,FF90FF,Superior colliculus motor related deep white layer,SCdw
+833,17,426,294,6,/997/8/343/313/323/294/17/,FF90FF,Superior colliculus motor related intermediate white layer,SCiw
+834,10,425,294,6,/997/8/343/313/323/294/10/,FF90FF,Superior colliculus motor related intermediate gray layer,SCig
+835,494,910,10,7,/997/8/343/313/323/294/10/494/,FF90FF,Superior colliculus motor related intermediate gray layer sublayer a,SCig-a
+836,503,911,10,7,/997/8/343/313/323/294/10/503/,FF90FF,Superior colliculus motor related intermediate gray layer sublayer b,SCig-b
+837,511,912,10,7,/997/8/343/313/323/294/10/511/,FF90FF,Superior colliculus motor related intermediate gray layer sublayer c,SCig-c
+838,795,240,323,5,/997/8/343/313/323/795/,FF90FF,Periaqueductal gray,PAG
+839,50,430,795,6,/997/8/343/313/323/795/50/,FF90FF,Precommissural nucleus,PRC
+840,67,149,795,6,/997/8/343/313/323/795/67/,FF90FF,Interstitial nucleus of Cajal,INC
+841,587,214,795,6,/997/8/343/313/323/795/587/,FF90FF,Nucleus of Darkschewitsch,ND
+842,614454277,,795,6,/997/8/343/313/323/795/614454277/,FF90FF,Supraoculomotor periaqueductal gray,Su3
+843,1100,278,323,5,/997/8/343/313/323/1100/,FF90FF,Pretectal region,PRT
+844,215,26,1100,6,/997/8/343/313/323/1100/215/,FF90FF,Anterior pretectal nucleus,APN
+845,531,207,1100,6,/997/8/343/313/323/1100/531/,FF90FF,Medial pretectal area,MPT
+846,628,219,1100,6,/997/8/343/313/323/1100/628/,FF90FF,Nucleus of the optic tract,NOT
+847,634,220,1100,6,/997/8/343/313/323/1100/634/,FF90FF,Nucleus of the posterior commissure,NPC
+848,706,229,1100,6,/997/8/343/313/323/1100/706/,FF90FF,Olivary pretectal nucleus,OP
+849,1061,273,1100,6,/997/8/343/313/323/1100/1061/,FF90FF,Posterior pretectal nucleus,PPT
+850,549009203,,1100,6,/997/8/343/313/323/1100/549009203/,FF90FF,Retroparafascicular nucleus,RPF
+851,549009207,,323,5,/997/8/343/313/323/549009207/,FF90FF,Intercollicular nucleus,InCo
+852,616,76,323,5,/997/8/343/313/323/616/,FF90FF,Cuneiform nucleus,CUN
+853,214,309,323,5,/997/8/343/313/323/214/,FF90FF,Red nucleus,RN
+854,35,145,323,5,/997/8/343/313/323/35/,FF90FF,Oculomotor nucleus,III
+855,549009211,,323,5,/997/8/343/313/323/549009211/,FF90FF,Medial accesory oculomotor nucleus,MA3
+856,975,121,323,5,/997/8/343/313/323/975/,FF90FF,Edinger-Westphal nucleus,EW
+857,115,155,323,5,/997/8/343/313/323/115/,FF90FF,Trochlear nucleus,IV
+858,606826663,,323,5,/997/8/343/313/323/606826663/,FF90FF,Paratrochlear nucleus,Pa4
+859,757,377,323,5,/997/8/343/313/323/757/,FF90FF,Ventral tegmental nucleus,VTN
+860,231,28,323,5,/997/8/343/313/323/231/,FF90FF,Anterior tegmental nucleus,AT
+861,66,432,323,5,/997/8/343/313/323/66/,FF90FF,Lateral terminal nucleus of the accessory optic tract,LT
+862,75,433,323,5,/997/8/343/313/323/75/,FF90FF,Dorsal terminal nucleus of the accessory optic tract,DT
+863,58,431,323,5,/997/8/343/313/323/58/,FF90FF,Medial terminal nucleus of the accessory optic tract,MT
+864,615,925,323,5,/997/8/343/313/323/615/,FF90FF,Substantia nigra lateral part,SNl
+865,348,184,313,4,/997/8/343/313/348/,FF90FF,Midbrain behavioral state related,MBsta
+866,374,329,348,5,/997/8/343/313/348/374/,FFA6FF,Substantia nigra compact part,SNc
+867,1052,272,348,5,/997/8/343/313/348/1052/,FFA6FF,Pedunculopontine nucleus,PPN
+868,165,303,348,5,/997/8/343/313/348/165/,FFA6FF,Midbrain raphe nuclei,RAmb
+869,12,142,165,6,/997/8/343/313/348/165/12/,FFA6FF,Interfascicular nucleus raphe,IF
+870,100,153,165,6,/997/8/343/313/348/165/100/,FFA6FF,Interpeduncular nucleus,IPN
+871,607344834,,100,7,/997/8/343/313/348/165/100/607344834/,FFA6FF,Interpeduncular nucleus rostral,IPR
+872,607344838,,100,7,/997/8/343/313/348/165/100/607344838/,FFA6FF,Interpeduncular nucleus caudal,IPC
+873,607344842,,100,7,/997/8/343/313/348/165/100/607344842/,FFA6FF,Interpeduncular nucleus apical,IPA
+874,607344846,,100,7,/997/8/343/313/348/165/100/607344846/,FFA6FF,Interpeduncular nucleus lateral,IPL
+875,607344850,,100,7,/997/8/343/313/348/165/100/607344850/,FFA6FF,Interpeduncular nucleus intermediate,IPI
+876,607344854,,100,7,/997/8/343/313/348/165/100/607344854/,FFA6FF,Interpeduncular nucleus dorsomedial,IPDM
+877,607344858,,100,7,/997/8/343/313/348/165/100/607344858/,FFA6FF,Interpeduncular nucleus dorsolateral,IPDL
+878,607344862,,100,7,/997/8/343/313/348/165/100/607344862/,FFA6FF,Interpeduncular nucleus rostrolateral,IPRL
+879,197,307,165,6,/997/8/343/313/348/165/197/,FFA6FF,Rostral linear nucleus raphe,RL
+880,591,73,165,6,/997/8/343/313/348/165/591/,FFA6FF,Central linear nucleus raphe,CLI
+881,872,108,165,6,/997/8/343/313/348/165/872/,FFA6FF,Dorsal nucleus raphe,DR

@@ -1,0 +1,75 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+641,549,351,1129,4,/997/8/343/1129/549/,FF7080,Thalamus,TH
+642,864,107,549,5,/997/8/343/1129/549/864/,FF8084,Thalamus sensory-motor cortex related,DORsm
+643,637,362,864,6,/997/8/343/1129/549/864/637/,FF8084,Ventral group of the dorsal thalamus,VENT
+644,629,361,637,7,/997/8/343/1129/549/864/637/629/,FF8084,Ventral anterior-lateral complex of the thalamus,VAL
+645,685,368,637,7,/997/8/343/1129/549/864/637/685/,FF8084,Ventral medial nucleus of the thalamus,VM
+646,709,371,637,7,/997/8/343/1129/549/864/637/709/,FF8084,Ventral posterior complex of the thalamus,VP
+647,718,372,709,8,/997/8/343/1129/549/864/637/709/718/,FF8084,Ventral posterolateral nucleus of the thalamus,VPL
+648,725,373,709,8,/997/8/343/1129/549/864/637/709/725/,FF8084,Ventral posterolateral nucleus of the thalamus parvicellular part,VPLpc
+649,733,374,709,8,/997/8/343/1129/549/864/637/709/733/,FF8084,Ventral posteromedial nucleus of the thalamus,VPM
+650,741,375,709,8,/997/8/343/1129/549/864/637/709/741/,FF8084,Ventral posteromedial nucleus of the thalamus parvicellular part,VPMpc
+651,563807435,,637,7,/997/8/343/1129/549/864/637/563807435/,FF8084,Posterior triangular thalamic nucleus,PoT
+652,406,333,864,6,/997/8/343/1129/549/864/406/,FF8084,Subparafascicular nucleus,SPF
+653,414,334,406,7,/997/8/343/1129/549/864/406/414/,FF8084,Subparafascicular nucleus magnocellular part,SPFm
+654,422,335,406,7,/997/8/343/1129/549/864/406/422/,FF8084,Subparafascicular nucleus parvicellular part,SPFp
+655,609,783,864,6,/997/8/343/1129/549/864/609/,FF8084,Subparafascicular area,SPA
+656,1044,271,864,6,/997/8/343/1129/549/864/1044/,FF8084,Peripeduncular nucleus,PP
+657,1008,125,864,6,/997/8/343/1129/549/864/1008/,FF8084,Geniculate group dorsal thalamus,GENd
+658,475,200,1008,7,/997/8/343/1129/549/864/1008/475/,FF8084,Medial geniculate complex,MG
+659,1072,416,475,8,/997/8/343/1129/549/864/1008/475/1072/,FF8084,Medial geniculate complex dorsal part,MGd
+660,1079,417,475,8,/997/8/343/1129/549/864/1008/475/1079/,FF8084,Medial geniculate complex ventral part,MGv
+661,1088,418,475,8,/997/8/343/1129/549/864/1008/475/1088/,FF8084,Medial geniculate complex medial part,MGm
+662,170,162,1008,7,/997/8/343/1129/549/864/1008/170/,FF8084,Dorsal part of the lateral geniculate complex,LGd
+663,496345664,,170,8,/997/8/343/1129/549/864/1008/170/496345664/,FF8084,Dorsal part of the lateral geniculate complex shell,LGd-sh
+664,496345668,,170,8,/997/8/343/1129/549/864/1008/170/496345668/,FF8084,Dorsal part of the lateral geniculate complex core,LGd-co
+665,496345672,,170,8,/997/8/343/1129/549/864/1008/170/496345672/,FF8084,Dorsal part of the lateral geniculate complex ipsilateral zone,LGd-ip
+666,856,106,549,5,/997/8/343/1129/549/856/,FF909F,Thalamus polymodal association cortex related,DORpm
+667,138,158,856,6,/997/8/343/1129/549/856/138/,FF909F,Lateral group of the dorsal thalamus,LAT
+668,218,168,138,7,/997/8/343/1129/549/856/138/218/,FF909F,Lateral posterior nucleus of the thalamus,LP
+669,1020,268,138,7,/997/8/343/1129/549/856/138/1020/,FF909F,Posterior complex of the thalamus,PO
+670,1029,269,138,7,/997/8/343/1129/549/856/138/1029/,FF909F,Posterior limiting nucleus of the thalamus,POL
+671,325,323,138,7,/997/8/343/1129/549/856/138/325/,FF909F,Suprageniculate nucleus,SGN
+672,560581551,,138,7,/997/8/343/1129/549/856/138/560581551/,FF909F,Ethmoid nucleus of the thalamus,Eth
+673,560581555,,138,7,/997/8/343/1129/549/856/138/560581555/,FF909F,Retroethmoid nucleus,REth
+674,239,29,856,6,/997/8/343/1129/549/856/239/,FF909F,Anterior group of the dorsal thalamus,ATN
+675,255,31,239,7,/997/8/343/1129/549/856/239/255/,FF909F,Anteroventral nucleus of thalamus,AV
+676,127,15,239,7,/997/8/343/1129/549/856/239/127/,FF909F,Anteromedial nucleus,AM
+677,1096,419,127,8,/997/8/343/1129/549/856/239/127/1096/,FF909F,Anteromedial nucleus dorsal part,AMd
+678,1104,420,127,8,/997/8/343/1129/549/856/239/127/1104/,FF909F,Anteromedial nucleus ventral part,AMv
+679,64,7,239,7,/997/8/343/1129/549/856/239/64/,FF909F,Anterodorsal nucleus,AD
+680,1120,139,239,7,/997/8/343/1129/549/856/239/1120/,FF909F,Interanteromedial nucleus of the thalamus,IAM
+681,1113,138,239,7,/997/8/343/1129/549/856/239/1113/,FF909F,Interanterodorsal nucleus of the thalamus,IAD
+682,155,160,239,7,/997/8/343/1129/549/856/239/155/,FF909F,Lateral dorsal nucleus of thalamus,LD
+683,444,196,856,6,/997/8/343/1129/549/856/444/,FF909F,Medial group of the dorsal thalamus,MED
+684,59,148,444,7,/997/8/343/1129/549/856/444/59/,FF909F,Intermediodorsal nucleus of the thalamus,IMD
+685,362,186,444,7,/997/8/343/1129/549/856/444/362/,FF909F,Mediodorsal nucleus of thalamus,MD
+686,617,784,362,8,/997/8/343/1129/549/856/444/362/617/,FF909F,Mediodorsal nucleus of the thalamus central part,MDc
+687,626,785,362,8,/997/8/343/1129/549/856/444/362/626/,FF909F,Mediodorsal nucleus of the thalamus lateral part,MDl
+688,636,786,362,8,/997/8/343/1129/549/856/444/362/636/,FF909F,Mediodorsal nucleus of the thalamus medial part,MDm
+689,366,328,444,7,/997/8/343/1129/549/856/444/366/,FF909F,Submedial nucleus of the thalamus,SMT
+690,1077,275,444,7,/997/8/343/1129/549/856/444/1077/,FF909F,Perireunensis nucleus,PR
+691,571,212,856,6,/997/8/343/1129/549/856/571/,FF909F,Midline group of the dorsal thalamus,MTN
+692,149,301,571,7,/997/8/343/1129/549/856/571/149/,FF909F,Paraventricular nucleus of the thalamus,PVT
+693,15,284,571,7,/997/8/343/1129/549/856/571/15/,FF909F,Parataenial nucleus,PT
+694,181,305,571,7,/997/8/343/1129/549/856/571/181/,FF909F,Nucleus of reuniens,RE
+695,560581559,,571,7,/997/8/343/1129/549/856/571/560581559/,FF909F,Xiphoid thalamic nucleus,Xi
+696,51,147,856,6,/997/8/343/1129/549/856/51/,FF909F,Intralaminar nuclei of the dorsal thalamus,ILM
+697,189,306,51,7,/997/8/343/1129/549/856/51/189/,FF909F,Rhomboid nucleus,RH
+698,599,74,51,7,/997/8/343/1129/549/856/51/599/,FF909F,Central medial nucleus of the thalamus,CM
+699,907,254,51,7,/997/8/343/1129/549/856/51/907/,FF909F,Paracentral nucleus,PCN
+700,575,71,51,7,/997/8/343/1129/549/856/51/575/,FF909F,Central lateral nucleus of the thalamus,CL
+701,930,257,51,7,/997/8/343/1129/549/856/51/930/,FF909F,Parafascicular nucleus,PF
+702,560581563,,51,7,/997/8/343/1129/549/856/51/560581563/,FF909F,Posterior intralaminar thalamic nucleus,PIL
+703,262,315,856,6,/997/8/343/1129/549/856/262/,FF909F,Reticular nucleus of the thalamus,RT
+704,1014,126,856,6,/997/8/343/1129/549/856/1014/,FF909F,Geniculate group ventral thalamus,GENv
+705,27,144,1014,7,/997/8/343/1129/549/856/1014/27/,FF909F,Intergeniculate leaflet of the lateral geniculate complex,IGL
+706,563807439,,1014,7,/997/8/343/1129/549/856/1014/563807439/,FF909F,Intermediate geniculate nucleus,IntG
+707,178,163,1014,7,/997/8/343/1129/549/856/1014/178/,FF909F,Ventral part of the lateral geniculate complex,LGv
+708,300,461,178,8,/997/8/343/1129/549/856/1014/178/300/,FF909F,Ventral part of the lateral geniculate complex lateral zone,LGvl
+709,316,463,178,8,/997/8/343/1129/549/856/1014/178/316/,FF909F,Ventral part of the lateral geniculate complex medial zone,LGvm
+710,321,464,1014,7,/997/8/343/1129/549/856/1014/321/,FF909F,Subgeniculate nucleus,SubG
+711,958,119,856,6,/997/8/343/1129/549/856/958/,FF909F,Epithalamus,EPI
+712,483,201,958,7,/997/8/343/1129/549/856/958/483/,FF909F,Medial habenula,MH
+713,186,164,958,7,/997/8/343/1129/549/856/958/186/,FF909F,Lateral habenula,LH
+714,953,260,958,7,/997/8/343/1129/549/856/958/953/,FF909F,Pineal body,PIN

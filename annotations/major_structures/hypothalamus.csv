@@ -1,0 +1,92 @@
+﻿index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+715,1097,136,1129,4,/997/8/343/1129/1097/,E64438,Hypothalamus,HY
+716,157,302,1097,5,/997/8/343/1129/1097/157/,FF5D50,Periventricular zone,PVZ
+717,390,331,157,6,/997/8/343/1129/1097/157/390/,FF5D50,Supraoptic nucleus,SO
+718,332,465,157,6,/997/8/343/1129/1097/157/332/,FF5D50,Accessory supraoptic group,ASO
+719,432,902,332,7,/997/8/343/1129/1097/157/332/432/,FF5D50,Nucleus circularis,NC
+720,38,287,157,6,/997/8/343/1129/1097/157/38/,FF5D50,Paraventricular hypothalamic nucleus,PVH
+721,71,291,38,7,/997/8/343/1129/1097/157/38/71/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division,PVHm
+722,47,288,71,8,/997/8/343/1129/1097/157/38/71/47/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division anterior magnocellular part,PVHam
+723,79,292,71,8,/997/8/343/1129/1097/157/38/71/79/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division medial magnocellular part,PVHmm
+724,103,295,71,8,/997/8/343/1129/1097/157/38/71/103/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division posterior magnocellular part,PVHpm
+725,652,788,103,9,/997/8/343/1129/1097/157/38/71/103/652/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division posterior magnocellular part lateral zone,PVHpml
+726,660,789,103,9,/997/8/343/1129/1097/157/38/71/103/660/,FF5D50,Paraventricular hypothalamic nucleus magnocellular division posterior magnocellular part medial zone,PVHpmm
+727,94,294,38,7,/997/8/343/1129/1097/157/38/94/,FF5D50,Paraventricular hypothalamic nucleus parvicellular division,PVHp
+728,55,289,94,8,/997/8/343/1129/1097/157/38/94/55/,FF5D50,Paraventricular hypothalamic nucleus parvicellular division anterior parvicellular part,PVHap
+729,87,293,94,8,/997/8/343/1129/1097/157/38/94/87/,FF5D50,Paraventricular hypothalamic nucleus parvicellular division medial parvicellular part dorsal zone,PVHmpd
+730,110,296,94,8,/997/8/343/1129/1097/157/38/94/110/,FF5D50,Paraventricular hypothalamic nucleus parvicellular division periventricular part,PVHpv
+731,30,286,157,6,/997/8/343/1129/1097/157/30/,FF5D50,Periventricular hypothalamic nucleus anterior part,PVa
+732,118,297,157,6,/997/8/343/1129/1097/157/118/,FF5D50,Periventricular hypothalamic nucleus intermediate part,PVi
+733,223,27,157,6,/997/8/343/1129/1097/157/223/,FF5D50,Arcuate hypothalamic nucleus,ARH
+734,141,300,1097,5,/997/8/343/1129/1097/141/,FF5547,Periventricular region,PVR
+735,72,8,141,6,/997/8/343/1129/1097/141/72/,FF5547,Anterodorsal preoptic nucleus,ADP
+736,80,9,141,6,/997/8/343/1129/1097/141/80/,FF5547,Anterior hypothalamic area,AHA
+737,263,32,141,6,/997/8/343/1129/1097/141/263/,FF5547,Anteroventral preoptic nucleus,AVP
+738,272,33,141,6,/997/8/343/1129/1097/141/272/,FF5547,Anteroventral periventricular nucleus,AVPV
+739,830,103,141,6,/997/8/343/1129/1097/141/830/,FF5547,Dorsomedial nucleus of the hypothalamus,DMH
+740,668,790,830,7,/997/8/343/1129/1097/141/830/668/,FF5547,Dorsomedial nucleus of the hypothalamus anterior part,DMHa
+741,676,791,830,7,/997/8/343/1129/1097/141/830/676/,FF5547,Dorsomedial nucleus of the hypothalamus posterior part,DMHp
+742,684,792,830,7,/997/8/343/1129/1097/141/830/684/,FF5547,Dorsomedial nucleus of the hypothalamus ventral part,DMHv
+743,452,197,141,6,/997/8/343/1129/1097/141/452/,FF5547,Median preoptic nucleus,MEPO
+744,523,206,141,6,/997/8/343/1129/1097/141/523/,FF5547,Medial preoptic area,MPO
+745,763,236,141,6,/997/8/343/1129/1097/141/763/,FF5547,Vascular organ of the lamina terminalis,OV
+746,914,255,141,6,/997/8/343/1129/1097/141/914/,FF5547,Posterodorsal preoptic nucleus,PD
+747,1109,279,141,6,/997/8/343/1129/1097/141/1109/,FF5547,Parastrial nucleus,PS
+748,1124,281,141,6,/997/8/343/1129/1097/141/1124/,FF5547,Suprachiasmatic preoptic nucleus,PSCH
+749,126,298,141,6,/997/8/343/1129/1097/141/126/,FF5547,Periventricular hypothalamic nucleus posterior part,PVp
+750,133,299,141,6,/997/8/343/1129/1097/141/133/,FF5547,Periventricular hypothalamic nucleus preoptic part,PVpo
+751,347,467,141,6,/997/8/343/1129/1097/141/347/,FF5547,Subparaventricular zone,SBPV
+752,286,318,141,6,/997/8/343/1129/1097/141/286/,FF5547,Suprachiasmatic nucleus,SCH
+753,338,466,141,6,/997/8/343/1129/1097/141/338/,FF5547,Subfornical organ,SFO
+754,576073699,,141,6,/997/8/343/1129/1097/141/576073699/,FF5547,Ventromedial preoptic nucleus,VMPO
+755,689,793,141,6,/997/8/343/1129/1097/141/689/,FF5547,Ventrolateral preoptic nucleus,VLPO
+756,467,199,1097,5,/997/8/343/1129/1097/467/,FF4C3E,Hypothalamic medial zone,MEZ
+757,88,10,467,6,/997/8/343/1129/1097/467/88/,FF4C3E,Anterior hypothalamic nucleus,AHN
+758,700,794,88,7,/997/8/343/1129/1097/467/88/700/,FF4C3E,Anterior hypothalamic nucleus anterior part,AHNa
+759,708,795,88,7,/997/8/343/1129/1097/467/88/708/,FF4C3E,Anterior hypothalamic nucleus central part,AHNc
+760,716,796,88,7,/997/8/343/1129/1097/467/88/716/,FF4C3E,Anterior hypothalamic nucleus dorsal part,AHNd
+761,724,797,88,7,/997/8/343/1129/1097/467/88/724/,FF4C3E,Anterior hypothalamic nucleus posterior part,AHNp
+762,331,182,467,6,/997/8/343/1129/1097/467/331/,FF4C3E,Mammillary body,MBO
+763,210,167,331,7,/997/8/343/1129/1097/467/331/210/,FF4C3E,Lateral mammillary nucleus,LM
+764,491,202,331,7,/997/8/343/1129/1097/467/331/491/,FF4C3E,Medial mammillary nucleus,MM
+765,732,798,491,8,/997/8/343/1129/1097/467/331/491/732/,FF4C3E,Medial mammillary nucleus median part,Mmme
+766,606826647,,491,8,/997/8/343/1129/1097/467/331/491/606826647/,FF4C3E,Medial mammillary nucleus lateral part,Mml
+767,606826651,,491,8,/997/8/343/1129/1097/467/331/491/606826651/,FF4C3E,Medial mammillary nucleus medial part,Mmm
+768,606826655,,491,8,/997/8/343/1129/1097/467/331/491/606826655/,FF4C3E,Medial mammillary nucleus posterior part,Mmp
+769,606826659,,491,8,/997/8/343/1129/1097/467/331/491/606826659/,FF4C3E,Medial mammillary nucleus dorsal part,Mmd
+770,525,348,331,7,/997/8/343/1129/1097/467/331/525/,FF4C3E,Supramammillary nucleus,SUM
+771,1110,421,525,8,/997/8/343/1129/1097/467/331/525/1110/,FF4C3E,Supramammillary nucleus lateral part,SUMl
+772,1118,422,525,8,/997/8/343/1129/1097/467/331/525/1118/,FF4C3E,Supramammillary nucleus medial part,SUMm
+773,557,352,331,7,/997/8/343/1129/1097/467/331/557/,FF4C3E,Tuberomammillary nucleus,TM
+774,1126,423,557,8,/997/8/343/1129/1097/467/331/557/1126/,FF4C3E,Tuberomammillary nucleus dorsal part,TMd
+775,1,424,557,8,/997/8/343/1129/1097/467/331/557/1/,FF4C3E,Tuberomammillary nucleus ventral part,TMv
+776,515,205,467,6,/997/8/343/1129/1097/467/515/,FF4C3E,Medial preoptic nucleus,MPN
+777,740,799,515,7,/997/8/343/1129/1097/467/515/740/,FF4C3E,Medial preoptic nucleus central part,MPNc
+778,748,800,515,7,/997/8/343/1129/1097/467/515/748/,FF4C3E,Medial preoptic nucleus lateral part,MPNl
+779,756,801,515,7,/997/8/343/1129/1097/467/515/756/,FF4C3E,Medial preoptic nucleus medial part,MPNm
+780,980,263,467,6,/997/8/343/1129/1097/467/980/,FF4C3E,Dorsal premammillary nucleus,PMd
+781,1004,266,467,6,/997/8/343/1129/1097/467/1004/,FF4C3E,Ventral premammillary nucleus,PMv
+782,63,290,467,6,/997/8/343/1129/1097/467/63/,FF4C3E,Paraventricular hypothalamic nucleus descending division,PVHd
+783,439,903,63,7,/997/8/343/1129/1097/467/63/439/,FF4C3E,Paraventricular hypothalamic nucleus descending division dorsal parvicellular part,PVHdp
+784,447,904,63,7,/997/8/343/1129/1097/467/63/447/,FF4C3E,Paraventricular hypothalamic nucleus descending division forniceal part,PVHf
+785,455,905,63,7,/997/8/343/1129/1097/467/63/455/,FF4C3E,Paraventricular hypothalamic nucleus descending division lateral parvicellular part,PVHlp
+786,464,906,63,7,/997/8/343/1129/1097/467/63/464/,FF4C3E,Paraventricular hypothalamic nucleus descending division medial parvicellular part ventral zone,PVHmpv
+787,693,369,467,6,/997/8/343/1129/1097/467/693/,FF4C3E,Ventromedial hypothalamic nucleus,VMH
+788,761,802,693,7,/997/8/343/1129/1097/467/693/761/,FF4C3E,Ventromedial hypothalamic nucleus anterior part,VMHa
+789,769,803,693,7,/997/8/343/1129/1097/467/693/769/,FF4C3E,Ventromedial hypothalamic nucleus central part,VMHc
+790,777,804,693,7,/997/8/343/1129/1097/467/693/777/,FF4C3E,Ventromedial hypothalamic nucleus dorsomedial part,VMHdm
+791,785,805,693,7,/997/8/343/1129/1097/467/693/785/,FF4C3E,Ventromedial hypothalamic nucleus ventrolateral part,VMHvl
+792,946,259,467,6,/997/8/343/1129/1097/467/946/,FF4C3E,Posterior hypothalamic nucleus,PH
+793,290,177,1097,5,/997/8/343/1129/1097/290/,F2483B,Hypothalamic lateral zone,LZ
+794,194,165,290,6,/997/8/343/1129/1097/290/194/,F2483B,Lateral hypothalamic area,LHA
+795,226,169,290,6,/997/8/343/1129/1097/290/226/,F2483B,Lateral preoptic area,LPO
+796,356,468,290,6,/997/8/343/1129/1097/290/356/,F2483B,Preparasubthalamic nucleus,PST
+797,364,469,290,6,/997/8/343/1129/1097/290/364/,F2483B,Parasubthalamic nucleus,PSTN
+798,576073704,,290,6,/997/8/343/1129/1097/290/576073704/,F2483B,Perifornical nucleus,PeF
+799,173,304,290,6,/997/8/343/1129/1097/290/173/,F2483B,Retrochiasmatic area,RCH
+800,470,341,290,6,/997/8/343/1129/1097/290/470/,F2483B,Subthalamic nucleus,STN
+801,614,359,290,6,/997/8/343/1129/1097/290/614/,F2483B,Tuberal nucleus,TU
+802,797,382,290,6,/997/8/343/1129/1097/290/797/,F2483B,Zona incerta,ZI
+803,796,806,797,7,/997/8/343/1129/1097/290/797/796/,F2483B,Dopaminergic A13 group,A13
+804,804,807,797,7,/997/8/343/1129/1097/290/797/804/,F2483B,Fields of Forel,FF
+805,10671,,1097,5,/997/8/343/1129/1097/10671/,F2483B,Median eminence,ME
