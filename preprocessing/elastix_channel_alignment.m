@@ -40,7 +40,7 @@ upperThresh = config.upperThresh;
 
 % Paths to elastix parameter files
 % Chose transform parameters. Use 32 bin parameters by default
-parameterDir = fullfile(home_path,'elastix_parameter_files');
+parameterDir = fullfile(home_path,'utils','elastix_parameter_files','channel_alignment');
 transform_path_init = fullfile(parameterDir,'parameters_Translation_3D_init.txt');
 transform_path1 = cell(1,length(markers)-1); transform_path2 = transform_path1;
 outputDir = transform_path1;
@@ -232,14 +232,12 @@ else
         end 
     end
     
-    mask = generate_sampling_mask(I{1},mask_int_threshold,lowerThresh,upperThresh);
-
     % Generate mask using reference channel
     if isempty(config.align_slices)
         mask = generate_sampling_mask(I{1},mask_int_threshold,lowerThresh,upperThresh);
     else
-        %mask = zeros(size(I{1}));
-        %mask(:,:,chunk_start_adj(1):chunk_end_adj(1)) = 1;
+        mask = zeros(size(I{1}));
+        mask(:,:,chunk_start_adj(1):chunk_end_adj(1)) = 1;
         %disp(z_range_save)
         %disp(size(mask))
         %disp(sum(mask(:)))
@@ -289,8 +287,8 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
         mask_chunk = mask(:,:,chunk_start_adj(i):chunk_end_adj(i));
         
         % Clip the bottom and top sections in padded regions
-        %mask_chunk(:,:,1:chunk_pad-1) = 0;
-        %mask_chunk(:,:,size(mask_chunk,3)-chunk_pad-1:size(mask_chunk,3)) = 0;
+        mask_chunk(:,:,1:chunk_pad-1) = 0;
+        mask_chunk(:,:,size(mask_chunk,3)-chunk_pad-1:size(mask_chunk,3)) = 0;
         
         % Take chunk images from reference channel
         I_ref = I{1}(:,:,chunk_start_adj(i):chunk_end_adj(i));

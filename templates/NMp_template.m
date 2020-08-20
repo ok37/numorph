@@ -7,15 +7,16 @@ function NMp_variables
 % Set flags to indicate how/whether to run process
 use_processed_images = "false";         % Use images from aligned 		
 
-adjust_intensity = "load";              % true, update, load, false. Intensity adjustment measurements should be performed on raw images!
-stitch_img = "load";                    % true, load, false
-channel_alignment = "elastix";          % elastix, translation, false
-load_alignment_params = "true";         % true, false. Align using previosuly calculated alignment parameters
-
+adjust_intensity = "load";               % true, update, load, false. Intensity adjustment measurements should be performed on raw images!
 adjust_ls_width = "false";               % true, false. Adjust for light-sheet width
 adjust_tile_intensity = "true";          % true, false. Adjust between tile differences
 shading_correction = "true";             % true, false. Perform shading correction using BaSIC algorithm
 rescale_intensities = "false";           % true, false. Rescaling intensities and applying gamma 
+
+channel_alignment = "elastix";          % elastix, translation, false
+load_alignment_params = "update";         % true, update, false. True: apply previously caculated parameters. Update: update alignment for certain regions
+
+stitch_img = "load";                    % true, load, false
 
 use_parallel = "true";                   % true, false
 number_of_cores = 14;                    % set max to either the number of cores available or the number of tiles. Set to 1 for no parallel processing
@@ -26,7 +27,7 @@ z_initial = [0 0 0];                    % Predicted initial z displacement betwe
 
 align_tiles = [8];                       % Option to align only certain stacks and not all stacks. Row-major order
 align_channels = [3];
-align_chunks = [];
+align_chunks = [1];
 align_slices = {};
 h_bins = [32 16];                       % Elastix alignment histogram bins
 mask_int_threshold = 0.06;              % Mask intensity threshold for choosing signal pixels in elastix channel alignment

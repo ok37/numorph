@@ -15,12 +15,12 @@
 (Optimizer "AdaptiveStochasticGradientDescent")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (Resampler "DefaultResampler")
-(Transform "BSplineTransform")
+(Transform "RecursiveBSplineTransform")
 
 (ErodeMask "false" )
 
 (NumberOfResolutions 3)
-(FinalGridSpacingInVoxels 25.000000 25.000000 25.000000)
+(FinalGridSpacingInVoxels 20.000000 20.000000 20.000000)
 
 (HowToCombineTransforms "Compose")
 (AutomaticScalesEstimation "true")
@@ -50,17 +50,17 @@
 //Number of spatial samples used to compute the mutual information in each resolution level:
 (ImageSampler "RandomCoordinate")
 (FixedImageBSplineInterpolationOrder 1)
-(NumberOfSpatialSamples 2000 )
+(NumberOfSpatialSamples 2000)
 (NewSamplesEveryIteration "true")
 (CheckNumberOfSamples "true")
 (MaximumNumberOfSamplingAttempts 10)
-//(MaximumStepLength 1.0)
+(MaximumStepLength 1.0)
 
 //Order of B-Spline interpolation used in each resolution level:
 (BSplineInterpolationOrder 3)
 
 //Order of B-Spline interpolation used for applying the final deformation:
-(FinalBSplineInterpolationOrder 3)
+(FinalBSplineInterpolationOrder 5)
 
 //Default pixel value for pixels that come from outside the picture:
 (DefaultPixelValue 0)

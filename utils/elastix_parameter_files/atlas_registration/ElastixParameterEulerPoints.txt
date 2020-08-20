@@ -7,7 +7,7 @@
 (MovingImageDimension 3)
 
 //Components
-(Transform "AffineTransform")
+(Transform "SimilarityTransform")
 
 (Registration "MultiMetricMultiResolutionRegistration")
 (FixedImagePyramid "FixedSmoothingImagePyramid")
@@ -15,15 +15,15 @@
 
 (Interpolator "BSplineInterpolator" "LinearInterpolator")
 (Metric "PolydataDummyPenalty" "CorrespondingPointsEuclideanDistanceMetric")
-(Metric0Weight 0 0 0 0) //AMMI
-(Metric1Weight 1 1 1 1) //Points
+(Metric0Weight 0 0 0) //AMMI
+(Metric1Weight 1 1 1) //Points
 
 (Optimizer "StandardGradientDescent")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (Resampler "DefaultResampler")
 
 (ErodeMask "false" )
-(NumberOfResolutions 4)
+(NumberOfResolutions 3)
 
 (HowToCombineTransforms "Compose")
 (AutomaticTransformInitialization "true")
@@ -60,7 +60,7 @@
 (MaximumNumberOfSamplingAttempts 10)
 
 //Order of B-Spline interpolation used in each resolution level:
-(BSplineInterpolationOrder 3)
+(BSplineInterpolationOrder 1)
 
 //Order of B-Spline interpolation used for applying the final deformation:
 (FinalBSplineInterpolationOrder 3)

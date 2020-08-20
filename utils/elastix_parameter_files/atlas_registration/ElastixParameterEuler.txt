@@ -13,11 +13,11 @@
 (FixedImagePyramid "FixedSmoothingImagePyramid")
 (MovingImagePyramid "MovingSmoothingImagePyramid")
 (Interpolator "BSplineInterpolator")
-(Metric "DisplacementMagnitudePenalty")
+(Metric "AdvancedMattesMutualInformation")
 (Optimizer "AdaptiveStochasticGradientDescent")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (Resampler "DefaultResampler")
-(Transform "AffineTransform")
+(Transform "EulerTransform")
 
 (ErodeMask "true" )
 
@@ -37,7 +37,7 @@
 (ShowExactMetricValue "false")
 
 //Maximum number of iterations in each resolution level:
-(MaximumNumberOfIterations 500 ) 
+(MaximumNumberOfIterations 2000) 
 
 //Number of grey level bins in each resolution level:
 (NumberOfHistogramBins 64)
@@ -50,13 +50,13 @@
 (ImageSampler "RandomCoordinate")
 (FixedImageBSplineInterpolationOrder 3)
 (UseRandomSampleRegion "false")
-(NumberOfSpatialSamples 4000 )
+(NumberOfSpatialSamples 2000 )
 (NewSamplesEveryIteration "true")
 (CheckNumberOfSamples "true")
 (MaximumNumberOfSamplingAttempts 10)
 
 //Order of B-Spline interpolation used in each resolution level:
-(BSplineInterpolationOrder 3)
+(BSplineInterpolationOrder 1)
 
 //Order of B-Spline interpolation used for applying the final deformation:
 (FinalBSplineInterpolationOrder 3)
@@ -65,6 +65,6 @@
 (DefaultPixelValue 0)
 
 //SP: Param_A in each resolution level. a_k = a/(A+k+1)^alpha
-(SP_A 20.0 )
+(SP_A 20.0)
 
 

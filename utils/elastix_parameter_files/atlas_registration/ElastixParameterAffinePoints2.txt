@@ -7,53 +7,54 @@
 (MovingImageDimension 3)
 
 //Components
+(Transform "AffineTransform")
+
 (Registration "MultiMetricMultiResolutionRegistration")
-(FixedImagePyramid "FixedSmoothingImagePyramid" "FixedSmoothingImagePyramid")
-(MovingImagePyramid "MovingSmoothingImagePyramid" "MovingSmoothingImagePyramid")
+(FixedImagePyramid "FixedSmoothingImagePyramid")
+(MovingImagePyramid "MovingSmoothingImagePyramid")
+
 (Interpolator "BSplineInterpolator" "LinearInterpolator")
-(Metric "AdvancedMattesMutualInformation"  "CorrespondingPointsEuclideanDistanceMetric")
-(Metric0Weight 0 1 1) //AMMI
-(Metric1Weight 1 1 0.5) //Points
+(Metric "PolydataDummyPenalty" "CorrespondingPointsEuclideanDistanceMetric")
+(Metric0Weight 0 0 0) //AMMI
+(Metric1Weight 1 1 1) //Points
 
 (Optimizer "StandardGradientDescent")
 (ResampleInterpolator "FinalBSplineInterpolator")
 (Resampler "DefaultResampler")
-(Transform "BSplineTransform")
 
 (ErodeMask "false" )
-
 (NumberOfResolutions 3)
-(FinalGridSpacingInVoxels 25.000000 25.000000 25.000000)
 
 (HowToCombineTransforms "Compose")
+(AutomaticTransformInitialization "true")
 (AutomaticScalesEstimation "true")
 
-// Writing images and parameters
 (WriteTransformParametersEachIteration "false")
 (WriteResultImage "true")
 (CompressResultImage "false")
 (WriteResultImageAfterEachResolution "false")
 (ResultImagePixelType "float")
 (ResultImageFormat "mhd")
-(WriteDiffusionFiles "true")
+(WriteDiffusionFiles "false")
+(ShowExactMetricValue "false")
 
 // Option supported in elastix 4.1:
 (UseFastAndLowMemoryVersion "true")
 
 //Maximum number of iterations in each resolution level:
-(MaximumNumberOfIterations 4000) 
+(MaximumNumberOfIterations 500) 
 
 //Number of grey level bins in each resolution level:
-(NumberOfHistogramBins 32)
-(FixedLimitRangeRatio 0)
-(MovingLimitRangeRatio 0)
+(NumberOfHistogramBins 64)
+(FixedLimitRangeRatio 0.0)
+(MovingLimitRangeRatio 0.0)
 (FixedKernelBSplineOrder 3)
 (MovingKernelBSplineOrder 3)
 
 //Number of spatial samples used to compute the mutual information in each resolution level:
 (ImageSampler "RandomCoordinate")
-(FixedImageBSplineInterpolationOrder 1)
-(NumberOfSpatialSamples 5000 )
+(FixedImageBSplineInterpolationOrder 3)
+(NumberOfSpatialSamples 2000)
 (NewSamplesEveryIteration "true")
 (CheckNumberOfSamples "true")
 (MaximumNumberOfSamplingAttempts 10)
@@ -67,5 +68,6 @@
 //Default pixel value for pixels that come from outside the picture:
 (DefaultPixelValue 0)
 
-//SP: Param_alpha in each resolution level. a_k = a/(A+k+1)^alpha
-(SP_alpha 0.6)
+//SP: Param_A in each resolution level. a_k = a/(A+k+1)^alpha
+(SP_A 20.0)
+
