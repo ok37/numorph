@@ -141,7 +141,7 @@ elseif isequal(config.adjust_intensity,"load")
     % Load adjustment parameters from output directory and use as is  
     fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
     load(fullfile(output_directory,'variables','adj_params.mat'))
-    [adj_params, config, lowerThresh, upperThresh] = check_adj_parameters(adj_params,config);
+    [adj_params, config] = check_adj_parameters(adj_params,config);
     config.adj_params = adj_params;
     config.adjust_intensity = "true";
         

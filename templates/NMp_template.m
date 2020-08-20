@@ -25,7 +25,7 @@ align_stepsize = 10;                    % Only for alignment by translation. Num
 z_initial = [0 0 0];                    % Predicted initial z displacement between channels (lasers)
 
 align_tiles = [8];                       % Option to align only certain stacks and not all stacks. Row-major order
-align_channels = [];
+align_channels = [3];
 align_chunks = [];
 align_slices = {};
 h_bins = [32 16];                       % Elastix alignment histogram bins

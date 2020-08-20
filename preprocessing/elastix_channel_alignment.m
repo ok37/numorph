@@ -71,7 +71,7 @@ histogram_bins = [0 0 128]; %Match histogram bins to reference channel? If so, s
 if isequal(config.load_alignment_params,"true") || isequal(config.load_alignment_params,"update")
    fprintf("%s\t Loading previous registration parameters \n",datetime('now'))
     if ~isequal(exist(fullfile(output_directory,'variables',sprintf('out_0%d_0%d.mat',y,x)),'file'),2)
-        error('%s\t Could not locate elastix parameters in variables folder \n',datetime('now'))
+        error("%s\t Could not locate elastix parameters in variables folder \n")
     else
         load(fullfile(output_directory,'variables',sprintf('out_0%d_0%d.mat',y,x)), 'out')
     end

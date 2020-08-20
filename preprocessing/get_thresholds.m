@@ -2,6 +2,9 @@ function [lowerThresh, upperThresh] = get_thresholds(stack,config)
 %--------------------------------------------------------------------------
 % Get thresholds without creating a structure for intensity adjustments
 %--------------------------------------------------------------------------
+
+% Needs updating. This procedure doesn't match measure_images
+
 low_prct = 5;   % Low percentile for sampling background pixels
 high_prct = 95; % High percentile for sampling bright pixels
 image_sampling = 0.02;   % Fraction of all images to sample
