@@ -31,6 +31,8 @@ end
 if isequal(config.use_processed_images,"true")
     % Default read images from aligned directory
     img_directory = fullfile(output_directory,"aligned");
+    config.channel_alignment = "false";
+    channel_alignment = "false";
 end
 
 path_cell = {};

@@ -2,9 +2,21 @@ function [img] = check_alignment(config, ranges, markers, spacing)
 %--------------------------------------------------------------------------
 % Check image alignment of channels
 %--------------------------------------------------------------------------
+% Inputs:
+% config - config structure from NM_process.
+%
+% ranges - 1x2 or 1x3 cell array containing tile row and column. 3d value
+% can be a range of slices in the slices (e.g. 1:100).
+%
+% markers - (optional) string array containing which markers to produce
+% images for. Can also also specify as numeric for marker number.
+%
+% spacing - (optional) 1x3 double for the amount of downsampling for each
+% dimension.
 
 if ~iscell(ranges)
-    error("Second input should be cell array of x,y,z positions\n")
+    error("Second input should be 1x2 cell array containing tile row, column position. "+...
+        "Optional 3rd cell array input to subset a range of tile slices. \n")
 end
 
 if nargin<3

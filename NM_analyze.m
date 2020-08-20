@@ -5,8 +5,8 @@
 %segmentation is perfomed using a trained convolutional neural network
 %named RANI to quanitfy cells in a given region. 
 
-load 'TCa_variables.mat'
-config = load(fullfile(pwd,'TCa_variables.mat'));
+load 'NMa_variables.mat'
+config = load(fullfile(pwd,'NMa_variables.mat'));
 
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
