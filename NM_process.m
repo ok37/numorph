@@ -6,8 +6,8 @@
 %following steps.
 clear
 % Load configuration from .mat file
-load('NMp_variables.mat');
-config = load(fullfile(pwd,'NMp_variables.mat'));
+load(fullfile('templates','NMp_variables.mat'));
+config = load(fullfile('templates','NMp_variables.mat'));
 
 img_directory = config.img_directory;
 output_directory = config.output_directory;
@@ -29,8 +29,9 @@ end
 %% Read image filename information
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if isequal(config.use_processed_images,"true")
+    % Default read images from aligned directory
+    img_directory = fullfile(output_directory,"aligned");
 end
-
 
 path_cell = {};
 if isequal(img_directory,fullfile(output_directory,'aligned'))
@@ -39,14 +40,12 @@ if isequal(img_directory,fullfile(output_directory,'aligned'))
     path_cell{1} = dir(img_directory);
     location = "aligned";
     path_table = path_to_table(path_cell,location,markers,channel_num,sample_name);
-
 elseif isequal(img_directory, fullfile(output_directory,'stitched'))
     % Start from after stitching
     fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
     path_cell{1} = dir(img_directory);
     location = "stitched";
     path_table = path_to_table(path_cell,location,markers,channel_num,sample_name);
-    
 else
     %Start from raw image directory
     fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))

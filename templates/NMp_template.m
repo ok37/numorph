@@ -67,6 +67,6 @@ dog = [];                                               % Apply difference of ga
 addpath(genpath('..'))
 home_path = fileparts(which('NM_process.m'));
 cd(home_path)
-save -mat NMp_variables.mat
+save(fullfile('templates', 'NMp_variables.mat','-mat'))
 
 end

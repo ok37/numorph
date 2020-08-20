@@ -15,14 +15,14 @@ upperThresh = config.upperThresh;
 
 % If empty, set to predicted threshold values
 if isempty(lowerThresh)
-    fprintf('%s\t Using measured lowerThresh of %s \n',datetime('now'),num2str(lowerThresh_measured));
+    fprintf('%s\t Using measured lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh_measured*65535)));
     adj_params.lowerThresh = lowerThresh_measured/65535;
 else
     adj_params.lowerThresh = lowerThresh/65535;
 end
 
 if isempty(upperThresh)
-    fprintf('%s\t Using measured upperThresh of %s \n',datetime('now'),num2str(upperThresh_measured));    
+    fprintf('%s\t Using measured upperThresh of %s \n',datetime('now'),num2str(round(upperThresh_measured*65535)));    
     adj_params.upperThresh = upperThresh_measured/65535;
 else
     adj_params.upperThresh = upperThresh/65535;

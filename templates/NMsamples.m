@@ -106,5 +106,5 @@ switch sample
 end
 
 % Append sample info to variable structure
-save('NMp_variables.mat','-mat','-append')
+save(fullfile('templates','NMp_variables.mat'),'-mat','-append')
 end
