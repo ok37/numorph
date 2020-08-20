@@ -6,7 +6,6 @@ function [adj_params, config, lowerThresh, upperThresh] = check_adj_parameters(a
 if nargin <3
     lowerThresh_measured = adj_params.lowerThresh;
     upperThresh_measured = adj_params.upperThresh;
-    gamma = [];
 end
         
 % Check for user-defined intensity threshold values
@@ -16,14 +15,16 @@ upperThresh = config.upperThresh;
 % If empty, set to predicted threshold values
 if isempty(lowerThresh)
     fprintf('%s\t Using measured lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh_measured*65535)));
-    adj_params.lowerThresh = lowerThresh_measured/65535;
+    adj_params.lowerThresh = lowerThresh_measured;
+    config.lowerThresh = lowerThresh_measured;
 else
     adj_params.lowerThresh = lowerThresh/65535;
 end
 
 if isempty(upperThresh)
     fprintf('%s\t Using measured upperThresh of %s \n',datetime('now'),num2str(round(upperThresh_measured*65535)));    
-    adj_params.upperThresh = upperThresh_measured/65535;
+    adj_params.upperThresh = upperThresh_measured;
+    config.upperThresh = upperThresh_measured;
 else
     adj_params.upperThresh = upperThresh/65535;
 end

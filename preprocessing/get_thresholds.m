@@ -1,4 +1,11 @@
 function [lowerThresh, upperThresh] = get_thresholds(stack,config)
+%--------------------------------------------------------------------------
+% Get thresholds without creating a structure for intensity adjustments
+%--------------------------------------------------------------------------
+low_prct = 5;   % Low percentile for sampling background pixels
+high_prct = 95; % High percentile for sampling bright pixels
+image_sampling = 0.02;   % Fraction of all images to sample
+
 % Get upper and lower intensity thresholds from a small subset of images in
 % a stack
 overlap = config.overlap;
@@ -9,8 +16,9 @@ y_tiles = length(unique(stack.y));
 %Count number of images and measure image dimensions
 nb_images = height(stack)/(x_tiles*y_tiles);
 
-%Take 10% of images
-img_range = 1:20:nb_images;
+% Get image positions
+s = round(image_sampling*nb_images);
+img_range = round(linspace(1,nb_images,s));
 overlaps = length(img_range)*((x_tiles-1)*(y_tiles)+(y_tiles-1)*(x_tiles));
 
 %Read image size
@@ -86,10 +94,3 @@ lowerThresh = round(median(p_low)+1*median(stdev));
 upperThresh = min(prctile(p_high,90),65535);
 
 end
-    
-    
-
-
-
-
-

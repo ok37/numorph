@@ -30,8 +30,8 @@ tempI = imread(stack.file{1});
 pad_h = round(pads*ncols*overlap);
 pad_v = round(pads*nrows*overlap);
 
-%Determine overlap region
-%Horizontal image overlap regions
+% Determine overlap region
+% Horizontal image overlap regions
 overlap_min_c = 1:round(ncols*overlap)-pad_h;
 overlap_max_c = ncols-round(ncols*overlap)+1:ncols-pad_h;
 overlap_min_h = {[1,nrows],[1,overlap_min_c(end)]};
