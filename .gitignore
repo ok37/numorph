@@ -1,0 +1,6 @@
+.DS_Store
+*.tif
+*.tiff
+*.nii
+*.nrrd
+
