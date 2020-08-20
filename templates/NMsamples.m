@@ -106,5 +106,5 @@ switch sample
 end
 
 % Append sample info to variable structure
-save('TCp_variables.mat','-mat','-append')
+save('NMp_variables.mat','-mat','-append')
 end

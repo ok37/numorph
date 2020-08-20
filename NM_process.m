@@ -6,8 +6,8 @@
 %following steps.
 clear
 % Load configuration from .mat file
-load('TCp_variables.mat');
-config = load(fullfile(pwd,'TCp_variables.mat'));
+load('NMp_variables.mat');
+config = load(fullfile(pwd,'NMp_variables.mat'));
 
 img_directory = config.img_directory;
 output_directory = config.output_directory;
@@ -28,7 +28,8 @@ end
 
 %% Read image filename information
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(config.use_processed_images,"true") && 
+if isequal(config.use_processed_images,"true")
+end
 
 
 path_cell = {};

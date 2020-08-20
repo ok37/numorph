@@ -25,12 +25,12 @@ align_stepsize = 10;                    % Only for alignment by translation. Num
 z_initial = [0 0 0];                    % Predicted initial z displacement between channels (lasers)
 
 align_tiles = [8];                       % Option to align only certain stacks and not all stacks. Row-major order
-align_channels = [];                     % Option to align only certain channels to the reference.
-align_chunks = [];                       % Option to align only certain chunks (groups of slices) to the reference
-align_slices = {};                       % Cell array: option to align only certain slice position. Currently lacks capability to save transform parameters calculated using this option
-h_bins = [32 16];                        % Elastix alignment histogram bins
-mask_int_threshold = 0.06;               % Mask intensity threshold for choosing signal pixels in elastix channel alignment
-resample_s = [3 3 1];                    spot% Amount of downsampling for elastix channel alignment 
+align_channels = [];
+align_chunks = [];
+align_slices = {};
+h_bins = [32 16];                       % Elastix alignment histogram bins
+mask_int_threshold = 0.06;              % Mask intensity threshold for choosing signal pixels in elastix channel alignment
+resample_s = [3 3 1];                   % Amount of downsampling for elastix channel alignment 
 
 save_aligned_images = "true";           % true or false. If using elastix, images must be saved prior to stitching
 
@@ -65,8 +65,8 @@ dog = [];                                               % Apply difference of ga
 
 %% Save variables and run
 addpath(genpath('..'))
-home_path = fileparts(which('TC_process.m'));
+home_path = fileparts(which('NM_process.m'));
 cd(home_path)
-save -mat TCp_variables.mat
+save -mat NMp_variables.mat
 
 end
