@@ -1,8 +1,3 @@
-NMa_variables
-NMsamples(sample)
-NM_analyze
-
-function NMa_variables
 %% Template to run NuMorph analysis steps
 % Set flags as logical to indicate whether to run process
 use_processed_images = "stitched";         % Name of processed image directory (e.g. aligned, stitched). Otherwise set to false 		
@@ -18,7 +13,7 @@ count_colocalized = "false";          % gmm, threshold
 save_counts = "true";             % true, false, overwrite 
 
 %% Resampling Parameters
-resample_markers = 1:3;          % Specify which channels to resample. Only reference channel 1 needed for registration
+resample_markers = 1:3;        % Specify which channels to resample. Only reference channel 1 needed for registration
 resample_res = [25,25,25];     % Resolution to resample to. Should match resolution of ARA reference
 
 %% Registration Parameters
@@ -60,10 +55,29 @@ split_markers = "false";             % Run GMM seperately for each marker
 %% Do not edit these remaining lines
 %--------------------------------------------------------------------------
 % Save variables and run
-addpath(genpath('..'))
+temp_path = fileparts(which('NMa_template'));
+addpath(genpath(fullfile(temp_path,'..')))
 home_path = fileparts(which('NM_analyze.m'));
 cd(home_path)
 save(fullfile('templates', 'NM_variables.mat'),'-mat')
+
+% Load and append sample info
+if exist('sample','var') == 1
+    [img_directory, output_directory] = NMsamples(sample);
+else
+    clear
+    error("Sample information is unspecified. Set 'sample' variable.")
+end
+
+% Update image directory if using processed images
+if ~isequal(use_processed_images,"false")
+    img_directory = fullfile(output_directory,use_processed_images);
+    if ~exist(img_directory,'dir')
+        error("Could not locate processed image directory %s\n",img_directory)
+    else
+        save(fullfile('templates','NM_variables.mat'),'img_directory','-mat','-append')
+    end
+end
 
 % Make an output directory
 if exist(output_directory,'dir') ~= 7
@@ -75,12 +89,11 @@ if exist(fullfile(output_directory,'variables'),'dir') ~= 7
     mkdir(fullfile(output_directory,'variables'))
 end
 
-% Update image directory if using processed images
-if ~isequal(use_processed_images,"false")
-    img_directory = fullfile(output_directory,use_processed_images);
-    if ~exist(img_directory,'dir')
-        error("Could not locate processed image directory %s\n",img_directory)
-    end
-end
-
+% Run analysis
+clear
+if exist('run_analysis','var') == 1 && run_analysis
+    NM_analyze
+else
+    load 'NM_variables.mat'
+    config = load(fullfile('templates','NM_variables.mat'));
 end

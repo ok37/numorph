@@ -15,8 +15,8 @@ if [ -n "${SAMPLE1}" ]; then
 #  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE2'; run ./templates/NMa_template.m; exit;"
 #  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE3'; run ./templates/NMa_template.m; exit;"
 #  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE4'; run ./templates/NMa_template.m; exit;"
-  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE5',run=true" ; run ./templates/NMa_template.m; exit;"
-  #matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE6'; run ./templates/NMa_template.m; exit;"
+  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE5';run_analysis=true; run ./templates/NMa_template.m; exit;"
+#  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE6'; run ./templates/NMa_template.m; exit;"
 #  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE7'; run ./templates/NMa_template.m; exit;"
 #  matlab -nodesktop -nodisplay -nosplash -r "sample='$SAMPLE8'; run ./templates/NMa_template.m; exit;"
 

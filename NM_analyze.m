@@ -7,29 +7,7 @@
 
 load 'NM_variables.mat'
 config = load(fullfile('templates','NM_variables.mat'));
-
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
-
-%% Create directories and logs
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Make an output directory
-if exist(output_directory,'dir') ~= 7
-    mkdir(output_directory);
-end
-
-% Make a variables directory
-if exist(fullfile(output_directory,'variables'),'dir') ~= 7
-    mkdir(fullfile(output_directory,'variables'))
-end
-
-% Update image directory if using processed images
-if ~isequal(config.use_processed_images,"false")
-    img_directory = fullfile(output_directory,config.use_processed_images);
-    config.img_directory = img_directory;
-    if ~exist(img_directory,'dir')
-        error("Could not locate processed image directory %s\n",img_directory)
-    end
-end
 
 %% Read Filename Information
 % Load image paths for registration

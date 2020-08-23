@@ -1,4 +1,4 @@
-function NMsamples(sample)
+function [img_directory, output_directory] = NMsamples(sample)
 %--------------------------------------------------------------------------
 % Record sample specific information here. Additionally, any default
 % processing and/or analysis parameters can be overwritten as this function
@@ -103,6 +103,8 @@ switch sample
         channel_num = ["C00", "C00", "C00"];
         overlap = 0.15;
         points_file = 'native_landmarks16.csv';
+    otherwise
+        error("Sample %s does not exist in NMsamples.",sample)
 end
 
 % Append sample info to variable structure
