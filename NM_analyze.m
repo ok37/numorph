@@ -5,8 +5,8 @@
 %segmentation is perfomed using a trained convolutional neural network
 %named RANI to quanitfy cells in a given region. 
 
-load 'NMa_variables.mat'
-config = load(fullfile(pwd,'NMa_variables.mat'));
+load 'NM_variables.mat'
+config = load(fullfile('templates','NM_variables.mat'));
 
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
@@ -22,6 +22,15 @@ if exist(fullfile(output_directory,'variables'),'dir') ~= 7
     mkdir(fullfile(output_directory,'variables'))
 end
 
+% Update image directory if using processed images
+if ~isequal(config.use_processed_images,"false")
+    img_directory = fullfile(output_directory,config.use_processed_images);
+    config.img_directory = img_directory;
+    if ~exist(img_directory,'dir')
+        error("Could not locate processed image directory %s\n",img_directory)
+    end
+end
+
 %% Read Filename Information
 % Load image paths for registration
 if any(strcmp([resample_image,register_image],"true"))
@@ -31,7 +40,7 @@ if any(strcmp([resample_image,register_image],"true"))
         path_cell{1} = dir(img_directory);
         if isequal(fullfile(output_directory,'stitched'),img_directory)
             location = 'stitched';
-            path_table_stitched = path_to_table(path_cell,markers,channel_num,location,sample_name);
+            path_table_stitched = path_to_table(path_cell,location,markers,channel_num,sample_name);
         end
 
         % Unless specified otherwise, resample all markers
@@ -51,7 +60,7 @@ if any(strcmp([resample_image,register_image],"true"))
         fprintf('%s\t Reading image filename information from resampled directory \n',datetime('now'))
         path_cell{1} = dir(fullfile(output_directory,'resampled'));
         location = 'resampled';
-        path_table_resampled = path_to_table(path_cell,markers,channel_num,location,sample_name);        
+        path_table_resampled = path_to_table(path_cell,location,markers,channel_num,sample_name);        
     else
         error('%s\t Could not locate resampled directory in the specified image directory. ' +...
             "Set resample_image to ""true"" to generate images for registration",string(datetime('now')));
@@ -158,7 +167,7 @@ if exist(img_directory,'dir') == 7
     path_cell{1} = dir(img_directory);
     if isequal(fullfile(output_directory,'stitched'),img_directory)
         location = 'stitched';
-        path_table_stitched = path_to_table(path_cell,[],[],location);
+        path_table_stitched = path_to_table(path_cell,location,[],[]);
     end
 else
     error('%s\t Could not locate images in the specified image directory',string(datetime('now')));

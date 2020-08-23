@@ -2,11 +2,13 @@ NMa_variables
 NMsamples(sample)
 NM_analyze
 
-function NMa_savevars(sample)
-%% Template to run Tissue Clearing Processing Pipeline
+function NMa_variables
+%% Template to run NuMorph analysis steps
 % Set flags as logical to indicate whether to run process
+use_processed_images = "stitched";         % Name of processed image directory (e.g. aligned, stitched). Otherwise set to false 		
+
 % To only count cells, set these next 3 to false
-resample_image = "false";        % true, false, load
+resample_image = "true";        % true, false, load
 register_image = "false";        % true, false, load. Note: load will only load registration parameters. Set generate_mask to true/load to create/load an annotation mask
 generate_mask = "false";         % true, false, load
 measure_local_background = "load";  % true, false, load
@@ -16,8 +18,8 @@ count_colocalized = "false";          % gmm, threshold
 save_counts = "true";             % true, false, overwrite 
 
 %% Resampling Parameters
-resample_markers = 1;          % Specify which channels to resample
-resample_res = [25,25,25];     % Resolution to resample to
+resample_markers = 1:3;          % Specify which channels to resample. Only reference channel 1 needed for registration
+resample_res = [25,25,25];     % Resolution to resample to. Should match resolution of ARA reference
 
 %% Registration Parameters
 registration_method = "p";      % Affine, BSpline, Points, Other
@@ -55,9 +57,30 @@ confidence = [0.5,0.5,0.5,0.5];		% Posterior probability of cell being positive 
 stratify_structures = "true";       % Run GMM clustering on each structure individually
 split_markers = "false";             % Run GMM seperately for each marker
 
-%% Save variables and run
+%% Do not edit these remaining lines
+%--------------------------------------------------------------------------
+% Save variables and run
 addpath(genpath('..'))
 home_path = fileparts(which('NM_analyze.m'));
 cd(home_path)
-save -mat NMa_variables.mat
+save(fullfile('templates', 'NM_variables.mat'),'-mat')
+
+% Make an output directory
+if exist(output_directory,'dir') ~= 7
+    mkdir(output_directory);
+end
+
+% Make a variables directory
+if exist(fullfile(output_directory,'variables'),'dir') ~= 7
+    mkdir(fullfile(output_directory,'variables'))
+end
+
+% Update image directory if using processed images
+if ~isequal(use_processed_images,"false")
+    img_directory = fullfile(output_directory,use_processed_images);
+    if ~exist(img_directory,'dir')
+        error("Could not locate processed image directory %s\n",img_directory)
+    end
+end
+
 end

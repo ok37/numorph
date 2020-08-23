@@ -12,6 +12,19 @@ end
 lowerThresh = config.lowerThresh;
 upperThresh = config.upperThresh;
 
+if lowerThresh>1
+    lowerThresh = lowerThresh/65535;
+end
+if upperThresh>1
+    upperThresh = upperThresh/65535;
+end
+if lowerThresh_measured>1
+    lowerThresh_measured = lowerThresh_measured/65535;
+end
+if upperThresh_measured>1
+    upperThresh_measured = upperThresh_measured/65535;
+end
+
 % If empty, set to predicted threshold values
 if isempty(lowerThresh)
     fprintf('%s\t Using measured lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh_measured*65535)));

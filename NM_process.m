@@ -6,8 +6,8 @@
 %following steps.
 clear
 % Load configuration from .mat file
-load(fullfile('templates','NMp_variables.mat'));
-config = load(fullfile('templates','NMp_variables.mat'));
+load(fullfile('templates','NM_variables.mat'));
+config = load(fullfile('templates','NM_variables.mat'));
 
 img_directory = config.img_directory;
 output_directory = config.output_directory;
@@ -24,6 +24,20 @@ end
 % Make a variables directory
 if exist(fullfile(output_directory,'variables'),'dir') ~= 7
     mkdir(fullfile(output_directory,'variables'))
+end
+
+% Update image directory if using processed images
+if ~isequal(config.use_processed_images,"false")
+    img_directory = fullfile(output_directory,config.use_processed_images);
+    config.img_directory = img_directory;
+    if ~exist(img_directory,'dir')
+        error("Counld not locate processed image directory %s\n",img_directory)
+    end
+    if isequal(config.use_processed_images,"aligned")
+        fprintf("%s\t Images already aligned. Skipping channel alignment \n",datetime('now'))
+        config.channel_alignment = "false";
+        channel_alignment = "false";
+    end
 end
 
 %% Read image filename information
