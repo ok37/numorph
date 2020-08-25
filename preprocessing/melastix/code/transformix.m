@@ -1,4 +1,4 @@
-function varargout=transformix(movingImage,parameters,elementSpacing,threads, verbose)
+function varargout=transformix(movingImage,parameters,elementSpacing,threads, target)
 % transformix image registration and warping wrapper
 %
 % function [registeredImage,log] = transformix(movingImage,parameters) 
@@ -278,25 +278,23 @@ if nargin>1
 
         %Add the first parameter file to the command string 
         CMD=sprintf('%s -tp %s ',CMD,copiedLocations{1});
-
     else
         error('Parameters is of unknown type')
     end
-
-    if isempty(movingImage)
+    
+    % New: if no image, calculate spatial jacobian
+    if isempty(movingImage) && isequal(target,'jac')
+        CMD = [CMD,'-jac all'];
+    elseif isempty(movingImage)
         CMD = [CMD,'-def all'];
     end
-        
+
 end
-
-
 
 
 if ~isempty(threads)
     CMD = sprintf('%s -threads  %d',CMD,threads);
 end
-
-
 
 %----------------------------------------------------------------------
 % *** Conduct the transformation ***
@@ -307,7 +305,6 @@ end
 
 [status,result]=system(CMD);
 
-
 if status %Things failed. Oh dear. 
     fprintf('\n\t*** Transform Failed! ***\n%s\n',result)
     registered=[];
@@ -317,6 +314,8 @@ else %Things worked! So let's return the transformed image to the user.
         d=dir(fullfile(outputDir,'result.mhd')); 
     elseif size(movingImage,2)<=3 & ~isempty(movingImage)
         d=dir(fullfile(outputDir,'outputpoints.txt')); 
+    elseif isequal(target,'jac')
+        d=dir(fullfile(outputDir,'spatialJacobian.mhd'));
     else
         d=dir(fullfile(outputDir,'deformationField.mhd')); 
     end
@@ -325,7 +324,7 @@ else %Things worked! So let's return the transformed image to the user.
         error('Failed to find transformed result. Retaining output directory for debugging purposes.')
     end
 
-    if size(movingImage,2)>3 %It's an image
+    if size(movingImage,2)>3 || isequal(target,'jac') %It's an image
         registered=mhd_read(fullfile(outputDir,d.name));
     else %it's a points file
         registered=readTransformedPointsFile(fullfile(outputDir,d.name));
@@ -348,5 +347,3 @@ end
 if nargout>1
     varargout{2}=transformixLog;
 end
-
-

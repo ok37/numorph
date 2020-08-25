@@ -32,7 +32,6 @@ end
 for i = 1:length(markers)
     % Subset marker
     path_sub = path_table(path_table.markers == markers(i),:);
-    path_sub = path_sub(1:10,:);
     nb_images = height(path_sub);
     
     %Measure image dimensions for high resolution image
