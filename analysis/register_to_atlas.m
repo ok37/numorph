@@ -35,8 +35,8 @@ fprintf('%s\t Reading resampled and atlas images\n',datetime('now'));
 % type in the niftifile
 mov_img = niftiread(mov_img_path);
 if isequal(class(mov_img),'double')
+    mov_img = imrotate(mov_img,90);
     mov_img = flip(mov_img,1);
-    mov_img = imrotate(mov_img,-90);
 else
    mov_img = double(mov_img); 
 end

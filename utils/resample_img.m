@@ -10,6 +10,8 @@ end
 
 if nargin<3 || isempty(markers)
     markers = config.markers;
+elseif isnumeric(markers)
+    markers = config.markers(markers);
 end
 
 if nargin<4
