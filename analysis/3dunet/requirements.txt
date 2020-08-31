@@ -1,8 +1,0 @@
-cv2
-scipy
-scikit-image
-Keras>=2
-numpy>=1.12.1
-nilearn>=0.3.0
-tables>=3.4.2
-nibabel>=2.1.0

@@ -3,8 +3,8 @@ clear
 % pairwise comparison between WT and KO groups. Outputs a merged .csv files
 % containing cell counts for each structure. Additional statistical
 % comparisons are also performed. 
-id = sprintf('TCe_%s.out',char(datetime('now','Format','yyyy-MM-dd-hhmmss')));
-config = load('TCe_variables.mat');
+id = sprintf('NMe_%s.out',char(datetime('now','Format','yyyy-MM-dd-hhmmss')));
+config = load('NMe_variables.mat');
 
 %% Count Cell Types
 if isequal(config.combine_counts,'true')
@@ -50,9 +50,9 @@ if isequal(config.calculate_stats,'true')
         % path
         try
             fprintf(strcat(char(datetime('now')),"\t Loading cell counts\n"))
-            df_counts = readtable(fullfile(config.results_directory,'TCe_summary_counts.csv'));
+            df_counts = readtable(fullfile(config.results_directory,'NMe_summary_counts.csv'));
         catch ME
-            error('Could not locate TCe_summary_counts.csv')
+            error('Could not locate NMe_summary_counts.csv')
         end
         df_results{1} = df_counts;
         end
@@ -63,9 +63,9 @@ if isequal(config.calculate_stats,'true')
         % path
         try
             fprintf(strcat(char(datetime('now')),"\t Loading volume measurements\n"))
-            df_volumes = readtable(fullfile(config.results_directory,'TCe_summary_volumes.csv'));
+            df_volumes = readtable(fullfile(config.results_directory,'NMe_summary_volumes.csv'));
         catch ME
-            error('Could not locate TCe_summary_volumes.csv') 
+            error('Could not locate NMe_summary_volumes.csv') 
         end
         df_results{2} = df_volumes;
         end
@@ -81,9 +81,9 @@ if isequal(config.visualize_results,'true')
         % If results table if not defined, attempt to load from results
         % path
         try
-            df_stats = readtable(fullfile(config.results_directory,'TCe_summary_stats.csv'));
+            df_stats = readtable(fullfile(config.results_directory,'NMe_summary_stats.csv'));
         catch ME
-            error('Could not locate TCe_summary_stats.csv') 
+            error('Could not locate NMe_summary_stats.csv') 
         end
     end
     % Create visualization volume

@@ -234,8 +234,4 @@ switch count_colocalized
 end
 
 
-
-
-
-
 fprintf('%s\t Analysis steps completed! \n',datetime('now'))
