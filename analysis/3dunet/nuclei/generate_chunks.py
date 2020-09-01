@@ -17,6 +17,10 @@ from nuclei.img_utils import create_3d_weight_patch, calculate_rescaling_intensi
 parser = argparse.ArgumentParser(description='Predict from validation dataset.')
 parser.add_argument('--matlab', metavar='matlab', type=str, nargs='+',
                     help='Whether called by matlab function ')
+parser.add_argument('-i', metavar='r', type=str, nargs='+',
+                    help='Input image directory tag')
+parser.add_argument('--m', metavar='r', type=str, nargs='+',
+                    help='Input mask location tag')
 parser.add_argument('--r', metavar='r', type=str, nargs='+',
                     help='Resolution tag')
 parser.add_argument('--g', metavar='g', type=str, nargs='+',
