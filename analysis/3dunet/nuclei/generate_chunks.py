@@ -2,23 +2,41 @@ import os
 import cv2
 import numpy as np
 import cc3d
+import argparse
+
 from datetime import datetime
 from scipy.io import loadmat
-
-from unet3d.training import load_old_model
-from nuclei.img_utils import create_3d_weight_patch, calculate_rescaling_intensities, measure_colocalization
 from scipy import ndimage
 from skimage.transform import resize
 from skimage.exposure import rescale_intensity
-
 from scipy.spatial import cKDTree
+
+from unet3d.training import load_old_model
+from nuclei.img_utils import create_3d_weight_patch, calculate_rescaling_intensities, measure_colocalization
+
+parser = argparse.ArgumentParser(description='Predict from validation dataset.')
+parser.add_argument('--matlab', metavar='matlab', type=str, nargs='+',
+                    help='Whether called by matlab function ')
+parser.add_argument('--r', metavar='r', type=str, nargs='+',
+                    help='Resolution tag')
+parser.add_argument('--g', metavar='g', type=str, nargs='+',
+                    help='GPU tag')
+args = parser.parse_args()
+
+
+
+
+
+
+
+
+
+
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 input_img_directory = '/media/SteinLab5/WT11L/output/stitched'
-#model_file = '/home/ok37/repos/3dunet-centroid/nuclei/best/old_best/batch2/isensee_2017_model.h5'
-
-model_file = '/home/ok37/repos/3dunet-centroid/nuclei/isensee_2017_model2.h5'
+model_file = os.path.join(os.environ['PYTHONPATH'], '/nuclei/models/isensee_2017_model2.h5')
 
 mask_file = '/media/SteinLab5/WT11L/output/variables/I_mask.mat'
 save_name = 'WT11L_centroids2.csv'
@@ -40,8 +58,6 @@ overlap = [16, 16, 8]  # Overlap between chunks in pixels
 acquired_img_resolution = [1.208, 1.208, 4]  # Resolution of acquired images in um/pixel
 trained_img_resolution = [1.208, 1.208, 4]  # Resolution the model was trained in um/pixel
 mask_resolution = [10, 10, 10]  # Resolution of mask in um/pixel
-
-batch_size = 1  # Image patch batch size
 
 #####
 # Load model and images
@@ -105,7 +121,7 @@ tempI = cv2.imread(img_list[0][0], -1)
 [rows, cols] = tempI.shape
 
 ## Take mask index 84 for testing
-#mask = mask == 84
+# mask = mask == 84
 prediction_save = np.array([])
 x_shift = 0
 y_shift = 0
@@ -207,26 +223,12 @@ for n in range(n_chunks):
     for idx in range(len(img_chunks)):
         img_reshaped.append(np.reshape(img_chunks[idx], img_shape))
         msk_reshaped.append(np.reshape(msk_chunks[idx], img_shape))
+        if msk_reshaped[idx].any():
+            output.append(model.predict(img_reshaped[idx]) * msk_reshaped[idx])
+        else:
+            output.append(empty_chunk)
+            empty_idx[idx] = 1
 
-    if batch_size == 1:
-        for idx in range(len(img_chunks)):
-            if msk_reshaped[idx].any():
-                output.append(model.predict(img_reshaped[idx]) * msk_reshaped[idx])
-            else:
-                output.append(empty_chunk)
-                empty_idx[idx] = 1
-    else:
-        batch_shape = (batch_size, 1) + tuple(chunk_size)
-        batch_chunks = np.ceil(len(img_chunks) / batch_size).astype(int)
-        empty_chunk = np.concatenate((empty_chunk, empty_chunk), axis=0)
-        for idx in range(batch_chunks):
-            batch_img = np.reshape(img_reshaped[idx:idx + batch_size], batch_shape)
-            batch_msk = np.reshape(msk_reshaped[idx:idx + batch_size], batch_shape)
-            if batch_msk.any():
-                output.append(model.predict(batch_img) * batch_msk)
-            else:
-                output.append(empty_chunk)
-                empty_idx[idx] = 1
 
     output = [np.squeeze(chunk) for chunk in output]
     print('Mask prediction time elapsed: ', datetime.now() - startTime)

@@ -3,9 +3,9 @@ import cc3d
 import cv2
 from scipy.ndimage.measurements import center_of_mass
 from scipy import ndimage
-import matplotlib
-matplotlib.use('QT5Agg')
-import matplotlib.pyplot as plt
+# import matplotlib
+# matplotlib.use('QT5Agg')
+# import matplotlib.pyplot as plt
 # from matplotlib.colors import ListedColormap
 from skimage.transform import resize
 from scipy.spatial import cKDTree
