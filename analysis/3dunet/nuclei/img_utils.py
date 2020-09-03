@@ -311,7 +311,7 @@ def remove_touching_centroids(cen_img, radius=2):
     rm_idx = np.unique(jj)
 
     # Keep only non-touching centroids
-    centroids_new = np.delete(centroids, rm_idx, 1)
+    centroids_new = np.delete(centroids, rm_idx, 0)
 
     cen_new = np.zeros(cen_img.shape, dtype=cen_img.dtype)
     cen_new[centroids_new[0], centroids_new[1], centroids_new[2]] = 1
@@ -323,9 +323,12 @@ def remove_touching_centroids(cen_img, radius=2):
 def remove_touching_df(cen_df, radius=2):
 
     # Get centroids positions from data frame
-    centroids = np.array(cen_df.iloc[:, :3])
+    if not isinstance(cen_df, np.ndarray):
+        centroids = np.array(cen_df.iloc[:, :3])
+    else:
+        centroids = cen_df[:, :3]
 
-    # Create cKDTree object
+    # Create cKDTree objects
     tree = cKDTree(centroids)
 
     # Check for indexes within the indicated range
@@ -336,10 +339,12 @@ def remove_touching_df(cen_df, radius=2):
     for j, n in enumerate(near):
         if len(near[j]) > 1:
             jj.append(n)
-    jj = [j[0] for j in jj]
-    rm_idx = np.unique(jj)
 
-    # Keep only non-touching centroids
-    centroids = np.delete(centroids, rm_idx, 1)
+    if jj:
+        jj = np.concatenate([j[1:] for j in jj])
+        rm_idx = np.unique(jj)
 
-    return centroids
+        # Keep only non-touching centroids
+        cen_df = np.delete(cen_df, rm_idx, 0)
+
+    return cen_df

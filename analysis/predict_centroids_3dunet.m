@@ -5,17 +5,23 @@ function predict_centroids_3dunet(config)
 % via conda. 
 %--------------------------------------------------------------------------
 
+% Save matlab's config structure in the directory
+save_path = fullfile(config.home_path,'analysis','3dunet','config.mat');
+config = convertContainedStringsToChars(config);
+save(save_path,'config')
+
 % Set pythonpath
 pythonpath = fullfile(config.home_path, 'analysis','3dunet');
-setenv('PYTHONPATH',pythonpath)
+setenv('PYTHONPATH', pythonpath)
 
 % Run prediction
-command = sprintf("source activate 3dunet-centroid; python %s -m",...
-    fullfile(pythonpath,'nuclei','predict_validation.py'));
-[status,cmdout] = system(command,'-echo');
-if status ~= 0 
-    error(cmdout)
-end
+command = sprintf("source activate 3dunet-centroid; "+...
+    "export PYTHONPATH=%s; "+...
+    "python %s --mat %s",...
+    pythonpath,fullfile(pythonpath,'nuclei','generate_chunks.py'),save_path);
 
+%command = sprintf("source activate 3dunet-centroid; echo $PATH");
+
+[status] = system(command,'-echo');
 
 end

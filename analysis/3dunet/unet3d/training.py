@@ -84,8 +84,6 @@ def train_model(model, model_file, training_generator, validation_generator, ste
                         validation_data=validation_generator,
                         validation_steps=validation_steps,
                         max_queue_size=10,
-			use_multiprocessing=True,
-                        workers=4,
                         callbacks=get_callbacks(model_file,
                                                 initial_learning_rate=initial_learning_rate,
                                                 learning_rate_drop=learning_rate_drop,

@@ -1,20 +1,27 @@
 %% Template to run NuMorph analysis steps
 % Set flags as logical to indicate whether to run process
-use_processed_images = "stitched";         % Name of processed image directory (e.g. aligned, stitched). Otherwise set to false 		
+use_processed_images = "stitched";         % Name of processed image directory (e.g. aligned, stitched). Otherwise set to false
 
-% To only count cells, set these next 3 to false
+% Image resampling
 resample_image = "true";        % true, false, load
-register_image = "false";        % true, false, load. Note: load will only load registration parameters. Set generate_mask to true/load to create/load an annotation mask
+
+% Registration
+register_image = "false";        % true, false, load
 generate_mask = "false";         % true, false, load
-measure_local_background = "load";  % true, false, load
-count_cells = "load";              % 3dunet, hessian, load
-count_colocalized = "false";          % gmm, threshold
+
+% Nuclei detection
+count_cells = "load";                 % 3dunet, hessian, load
+use_mask = "true";                    % true, false; Use mask for cell counting
+measure_local_background = "load";    % true, false; measure local image background
+
+% Cell-type classification
+count_colocalized = "false";          % gmm, svm, threshold, false; Cell-type classification method
 
 save_counts = "true";             % true, false, overwrite 
 
 %% Resampling Parameters
 resample_markers = 1:3;        % Specify which channels to resample. Only reference channel 1 needed for registration
-resample_res = [25,25,25];     % Resolution to resample to. Should match resolution of ARA reference
+resample_res = [10,10,10];     % Resolution to resample to. Should match resolution of ARA reference
 
 %% Registration Parameters
 registration_method = "p";      % Affine, BSpline, Points, Other
@@ -26,7 +33,17 @@ direction = 'img_to_atlas';         % Forward = register image to atlas; Reverse
 mask_coordinates = [];          % Row start, row end, col start, col end
 save_registered_image = 'true';     % Save a copy of registration results
 
-%% Nuclei Counting Parameters
+%% Centroid Prediction - 3DUnet
+model_file = '128_model.h5';    % Model file name located in /analysis/3dunet/nuclei/models
+chunk_size = [112,112,32];      % Chunk size of unet model
+chunk_overlap = [16,16,8];           % Overlap between chunks
+
+trained_resolution = [1.21,1.21,4]; % Resolution at which the model was trained. Only required if resampling
+resample_chunks = "false";          % Resample images to match model resolution. This process takes significantly longer
+
+gpu = '0';                      % Cuda visible device index
+
+%% Centroid Prediction - Hessian Method
 min_intensity = 200;                    % Minimum intensity for cell nuclei
 nuc_diameter_range = [6,20];            % Range of nuclei diameters (in pixels)
 
@@ -41,16 +58,21 @@ subtract_background = "false";  % Subtract local background
 
 % Threshold classification
 thresholds = [0.005,0.005];           % Intensity thresholds 
-%expression{1} = "1*mode + 5*mad";  % Threshold expression
-%expression{2} = "1*mode + 2*mad";  % Threshold expression
+%expression{1} = "1*mode + 5*mad";    % Threshold expression
+%expression{2} = "1*mode + 2*mad";    % Threshold expression
 
-% GMM clustering information
+% GMM classification
 n_clusters = 4;				% Number of clusters for GMM
 mix_proportions = [0.55,0.15,0.30,0.01];	% Intial mixing proportions for n-1 markers for intializing GMM. Leave empty to estimate with k-means++
 mix_markers = {[],2,3,[2,3]};		% Marker numbers for the mixing proprtions described above
 confidence = [0.5,0.5,0.5,0.5];		% Posterior probability of cell being positive for a marker. This will get adjusted with addition of more clusters
-stratify_structures = "true";       % Run GMM clustering on each structure individually
+stratify_structures = "true";       % Run GMM clustering on individual structures
 split_markers = "false";             % Run GMM seperately for each marker
+
+% SVM classification
+
+
+
 
 %% Do not edit these remaining lines
 %--------------------------------------------------------------------------
