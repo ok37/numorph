@@ -2,6 +2,29 @@ function [patches, ftable, cen_sub, cen_idx] = get_centroid_patches(centroids, p
 %--------------------------------------------------------------------------
 % Get 2D image pacthes around centroid positions
 %--------------------------------------------------------------------------
+% Inputs:
+% centroids - matrix with centroids positions + mask annotations.
+%
+% path_table_stitched - input image table.
+%
+% config - config structure from NM_analyze.
+%
+% patch_size - (optional) 1x2 element vector. 1st element is 0.5xlength of
+% saved patch image for viewing. 2nd element is 0.5xlength of the actual 
+% sampling window. Should be less than 1st element and ideally set to the
+% approximate radius of a nucleus. 
+%
+% k - (optional) number of patches to generate (default: 1000 patches)
+%
+% low_thresh - (optional) threshold for minimum intensity for all channels
+% set as fraction (i.e. 0-1). For example, if set to 0.5, nuclei with
+% intensities below the 50th percentile in all channels will be presumed
+% negative and ignored from patch generation.
+%
+% Outputs:
+%
+%
+%--------------------------------------------------------------------------
 
 % Defaults
 if nargin < 4
@@ -15,9 +38,11 @@ else
     p = patch_size(1);
     s = patch_size(2);
 end
+
 if nargin < 5
     k = 1000;
 end
+
 if nargin < 6
     low_thresh = 0.5;
 end
@@ -122,6 +147,7 @@ feature_table = array2table([layers,structures],'VariableNames',{'Layer', 'Struc
 for i = 1:length(ftable)
    feature_table = horzcat(feature_table,ftable{i});
 end
+
 table_name = fullfile(save_directory,sprintf('%s_patch_features.csv',config.sample_name));
 writetable(feature_table,table_name)
 

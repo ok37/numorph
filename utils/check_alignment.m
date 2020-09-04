@@ -1,4 +1,4 @@
-function [img] = check_alignment(config, ranges, markers, spacing)
+function img = check_alignment(config, ranges, markers, spacing)
 %--------------------------------------------------------------------------
 % Check image alignment of channels
 %--------------------------------------------------------------------------
@@ -13,6 +13,7 @@ function [img] = check_alignment(config, ranges, markers, spacing)
 %
 % spacing - (optional) 1x3 double for the amount of downsampling for each
 % dimension.
+%--------------------------------------------------------------------------
 
 if ~iscell(ranges)
     error("Second input should be 1x2 cell array containing tile row, column position. "+...

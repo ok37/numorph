@@ -58,8 +58,8 @@ subtract_background = "false";  % Subtract local background
 
 % Threshold classification
 thresholds = [0.005,0.005];           % Intensity thresholds 
-%expression{1} = "1*mode + 5*mad";    % Threshold expression
-%expression{2} = "1*mode + 2*mad";    % Threshold expression
+expression{1} = "1*mode + 5*mad";    % Threshold expression
+expression{2} = "1*mode + 2*mad";    % Threshold expression
 
 % GMM classification
 n_clusters = 4;				% Number of clusters for GMM

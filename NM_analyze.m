@@ -154,12 +154,24 @@ end
 %% Segment and/or Count Cells
 switch count_cells
     case "hessian"
+        % Detect nuclei centroids using hessian-based blob detector
+        % Depcrecated: needs reconfiguring
         path_sub = path_table(path_table.markers == markers(1),:); 
         [pixel_idx_list,box_range] = detect_blobs(path_sub,I_mask, nuc_diameter_range, resolution, adj_param);
         save('pixel_idx_list.mat','pixel_idx_list')
     case "3dunet"
-        % Filler for calling 3dunet from python 
-    
+        % Detect nuclei centroids using 3dunet (requires python + conda environment)
+        predict_centroids_3dunet(config)
+    case "load"
+        % Load previos centroid list
+        % Default location is: output_directory/(sample_name)_centroids.csv
+        path_centroids = fullfile(output_directory, sprintf('%s_centroids.csv',sample_name));
+        if exist(path_centroids,'file') == 2
+            fprintf('%s\t Loading previous centroid list \n',datetime('now'))
+            centroids = readmatrix(path_centroids);
+        else
+            error("Centroid file %s does not exist",path_centroids)
+        end
 end
 
 %% Generate Background Mask 
