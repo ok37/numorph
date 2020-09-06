@@ -1,8 +1,3 @@
-NMp_variables
-NMsamples(sample)
-NM_process
-
-function NMp_variables
 %% Template to run Tissue Clearing Processing Pipeline
 % Set flags to indicate how/whether to run process
 use_processed_images = "false";         % Use images from aligned 		
@@ -57,17 +52,9 @@ lowerThresh = [];                       % Intensity of dimmest feature of intere
 upperThresh = [];                       % Max intensity of brightest features (ref channel first). If left empty, pipeline will attempt to predict this for each channel
 gamma = [1 1 1];                        % Gamma intensity adjustment
 
-%% Additional Filters during Stitching
+%% Additional Filters and Adjustments During Stitching
 nuc_radius = 13;                                       	% Max radius of cell nuclei in pixels
 subtract_img_background = "false";                      % true, false
 subtract_background = ["false", "false", "false"];     	% true, false
 filter = ["false", "false", "false"];                   % Apply guided filter. Check preprocessing/apply_diffuse.m for parameters
 dog = [];                                               % Apply difference of gaussian enhancement of blobs
-
-%% Save variables and run
-addpath(genpath('..'))
-home_path = fileparts(which('NM_process.m'));
-cd(home_path)
-save(fullfile('templates', 'NM_variables.mat'),'-mat')
-
-end

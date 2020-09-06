@@ -1,4 +1,3 @@
-clear
 %% Specify Directory Information
 % Path or paths to folder(s) containing individual sample cell counting 
 % results as .csv files. 
@@ -44,9 +43,3 @@ orientation = 'coronal';                %
 group_delimiters = ["WT","TOP"];        % Labels for WT/KO groups in .csv files. 2 values required
 minimum_cell_number = 100;              % Minimum number of cells for each structure to be compared. Recommended minimum: 1 
 structure_depth = [];                   % Minimum structure graph order for comparisons (1-10). Recommended minimum: 5
-
-%% Save variables and run
-home_path = fileparts(which('TC_evaluate.m'));
-cd(home_path)
-save -mat TCe_variables.mat
-TC_evaluate

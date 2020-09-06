@@ -26,7 +26,7 @@ resample_res = [10,10,10];     % Resolution to resample to. Should match resolut
 %% Registration Parameters
 registration_method = "p";      % Affine, BSpline, Points, Other
 structures_of_interest = "cortex";       % Structure of interest
-atlas_file = 'ara_nissl_left_10.nii';    % Name of the atlas file to register to
+atlas_file = "ara_nissl_left_10.nii";    % Name of the atlas file to register to
 hemisphere = "left";            % left, right, whole (which brain hemisphere or whole brain)
 orientation = 'lateral';        % lateral, dorsal, ventral. Which position is at z=0 
 direction = 'img_to_atlas';         % Forward = register image to atlas; Reverse = register atlas to image
@@ -73,49 +73,3 @@ split_markers = "false";             % Run GMM seperately for each marker
 
 
 
-
-%% Do not edit these remaining lines
-%--------------------------------------------------------------------------
-% Save variables and run
-temp_path = fileparts(which('NMa_template'));
-addpath(genpath(fullfile(temp_path,'..')))
-home_path = fileparts(which('NM_analyze.m'));
-cd(home_path)
-save(fullfile('templates', 'NM_variables.mat'),'-mat')
-
-% Load and append sample info
-if exist('sample','var') == 1
-    [img_directory, output_directory] = NMsamples(sample);
-else
-    clear
-    error("Sample information is unspecified. Set 'sample' variable.")
-end
-
-% Update image directory if using processed images
-if ~isequal(use_processed_images,"false")
-    img_directory = fullfile(output_directory,use_processed_images);
-    if ~exist(img_directory,'dir')
-        error("Could not locate processed image directory %s\n",img_directory)
-    else
-        save(fullfile('templates','NM_variables.mat'),'img_directory','-mat','-append')
-    end
-end
-
-% Make an output directory
-if exist(output_directory,'dir') ~= 7
-    mkdir(output_directory);
-end
-
-% Make a variables directory
-if exist(fullfile(output_directory,'variables'),'dir') ~= 7
-    mkdir(fullfile(output_directory,'variables'))
-end
-
-% Run analysis
-clear
-if exist('run_analysis','var') == 1 && run_analysis
-    NM_analyze
-else
-    load 'NM_variables.mat'
-    config = load(fullfile('templates','NM_variables.mat'));
-end
