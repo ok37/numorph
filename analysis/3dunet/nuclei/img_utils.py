@@ -3,141 +3,20 @@ import cc3d
 import cv2
 from scipy.ndimage.measurements import center_of_mass
 from scipy import ndimage
-# import matplotlib
-# matplotlib.use('QT5Agg')
-# import matplotlib.pyplot as plt
-# from matplotlib.colors import ListedColormap
+
 from skimage.transform import resize
 from scipy.spatial import cKDTree
 
 
-# %% Create weights for patch indexes
-def create_3d_weight_patch(chunk_size=[160, 160, 48], overlap=[2, 2, 1]):
-    chunk_weight_patch = np.ones(chunk_size)
-
-    # Weights calculated by linear interpolation from border to indicated overlap for each dimension
-    # z_top = np.linspace(0, 1, overlap[0] + 2)[1:-1]
-    # z_bottom = 1 - z_top
-    x_left = np.zeros(overlap[0])
-    x_left[int(overlap[0] / 2):] = 1
-    x_right = abs(1 - x_left)
-    x_string = np.hstack((x_left, np.ones([chunk_size[0] - overlap[0] * 2]), x_right))
-    chunk_weight_patch = np.einsum('i,ijk->ijk', x_string, chunk_weight_patch)
-
-    # y_top = np.linspace(0, 1, overlap[1] + 2)[1:-1]
-    # y_bottom = 1 - y_top
-    y_top = np.zeros(overlap[1])
-    y_top[int(overlap[1] / 2):] = 1
-    y_bottom = abs(1 - y_top)
-    y_string = np.hstack((y_top, np.ones([chunk_size[1] - overlap[1] * 2]), y_bottom))
-    chunk_weight_patch = np.einsum('j,ijk->ijk', y_string, chunk_weight_patch)
-
-    # x_left = np.linspace(0, 1, overlap[2] + 2)[1:-1]
-    # x_right = 1 - x_left
-    z_top = np.zeros(overlap[2])
-    z_top[int(overlap[2] / 2):] = 1
-    z_bottom = abs(1 - z_top)
-    z_string = np.hstack((z_top, np.ones([chunk_size[2] - overlap[2] * 2]), z_bottom))
-    chunk_weight_patch = np.einsum('k,ijk->ijk', z_string, chunk_weight_patch)
-
-    return chunk_weight_patch
-
-
-# %% Pad image chunks so that they match in size
-def pad_to_match_sizes(chunk_top, chunk_bottom, chunk_top_positions, chunk_bottom_positions):
-    shifts = chunk_top_positions - chunk_bottom_positions
-
-    # Top side
-    # Pad bottom chunk
-    if shifts[0] < 0:
-        chunk_bottom = np.pad(chunk_bottom, ((0, 0), (abs(shifts[0]), 0), (0, 0)), 'constant')
-    # Pad top chunk
-    elif shifts[0] > 0:
-        chunk_top = np.pad(chunk_top, ((0, 0), (abs(shifts[0]), 0), (0, 0)), 'constant')
-
-    # Left side
-    # Pad bottom chunk
-    if shifts[0] < 0:
-        chunk_bottom = np.pad(chunk_bottom, ((0, 0), (0, 0), (abs(shifts[1]), 0)), 'constant')
-    # Pad top chunk
-    elif shifts[0] > 0:
-        chunk_top = np.pad(chunk_top, ((0, 0), (0, 0), (abs(shifts[1]), 0)), 'constant')
-
-    pad_ends = np.array(chunk_top.shape[1:]) - np.array(chunk_bottom.shape[1:])
-
-    # Bottom side
-    # Pad bottom chunk
-    if pad_ends[0] > 0:
-        chunk_bottom = np.pad(chunk_bottom, ((0, 0), (0, abs(pad_ends[0])), (0, 0)), 'constant')
-    # Pad top chunk
-    elif pad_ends[0] < 0:
-        chunk_top = np.pad(chunk_top, ((0, 0), (0, abs(pad_ends[0])), (0, 0)), 'constant')
-
-    # Right side
-    # Pad bottom chunk
-    if pad_ends[0] > 0:
-        chunk_bottom = np.pad(chunk_bottom, ((0, 0), (0, 0), (0, abs(pad_ends[1]))), 'constant')
-    # Pad top chunk
-    elif pad_ends[0] < 0:
-        chunk_top = np.pad(chunk_top, ((0, 0), (0, 0), (0, abs(pad_ends[1]))), 'constant')
-
-    return shifts, chunk_top, chunk_bottom
-
-
-# %% Display overlayed image
-def display_overlayed_images(img1, img2):
-    color_full = np.linspace(0, 1, 256)
-    color_empty = np.linspace(0, 0, 256)
-    new_cmap1 = np.array([color_full, color_empty, color_empty])
-    new_cmap2 = np.array([color_empty, color_full, color_empty])
-
-    red = ListedColormap(new_cmap1.T)
-    green = ListedColormap(new_cmap2.T)
-
-    height = np.min([img1[0].shape, img2[0].shape])
-    width = np.min([img1[1].shape, img2[1].shape])
-
-    plt.imshow(img1[0:height, 0:width], cmap=red, vmin=0, vmax=0.1)
-    plt.imshow(img2[0:height, 0:width], cmap=green, vmin=0, vmax=0.1, alpha=0.3)
-
-    return
-
-
-# %% Display overlayed centroids
-def display_overlayed_centroids(img_list, slice, centroids, mask):
-    cell_img = cv2.imread(img_list[0][slice], -1)
-    centroid_img = np.zeros(cell_img.shape)
-
-    z_range = slice
-    centroids = centroids[np.isin(centroids[:, 2], z_range)]
-
-    mask_resized = resize(mask[:, :, slice], cell_img.shape, order=0)
-    cell_img[mask_resized < 1] = 0
-
-    print('Displaying', len(centroids), 'detected cells')
-
-    for i in range(len(centroids)):
-        [y, x, z] = centroids[i].round().astype(int)
-        centroid_img[y, x - 1:x + 2] = 1
-        centroid_img[y - 1:y + 2, x] = 1
-
-    color_full = np.linspace(0, 1, 256)
-    color_empty = np.linspace(0, 0, 256)
-    new_cmap1 = np.array([color_full, color_empty, color_empty])
-    new_cmap2 = np.array([color_empty, color_full, color_empty])
-
-    red = ListedColormap(new_cmap1.T)
-    green = ListedColormap(new_cmap2.T)
-
-    p1 = plt.imshow(cell_img, cmap='gray', vmin=0, vmax=5000)
-    p2 = plt.imshow(centroid_img, cmap=red, vmin=0, vmax=0.1, alpha=0.5)
-
-    return p2
-
-
-# %% Calculate upper and lower bounds for rescaling intensities
 def calculate_rescaling_intensities(img_list, sampling_range=10, low_pct=0, high_pct=1):
-    """ Input is image list"""
+    """
+    Calculate upper and lower bounds from the middle chunk in the image list
+
+    img_list: list of images to sample from
+    sampling range: middle n slices to sample from
+    low_pct: lower intensity saturation threshold
+    high_pct: upper intensity saturation threshold
+    """
 
     start = round(len(img_list) / 2 - sampling_range / 2)
     end = round(len(img_list) / 2 + sampling_range / 2)
@@ -155,8 +34,14 @@ def calculate_rescaling_intensities(img_list, sampling_range=10, low_pct=0, high
     return low_val, high_val
 
 
-# %% Read measure channel intensities at centroid positions
 def measure_colocalization(centroids, img_list):
+    """""
+    Measure channel intensities at centroid positions
+
+    centroids: np array containing centroid positions
+    img_list: list of images to sample intensities from
+    """
+
     images = [cv2.imread(file, -1).astype('float32') for file in img_list]
 
     kernel = np.ones((3, 3), np.float32) / 9
@@ -173,8 +58,16 @@ def measure_colocalization(centroids, img_list):
     return intensities
 
 
-# %% Updated patch based prediction
 def patch_wise_prediction2(model, data, overlap=(16, 16, 8), pred_threshold=0.5, int_threshold=None):
+    """
+    Updated patch based prediction for predicting individual small chunks
+
+    model: 3d-unet model
+    data: 4D image to predict
+    overlap: overlap between model prediction patches
+    pred_threshold: binarization threshold
+    int_threshold: minimum centroid intensity threshold
+    """
     patch_shape = (1,) + model.input_shape[1:]
     data_shape = data.shape
 
@@ -242,6 +135,10 @@ def patch_wise_prediction2(model, data, overlap=(16, 16, 8), pred_threshold=0.5,
 
 # %% Get locations of tiles based on the data size, patch size, and amount of overlap between tiles
 def get_axis_locations(data_shape, patch_shape, overlap):
+    """
+    Get locations of tiles based on the data size, patch size, and amount of overlap between tiles
+
+    """
     idx = []
     tiles = []
     for i in range(3):

@@ -1,4 +1,4 @@
-function [img_directory, output_directory] = NMsamples(sample)
+function [img_directory, output_directory, group] = NMsamples(sample, save_flag)
 %--------------------------------------------------------------------------
 % Record sample specific information here. Additionally, any default
 % processing and/or analysis parameters can be overwritten as this function
@@ -7,10 +7,11 @@ function [img_directory, output_directory] = NMsamples(sample)
 
 switch sample
     case 'WT1L'
-        img_directory(1) = "/media/SteinLab5/WT1L/High/Ctip2-ToPro";
-        img_directory(2) = "/media/SteinLab5/WT1L/High/Cux1";
-        output_directory = "/media/SteinLab5/WT1L/output";
+        img_directory(1) = "/media/SteinLab3/WT1L/High/Ctip2-ToPro";
+        img_directory(2) = "/media/SteinLab3/WT1L/High/Cux1";
+        output_directory = "/media/SteinLab3/WT1L/output";
         sample_name = "WT1L";
+        group = 'WT';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -19,10 +20,11 @@ switch sample
         overlap = 0.15;
         points_file = 'native_landmarks1.csv';
     case 'WT11L'
-        img_directory(1) = "/media/SteinLab5/WT11L/Ctip2-ToPro";
-        img_directory(2) = "/media/SteinLab5/WT11L/Cux1";
-        output_directory = "/media/SteinLab5/WT11L/output";
+        img_directory(1) = "/media/SteinLab3/WT11L/Ctip2-ToPro";
+        img_directory(2) = "/media/SteinLab3/WT11L/Cux1";
+        output_directory = "/media/SteinLab3/WT11L/output";
         sample_name = "WT11L";
+        group = 'WT';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -31,10 +33,11 @@ switch sample
         overlap = 0.15;
         points_file = 'native_landmarks11.csv';
     case 'WT8R'
-        img_directory(1) = "/media/SteinLab5/WT8R/High/Ctip2-ToPro";
-        img_directory(2) = "/media/SteinLab5/WT8R/High/Cux1";
-        output_directory = "/media/SteinLab5/WT8R/output";
+        img_directory(1) = "/media/SteinLab3/WT8R/High/Ctip2-ToPro";
+        img_directory(2) = "/media/SteinLab3/WT8R/High/Cux1";
+        output_directory = "/media/SteinLab3/WT8R/output";
         sample_name = "WT8R";
+        group = 'WT';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -47,6 +50,7 @@ switch sample
         img_directory(2) = "/media/SteinLab4/WT7R/High/Cux1";
         output_directory = "/media/SteinLab4/WT7R/output";
         sample_name = "WT7R";                   
+        group = 'WT';
         markers = ["topro","ctip2","cux1"];   
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -59,6 +63,7 @@ switch sample
         img_directory(2) = "/media/SteinLab4/TOP110R/High/Cux1";
         output_directory = "/media/SteinLab4/TOP110R/output";
         sample_name = "TOP110R";
+        group = 'TOP1';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -71,6 +76,7 @@ switch sample
         img_directory(2) = "/media/SteinLab4/TOP11L/High/Cux1";
         output_directory = "/media/SteinLab4/TOP11L/output";
         sample_name = "TOP11L";
+        group = 'TOP1';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -83,6 +89,7 @@ switch sample
         img_directory(2) = "/media/SteinLab4/TOP14R/High/Cux1";
         output_directory = "/media/SteinLab4/TOP14R/output";
         sample_name = "TOP14R";
+        group = 'TOP1';
         markers = ["ToPro","Ctip2","Cux1"];
         channel_num = ["C01", "C00", "C00"];
         resolution = [1.21, 1.21, 4]; 
@@ -96,6 +103,7 @@ switch sample
         img_directory(3) = "/media/SteinLab4/TOP16R/High/Cux1";
         output_directory = "/media/SteinLab4/TOP16R/output";
         sample_name = "TOP16R";
+        group = 'TOP1';
         markers = ["topro","ctip2","cux1"];
         ls_width = [50 50 40];
         laser_y_displacement = [0 0 0];
@@ -108,5 +116,7 @@ switch sample
 end
 
 % Append sample info to variable structure
-save(fullfile('templates','NM_variables.mat'),'-mat','-append')
+if save_flag
+    save(fullfile('templates','NM_variables.mat'),'-mat','-append')
+end
 end

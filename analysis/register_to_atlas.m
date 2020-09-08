@@ -1,13 +1,9 @@
-function reg_params = register_to_atlas(mov_img_path, config, num_points, mov_mask, atlas_mask)
+function reg_params = register_to_atlas(configm, mov_img_path, num_points, mov_mask, atlas_mask)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
 % reg_params variable. While it is simpler to just register the atlas to
 % the image, you may, in some cases, get better accuracy by registering the
-% image to the atlas and calculating the inverse parameters. This function
-% will default to automatically measure the inverse parameters in this
-% case, unless 'default_calc_inverse' is set to false.
-
-default_calc_inverse = "true";
+% image to the atlas and calculating the inverse parameters. 
 
 % Unpack config variables
 resample_res = config.resample_res;
@@ -18,6 +14,7 @@ orientation = config.orientation;
 output_directory = config.output_directory;
 mask_coordinates = config.mask_coordinates;
 direction = config.direction;
+calc_inverse = config.calculate_inverse;
 points_file = config.points_file;
 save_registered_image = config.save_registered_image;
 atlas_file = config.atlas_file;
@@ -41,9 +38,17 @@ else
    mov_img = double(mov_img); 
 end
 
-atlas_path = fullfile(home_path,'atlas',atlas_file);
+% Load ARA
+if isfile(atlas_file)
+    atlas_path = atlas_file;
+else
+    atlas_path = fullfile(home_path,'supplementary_data',atlas_file); 
+    if ~isfile(atlas_path)
+        error("Could not locate Allen Reference Atlas .nii file specified")
+    end
+end
 atlas_img = niftiread(atlas_path);
-
+    
 % Transform atlas_img based on which sample is being imaged
 if isequal(hemisphere, "right")
     perm(1) = 1;
@@ -191,19 +196,36 @@ elseif isequal(direction,'img_to_atlas')
                 'fp',atlas_points,'mp',mov_points,'threads',[]);
         end
     end
-    % Calculate the inverse
-    if isequal(default_calc_inverse,"true")
-        fprintf('%s\t Getting inverse transformation parameters\n',datetime('now')); 
-        [reg_params.atlas_to_img, reg_img] = get_inverse_transform_from_atlas(reg_params.img_to_atlas,...
-            config);
-        reg_params.atlas_to_img.TransformParameters{1}.Size = ...
-            reg_params.img_to_atlas.TransformParameters{1}.Size;
-    end
-    % Remove transformed images from structure
-    reg_params.atlas_to_img.transformedImages = [];
-    reg_params.img_to_atlas.transformedImages = [];
 else
     error('%s\t Incorrect direction specified \n',string(datetime('now')))
+end
+
+% Image sizes
+size_mov = size(mov_img);
+size_atlas = size(atlas_img);
+
+% Calculate the inverse
+if isequal(calc_inverse,"true")
+    fprintf('%s\t Getting inverse transformation parameters\n',datetime('now'));
+    if isequal(direction, 'atlas_to_img')
+        inv_direction = 'img_to_atlas';
+        reg_params.atlas_to_img = get_inverse_transform_from_atlas(reg_params.img_to_atlas,...
+            config, inv_direction, mov_img);
+        reg_params.atlas_to_img.TransformParameters{1}.Size = size_atlas([2 1 3]);
+    else
+        inv_direction = 'atlas_to_img';
+        reg_params.atlas_to_img = get_inverse_transform_from_atlas(reg_params.img_to_atlas,...
+            config, inv_direction);
+        reg_params.atlas_to_img.TransformParameters{1}.Size = size_mov([2 1 3]);
+    end
+end
+
+% Remove transformed images from structure
+if ~isempty(reg_params.atlas_to_img.transformedImages)
+    reg_params.atlas_to_img.transformedImages = [];
+end
+if ~isempty(reg_params.img_to_atlas.transformedImages)
+    reg_params.img_to_atlas.transformedImages = [];
 end
 
 % Remove temporary directory
@@ -218,10 +240,8 @@ reg_params.res_adj = res_adj;
 
 % Save sizes in the registration file
 reg_params.native_img_size = native_img_size([2 1 3]);
-size1 = size(mov_img);
-reg_params.mov_img_size = size1([2 1 3]);
-size2 = size(atlas_img);
-reg_params.atlas_img_size = size2([2 1 3]);
+reg_params.mov_img_size = size_mov([2 1 3]);
+reg_params.atlas_img_size = size_atlas([2 1 3]);
 
 % Save registration parameters
 save(fullfile(output_directory,'variables','reg_params.mat'),'reg_params')
@@ -242,6 +262,7 @@ end
 
 end
 
+
 function [mov_points,atlas_points] = load_points_from_bdv(output_directory,points_file)
 % Function to load points from FIJI's Big Data Viewer
 pts_path = fullfile(output_directory,'variables',points_file);
@@ -252,6 +273,7 @@ pts = pts(:,3:end);
 mov_points = pts(:,1:3);
 atlas_points = pts(:,4:6);
 end
+
 
 function save_points_to_bdv(mov_points,ref_points,output_directory)
 % Function to save updated points that can be loaded into FIJI's Big Data

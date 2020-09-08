@@ -6,12 +6,15 @@ function config = NM_config(stage, sample, run)
 % 
 % Inputs:
 %   stage - 'process', 'analyze', 'evaluate'
-%   sample - (string) sample identifier in NMsamples
+%   sample - (string) sample or group identifier(s) in NMsamples
 %   run - (optional, logical) whether to run respective pipeline
 %
 % Output:
 %   config - parameter configuration structure
 %--------------------------------------------------------------------------
+
+% Make sure path is set
+addpath(genpath('.'))
 
 % Load variables
 switch stage
@@ -39,13 +42,23 @@ cd(home_path)
 save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
-if nargin > 1
-    [img_directory, output_directory] = NMsamples(sample);
+if nargin > 1 && ~isequal(stage,'evaluate')
+    [img_directory, output_directory] = NMsamples(sample, true);
+elseif nargin > 1 && isequal(stage,'evaluate')
+    fid = fopen('./templates/NMsamples.m');
+    c = textscan(fid,'%s');
+    sample_idx = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
+    for i = 1:length(sample_idx)
+        [~, centroids_directory(i), group(i)] = NMsamples(sample_idx{i}(2:end-1));
+    end
+    fclose(fid);
+    output_directory = results_directory;
+    save(fullfile('templates','NM_variables.mat'),{'centroids_directory','group','output_directory'},'-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
 
-% Update image directory if using processed images
+% Update image directory if using processed or analyzed images
 if ~isequal(use_processed_images,"false")
     img_directory = fullfile(output_directory,use_processed_images);
     if ~exist(img_directory,'dir')
@@ -71,7 +84,7 @@ if nargout == 1
 end
 
 % Run
-if run
+if nargin>2 && run
     switch stage
         case 'process'
             NM_process
@@ -81,5 +94,4 @@ if run
             NM_evaluate
     end
 end
-
 end

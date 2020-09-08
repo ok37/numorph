@@ -1,12 +1,16 @@
-%This is a image analysis program designed to perform image registration
-%and cell counting for nuclear stained markers in whole brain images.
-%Registraion of the Nissl-based Allen Atlas is either done using
-%intensity-based (Elastix) or landmark-based (sysiHammer) methods. Cell
-%segmentation is perfomed using a trained convolutional neural network
-%named RANI to quanitfy cells in a given region. 
+function NM_analyze(config)
+%--------------------------------------------------------------------------
+% NuMorph analysis pipeline designed to perform image registration, nuclei
+% counting, and cell-type classification based on nuclear protein markers
+% in whole brain images.
+%--------------------------------------------------------------------------
 
-load 'NM_variables.mat'
-config = load(fullfile('templates','NM_variables.mat'));
+if nargin<1 
+    load 'NM_variables.mat'
+    config = load(fullfile('templates','NM_variables.mat'));
+else
+    save(confi
+end
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
 %% Read Filename Information
@@ -18,7 +22,7 @@ if any(strcmp([resample_image,register_image],"true"))
         path_cell{1} = dir(img_directory);
         if isequal(fullfile(output_directory,'stitched'),img_directory)
             location = 'stitched';
-            path_table_stitched = path_to_table(path_cell,location,markers,channel_num,sample_name);
+            path_table_stitched = path_to_table(path_cell,location,markers,channel_num);
         end
 
         % Unless specified otherwise, resample all markers
@@ -38,7 +42,7 @@ if any(strcmp([resample_image,register_image],"true"))
         fprintf('%s\t Reading image filename information from resampled directory \n',datetime('now'))
         path_cell{1} = dir(fullfile(output_directory,'resampled'));
         location = 'resampled';
-        path_table_resampled = path_to_table(path_cell,location,markers,channel_num,sample_name);        
+        path_table_resampled = path_to_table(path_cell,location,markers,channel_num);        
     else
         error('%s\t Could not locate resampled directory in the specified image directory. ' +...
             "Set resample_image to ""true"" to generate images for registration",string(datetime('now')));
@@ -51,7 +55,7 @@ switch register_image
         mov_img_path = path_table_resampled.file{1};
         
         % Calculate registration parameters
-        reg_params = register_to_atlas(mov_img_path, config);
+        reg_params = register_to_atlas(config, mov_img_path);
 
         % Apply transformation to other channels in the sample
         if isequal(config.save_registered_image,'true')
@@ -61,6 +65,10 @@ switch register_image
                 apply_transform_to_resampled(mov_img_path,reg_params)
             end
         end
+    case 'update'
+        
+        
+    
     case 'load'
         % Attempt to load registration parameters
         fprintf('%s\t Loading registration parameters \n',datetime('now'))
@@ -120,7 +128,7 @@ switch generate_mask
         save(fullfile(output_directory,'variables','I_mask.mat'),'I_mask')
             
         else
-            warning('%s\t No registration parameters present. Saving mask '+...
+            warning('%s\t No registration parameters loaded. Saving mask '+...
                 'without applying transformation\n',string(datetime('now')))
         end
     case 'load'
@@ -245,5 +253,6 @@ switch count_colocalized
         fprintf('%s\t No centroid list so skipping cell classification \n',datetime('now'))
 end
 
-
 fprintf('%s\t Analysis steps completed! \n',datetime('now'))
+
+end

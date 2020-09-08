@@ -1,4 +1,4 @@
-function varargout=transformix(movingImage,parameters,elementSpacing,threads, target)
+function varargout=transformix(movingImage,parameters,elementSpacing,threads,target)
 % transformix image registration and warping wrapper
 %
 % function [registeredImage,log] = transformix(movingImage,parameters) 
@@ -103,6 +103,10 @@ if nargin==0
 end
 
 verbose=0;
+
+if nargin<5
+    target = 'none';
+end
 
 
 %Handle case where the user supplies only a path to a directory
@@ -285,7 +289,7 @@ if nargin>1
     % New: if no image, calculate spatial jacobian
     if isempty(movingImage) && isequal(target,'jac')
         CMD = [CMD,'-jac all'];
-    elseif isempty(movingImage)
+    elseif isempty(movingImage) && isequal(target,'def')
         CMD = [CMD,'-def all'];
     end
 
@@ -316,7 +320,7 @@ else %Things worked! So let's return the transformed image to the user.
         d=dir(fullfile(outputDir,'outputpoints.txt')); 
     elseif isequal(target,'jac')
         d=dir(fullfile(outputDir,'spatialJacobian.mhd'));
-    else
+    elseif isequal(target,'def')
         d=dir(fullfile(outputDir,'deformationField.mhd')); 
     end
 
@@ -324,7 +328,7 @@ else %Things worked! So let's return the transformed image to the user.
         error('Failed to find transformed result. Retaining output directory for debugging purposes.')
     end
 
-    if size(movingImage,2)>3 || isequal(target,'jac') %It's an image
+    if size(movingImage,2)>3 || isequal(target,'jac') || isequal(target,'def') %It's an image
         registered=mhd_read(fullfile(outputDir,d.name));
     else %it's a points file
         registered=readTransformedPointsFile(fullfile(outputDir,d.name));

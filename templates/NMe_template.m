@@ -1,4 +1,6 @@
 %% Specify Directory Information
+groups = ["WT","TOP1"];                 % Labels for WT/KO groups in .csv files. 2 values required
+
 % Path or paths to folder(s) containing individual sample cell counting 
 % results as .csv files. 
 % Cell counts csv files should be named: WT1_centroids.csv
@@ -22,7 +24,6 @@ markers = ["ToPro","Ctip2","Cux1"];
 ct_column = 9;          % Column containing cell-type annotations. By default, last column is chosen
 
 % Labels for distinguishing WT/KO groups in .csv files
-group_delimiters = ["WT","TOP"];   
 
 combine_counts = 'load';               % Combine counts from multiple samples
 combine_volumes = 'load';               % Combine volumes from multiple samples
@@ -40,6 +41,5 @@ overwrite = 'true';                     % Overwrite existing table. Otherwise re
 visualize_results = 'true';             % Create volume visualization from stats
 orientation = 'coronal';                %
 
-group_delimiters = ["WT","TOP"];        % Labels for WT/KO groups in .csv files. 2 values required
 minimum_cell_number = 100;              % Minimum number of cells for each structure to be compared. Recommended minimum: 1 
 structure_depth = [];                   % Minimum structure graph order for comparisons (1-10). Recommended minimum: 5

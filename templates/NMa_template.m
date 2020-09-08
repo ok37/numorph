@@ -3,14 +3,14 @@
 use_processed_images = "stitched";         % Name of processed image directory (e.g. aligned, stitched). Otherwise set to false
 
 % Image resampling
-resample_image = "true";        % true, false, load
+resample_image = "load";        % true, false, load
 
 % Registration
 register_image = "false";        % true, false, load
 generate_mask = "false";         % true, false, load
 
 % Nuclei detection
-count_cells = "load";                 % 3dunet, hessian, load
+count_cells = "3dunet";                 % 3dunet, hessian, load
 use_mask = "true";                    % true, false; Use mask for cell counting
 measure_local_background = "load";    % true, false; measure local image background
 
@@ -21,15 +21,16 @@ save_counts = "true";             % true, false, overwrite
 
 %% Resampling Parameters
 resample_markers = 1:3;        % Specify which channels to resample. Only reference channel 1 needed for registration
-resample_res = [10,10,10];     % Resolution to resample to. Should match resolution of ARA reference
+resample_res = [10,10,10];     % Resolution to resample to. Should be isotropic and match resolution of ARA reference
 
 %% Registration Parameters
 registration_method = "p";      % Affine, BSpline, Points, Other
 structures_of_interest = "cortex";       % Structure of interest
-atlas_file = "ara_nissl_left_10.nii";    % Name of the atlas file to register to
+atlas_file = "ara_nissl_left_10.nii";    % Name of the atlas file to register to. Can provide full path or place .nii file in supplementary_data
 hemisphere = "left";            % left, right, whole (which brain hemisphere or whole brain)
-orientation = 'lateral';        % lateral, dorsal, ventral. Which position is at z=0 
+orientation = 'lateral';        % lateral, dorsal, ventral. Which orientation is at z=0 (i.e. for hemisphere laying flat on midline, this would be lat
 direction = 'img_to_atlas';         % Forward = register image to atlas; Reverse = register atlas to image
+calculate_inverse = 'true';         % true, false. Whether to calculate the inverse transform using elastix's Displacement Magnitude Penalty
 mask_coordinates = [];          % Row start, row end, col start, col end
 save_registered_image = 'true';     % Save a copy of registration results
 
