@@ -9,7 +9,7 @@ if nargin<1
     load 'NM_variables.mat'
     config = load(fullfile('templates','NM_variables.mat'));
 else
-    save(confi
+    save(fullfile('templates','NM_variables.mat'));
 end
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
@@ -65,9 +65,6 @@ switch register_image
                 apply_transform_to_resampled(mov_img_path,reg_params)
             end
         end
-    case 'update'
-        
-        
     
     case 'load'
         % Attempt to load registration parameters

@@ -20,24 +20,16 @@ addpath(genpath('.'))
 switch stage
     case 'process'
         NMp_template
-        temp_path = fileparts(which('NMp_template'));
-        addpath(genpath(fullfile(temp_path,'..')))
-        home_path = fileparts(which('NM_process.m'));
     case 'analyze'
         NMa_template
-        temp_path = fileparts(which('NMa_template'));
-        addpath(genpath(fullfile(temp_path,'..')))
-        home_path = fileparts(which('NM_analyze.m'));
     case 'evaluate'
         NMe_template
-        temp_path = fileparts(which('NMe_template'));
-        addpath(genpath(fullfile(temp_path,'..')))
-        home_path = fileparts(which('NM_evaluate.m'));
     otherwise
         error("Invalid input")
 end
 
 % Save config structure
+home_path = fileparts(which('NM_config.m'));
 cd(home_path)
 save(fullfile('templates', 'NM_variables.mat'),'-mat')
 

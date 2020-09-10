@@ -6,6 +6,16 @@ function [img_directory, output_directory, group] = NMsamples(sample, save_flag)
 %--------------------------------------------------------------------------
 
 switch sample
+    case 'TEST1'
+        img_directory = "/ssd2/userdata/ok37/test/Ctip2-ToPro";
+        output_directory = "/ssd2/userdata/ok37/test/output";
+        sample_name = "TEST1";
+        group = "TEST1";
+        markers = ["ToPro", "Ctip2"];
+        channel_num = ["C01","C00"];
+        resolution = [1.21, 1.21, 4];
+        ls_width = [50 50 40];
+        overlap = 0.15;
     case 'WT1L'
         img_directory(1) = "/media/SteinLab3/WT1L/High/Ctip2-ToPro";
         img_directory(2) = "/media/SteinLab3/WT1L/High/Cux1";

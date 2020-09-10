@@ -1,22 +1,23 @@
 %% Template to run Tissue Clearing Processing Pipeline
 % Set flags to indicate how/whether to run process
-use_processed_images = "false";         % Use images from aligned 		
+use_processed_images = "false";          % Use images from aligned 		
 
-adjust_intensity = "load";               % true, update, load, false. Intensity adjustment measurements should be performed on raw images!
-adjust_ls_width = "false";               % true, false. Adjust for light-sheet width
+adjust_intensity = "true";               % true, update, load, false. Intensity adjustment measurements should be performed on raw images!
+adjust_ls_width = "true";               % true, false. Adjust for light-sheet width
 adjust_tile_intensity = "true";          % true, false. Adjust between tile differences
 shading_correction = "true";             % true, false. Perform shading correction using BaSIC algorithm
-rescale_intensities = "false";           % true, false. Rescaling intensities and applying gamma 
+rescale_intensities = "true";           % true, false. Rescaling intensities and applying gamma 
 
 channel_alignment = "elastix";          % elastix, translation, false
-load_alignment_params = "update";         % true, update, false. True: apply previously caculated parameters. Update: update alignment for certain regions
-
 stitch_img = "load";                    % true, load, false
 
+save_samples = "true";                  % Save samples for inspection
 use_parallel = "true";                   % true, false
 number_of_cores = 14;                    % set max to either the number of cores available or the number of tiles. Set to 1 for no parallel processing
 
 %% Channel Alignment Parameters
+load_alignment_params = "true";         % true, update, false. True: apply previously caculated parameters. Update: update alignment for certain regions
+
 align_stepsize = 10;                    % Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
 z_initial = [0 0 0];                    % Predicted initial z displacement between channels (lasers)
 

@@ -1,10 +1,9 @@
-%This is a image pre-processing program designed to perform channel
-%alignment, intensity adjustment, stitching, and resampling on
-%light-sheet images, specifically those acquired by LaVision
-%Ultramicroscope II. Performing these steps will generate all files
-%necessary to run image registration and cell counting in the
-%following steps.
-clear
+function NM_process(config)
+%--------------------------------------------------------------------------
+% NuMorph processing pipeline designed to perform channel alignment,
+% intensity adjustment, and stitching on multi-channel light-sheet images.
+%--------------------------------------------------------------------------
+
 % Load configuration from .mat file
 load(fullfile('templates','NM_variables.mat'));
 config = load(fullfile('templates','NM_variables.mat'));
@@ -15,16 +14,6 @@ output_directory = config.output_directory;
 fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
 
 %% Create directories
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Make an output directory
-if exist(output_directory,'dir') ~= 7
-    mkdir(char(output_directory));
-end
-
-% Make a variables directory
-if exist(fullfile(output_directory,'variables'),'dir') ~= 7
-    mkdir(fullfile(output_directory,'variables'))
-end
 
 % Update image directory if using processed images
 if ~isequal(config.use_processed_images,"false")
@@ -426,4 +415,5 @@ else
     end
 
     fprintf("%s\t Stitching completed! \n",datetime('now'));
+end
 end
