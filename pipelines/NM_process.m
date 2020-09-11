@@ -86,7 +86,7 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
     % intensity thresholds
     lowerThresh_measured = zeros(1,3); upperThresh_measured = zeros(1,3);
     flatfield = cell(1,3);  darkfield = cell(1,3);
-    for k = 1:length(markers)            
+    for k = 1:length(config.markers)            
         fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
 
         stack = path_table(path_table.markers == config.markers(k),:);
@@ -128,7 +128,7 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
 elseif isequal(config.adjust_intensity,"load")
     % Load adjustment parameters from output directory and use as is  
     fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
-    load(fullfile(output_directory,'variables','adj_params.mat'))
+    load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
     [adj_params, config] = check_adj_parameters(adj_params,config);
     config.adj_params = adj_params;
     config.adjust_intensity = "true";
@@ -150,7 +150,7 @@ elseif isequal(config.adjust_intensity,"false")
         fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
             "Attempting to load from adjustment parameters.\n",datetime('now'));
         try
-            load(fullfile(output_directory,'variables','adj_params.mat'))
+            load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
         catch ME
             
         end

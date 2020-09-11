@@ -41,11 +41,12 @@ elseif nargin > 1 && isequal(stage,'evaluate')
     c = textscan(fid,'%s');
     sample_idx = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
     for i = 1:length(sample_idx)
-        [~, centroids_directory(i), group(i)] = NMsamples(sample_idx{i}(2:end-1));
+        [~, centroids_directory(i), group(i)] = NMsamples(sample_idx{i}(2:end-1),false);
     end
     fclose(fid);
     output_directory = results_directory;
-    save(fullfile('templates','NM_variables.mat'),{'centroids_directory','group','output_directory'},'-mat','-append')
+    use_processed_images = "false";
+    save('./templates/NM_variables.mat','centroids_directory','group','output_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end

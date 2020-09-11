@@ -1,10 +1,15 @@
-clear
-% This script merges analysis results from multiple samples to performs
-% pairwise comparison between WT and KO groups. Outputs a merged .csv files
-% containing cell counts for each structure. Additional statistical
-% comparisons are also performed. 
-id = sprintf('NMe_%s.out',char(datetime('now','Format','yyyy-MM-dd-hhmmss')));
-config = load('NMe_variables.mat');
+function NM_evaluate(config)
+%--------------------------------------------------------------------------
+% NuMorph evaluation pipeline to merge analysis results from multiple
+% grouped samples and perform pairwise statistical comparisons between WT
+% and KO groups.
+%--------------------------------------------------------------------------
+
+if nargin<1 
+    load 'NM_variables.mat'
+    config = load(fullfile('templates','NM_variables.mat'));
+end
+fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
 %% Count Cell Types
 if isequal(config.combine_counts,'true')
@@ -93,7 +98,6 @@ if isequal(config.visualize_results,'true')
         config.compare_structures_by, config.orientation);
 end
 
-
 %% Display Slice
 % z: z_position
 % marker: annotation, ToPro, Ctip2, Cux1
@@ -105,10 +109,7 @@ key{2} = [30,1,2,7];
 
 %close(gcf)
 [p1, p2] = display_slice2(vs,key);
-
-%% Display flat cortex
-
-
+end
 
 
 

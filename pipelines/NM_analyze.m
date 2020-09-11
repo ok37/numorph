@@ -8,8 +8,6 @@ function NM_analyze(config)
 if nargin<1 
     load 'NM_variables.mat'
     config = load(fullfile('templates','NM_variables.mat'));
-else
-    save(fullfile('templates','NM_variables.mat'));
 end
 fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
 
@@ -221,7 +219,6 @@ if isequal(config.remeasure_centroids,'true')
     centroids = remeasure_centroids(centroids,path_table_stitched,config);
     writematrix(centroids,path_centroids);
 end
-
 
 switch count_colocalized
     case 'gmm'        
