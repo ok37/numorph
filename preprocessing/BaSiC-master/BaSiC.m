@@ -44,8 +44,6 @@ function [flatfield, varargout] = BaSiC(IF,varargin)
 % March 2016. Tingying Peng: equiry for usage addressed to
 % tying84ster@gmail.com or tingying.peng@helmholtz-muenchen.de
 
-addpath('dcttool')
-
 % parse the input arguments, return a structure containing parameters
 options = BaSiC_parseInputs(varargin);
 
@@ -77,6 +75,9 @@ W_meanD = mirt_dct2(meanD);
 if isempty(options.lambda)
     options.lambda = sum(abs(W_meanD(:)))./(400)*0.5;
 end
+%%%%% New Edit
+options.lambda = options.lambda*options.smooth;
+
 if isempty(options.lambda_darkfield)
     options.lambda_darkfield = sum(abs(W_meanD(:)))./(400)*0.2;
    % options.lambda_darkfield = max(1e4./sum(abs(minD(:))),0.1);

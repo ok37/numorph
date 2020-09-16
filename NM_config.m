@@ -25,7 +25,7 @@ switch stage
     case 'evaluate'
         NMe_template
     otherwise
-        error("Invalid input")
+        error("Invalid stage input")
 end
 
 % Save config structure
@@ -61,6 +61,9 @@ if ~isequal(use_processed_images,"false")
     end
 end
 
+% Check variable lengths for some variables
+check_variable_lengths
+
 % Make an output directory
 if exist(output_directory,'dir') ~= 7
     mkdir(output_directory);
@@ -87,4 +90,28 @@ if nargin>2 && run
             NM_evaluate
     end
 end
+end
+
+
+function check_variable_lengths
+% Check user input variable lengths to make sure they're the correct length
+% and match number of markers in most cases
+
+% Variables to check
+variable_names = {'markers','single_sheet','ls_width','laser_y_displacement'};
+load(fullfile('templates','NM_variables.mat'),variable_names{:});
+
+for i = 1:length(variable_names)
+    if exist('single_sheet','var') == 1 && length(single_sheet) == 1
+        single_sheet = repmat(single_sheet,1,length(markers));
+    elseif exist('ls_width','var') == 1 && length(ls_width) == 1
+        ls_width = repmat(ls_width,1,length(markers));
+    elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1
+        laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
+    end
+end
+
+% Resave these variables
+save(fullfile('templates', 'NM_variables.mat'),variable_names{:},'-mat','-append')
+
 end

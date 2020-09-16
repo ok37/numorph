@@ -6,7 +6,7 @@ function NM_process(config)
 
 % Load configuration from .mat file, if not provided
 if nargin<1
-    load(fullfile('templates','NM_variables.mat'));
+    %load(fullfile('templates','NM_variables.mat'));
     config = load(fullfile('templates','NM_variables.mat'));
 end
 fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
@@ -17,12 +17,11 @@ if ~isequal(config.use_processed_images,"false")
     img_directory = fullfile(output_directory,config.use_processed_images);
     config.img_directory = img_directory;
     if ~exist(img_directory,'dir')
-        error("Counld not locate processed image directory %s\n",img_directory)
+        error("Could not locate processed image directory %s\n",img_directory)
     end
     if isequal(config.use_processed_images,"aligned")
         fprintf("%s\t Images already aligned. Skipping channel alignment \n",datetime('now'))
         config.channel_alignment = "false";
-        channel_alignment = "false";
     end
 end
 
@@ -48,8 +47,6 @@ end
 % Count number of x,y tiles
 ncols = length(unique(path_table.x));
 nrows = length(unique(path_table.y));
-x_start = min(path_table.x);
-y_start = min(path_table.y);
 nb_tiles = ncols * nrows;
 position_mat = reshape(1:nb_tiles,[nrows,ncols])';
 
@@ -73,9 +70,9 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
     else
         % Load previous adjustment parameter structure
         fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
-        load(fullfile(output_directory,'variables','adj_params.mat'))
+        load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
         
-        % Update which adjustment to apply based on current configs
+        % Update which adjustment to apply based on current config
         adj_params.adjust_ls_width = config.adjust_ls_width;
         adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
         adj_params.rescale_intensities = config.rescale_intensities;
@@ -84,8 +81,8 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
 
     % Measure sample images in overlapping regions and calculate
     % intensity thresholds
-    lowerThresh_measured = zeros(1,3); upperThresh_measured = zeros(1,3);
-    flatfield = cell(1,3);  darkfield = cell(1,3);
+    lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
+    flatfield = cell(1,length(config.markers));  darkfield = flatfield;
     for k = 1:length(config.markers)            
         fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
 
@@ -114,13 +111,13 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
 
     % Save adjustment parameters to output directory
     fprintf("%s\t Saving adjustment parameters \n",datetime('now'));
-    save(fullfile(output_directory,'variables','adj_params.mat'), 'adj_params')
+    save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
         
     % Save flatfield and darkfield as seperate variables
     if isequal(config.shading_correction,"true")
         fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
-        save(fullfile(output_directory,'variables','flatfield.mat'), 'flatfield')
-        save(fullfile(output_directory,'variables','darkfield.mat'), 'darkfield')
+        save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
+        save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
     end
 
     config.adjust_intensity = "true";
@@ -128,7 +125,7 @@ if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'u
 elseif isequal(config.adjust_intensity,"load")
     % Load adjustment parameters from output directory and use as is  
     fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
-    load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
+    load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
     [adj_params, config] = check_adj_parameters(adj_params,config);
     config.adj_params = adj_params;
     config.adjust_intensity = "true";
@@ -149,11 +146,6 @@ elseif isequal(config.adjust_intensity,"false")
     else
         fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
             "Attempting to load from adjustment parameters.\n",datetime('now'));
-        try
-            load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
-        catch ME
-            
-        end
     end
 else
     error("%s\t Unrecognized selection for adjust_intensity. "+...
@@ -162,48 +154,49 @@ end
 
 %% Channel Alignment
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-switch channel_alignment
+switch config.channel_alignment
     case 'translation'
         fprintf("%s\t Aligning channels by translation \n",datetime('now'));
+        
         % Determine z displacement from reference channel
         % Check first if .mat file exists in output directory
-        if exist(fullfile(output_directory,'z_displacement_align.mat'),'file') == 2
+        if exist(fullfile(config.output_directory,'z_displacement_align.mat'),'file') == 2
             fprintf("%s\t Loading z displacement matrix \n",datetime('now'));
-            load(fullfile(output_directory,'z_displacement_align.mat'))
+            load(fullfile(config.output_directory,'z_displacement_align.mat'),'z_displacement_align')
         else
-            z_displacement_align = zeros([nrows,ncols,numel(markers)-1]);
-            for k = 2:length(markers)
+            z_displacement_align = zeros([nrows,ncols,numel(config.markers)-1]);
+            for k = 2:length(config.markers)
                 fprintf("%s\t Performing channel alignment z calculation for %s/%s \n",...
-                    datetime('now'),markers{k},markers{1});
+                    datetime('now'),config.markers{k},config.markers{1});
                 z_tile = zeros(1,numel(position_mat));
                 ave_signal = zeros(1,numel(position_mat));
                 for idx = 1:numel(position_mat)
                     [y,x] = find(position_mat==idx);
-                    path_ref = path_table(path_table.x==x & path_table.y==y & path_table.markers == markers{1},:);
-                    path_mov = path_table(path_table.x==x & path_table.y==y & path_table.markers == markers{k},:);
-                    % This measures the displacement in Z for a given channel to the reference
-                    [z_tile(idx),ave_signal(idx)] = zAlign2(path_mov,path_ref,z_positions,z_window,...
-                        lowerThresh(k),z_initial(k));
+                    path_ref = path_table(path_table.x==x & path_table.y==y & path_table.markers == config.markers{1},:);
+                    path_mov = path_table(path_table.x==x & path_table.y==y & path_table.markers == config.markers{k},:);
+                    % This measures the displacement in z for a given channel to the reference
+                    [z_tile(idx),ave_signal(idx)] = z_align_channel(path_mov,path_ref,config.z_positions,config.z_window,...
+                        config.lowerThresh(k),config.z_initial(k));
                     
-                    fprintf("%s\t Predicted z displacement of %d for position %d \n",...
-                        datetime('now'),z_tile(idx),idx);
+                    fprintf("%s\t Predicted z displacement of %d for tile %d x %d \n",...
+                        datetime('now'),z_tile(idx),y,x);
                 end
                 z_matrix = reshape(z_tile,[nrows, ncols])';
                 z_displacement_align(:,:,k-1) = z_matrix;
             end
             % Save displacement variable to output directory
-            save(fullfile(output_directory,'z_displacement_align.mat'), 'z_displacement_align')
+            fprintf("%s\t Saving z displacement matrix \n",datetime('now'));
+            save(fullfile(config.output_directory,'z_displacement_align.mat'), 'z_displacement_align')
         end
 
         % Perform channel alignment
         alignment_table = cell(ncols,nrows);
         for idx = 1:numel(position_mat)
             [y,x] = find(position_mat==idx);            
-            fprintf("%s\t Aligning channels to %s for tile 0%dx0%d \n",...
-                        datetime('now'),markers{1},y,x);
+            fprintf("%s\t Aligning channels to %s for tile %d x %d \n",...
+                        datetime('now'),config.markers{1},y,x);
             path_align = path_table(path_table.x==x & path_table.y==y,:);
-            alignment_table{y,x} = coregister(path_align,z_displacement_align(y,x,:),...
-                output_directory,lowerThresh,align_stepsize,save_aligned_images);
+            alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align(y,x));
         end
         
         % Save registration variable to output directory
@@ -229,7 +222,7 @@ switch channel_alignment
         if isequal(config.load_alignment_params,"false") && isempty(config.lowerThresh) || isempty(config.upperThresh)
             fprintf("%s\t Lower and upper intensity thresholds are unspecified but are required "+...
                 "for accurate alignment. Measuring these now... \n",datetime('now'));
-            for k = 1:length(markers)            
+            for k = 1:length(config.markers)            
                 fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
                 stack = path_table(path_table.markers == config.markers(k),:);
                 adj_params = [];
@@ -246,7 +239,7 @@ switch channel_alignment
             [y,x] = find(position_mat==i);
             path_align = path_table(path_table.x==x & path_table.y==y,:);
             fprintf("%s\t Aligning channels to %s for tile 0%dx0%d \n",...
-                datetime('now'),markers{1},y,x);
+                datetime('now'),config.markers{1},y,x);
             elastix_channel_alignment(x, y, path_align, config);
         end
                 
@@ -256,7 +249,7 @@ switch channel_alignment
         img_directory = fullfile(output_directory,'aligned');
         path_cell = {dir(config.img_directory)};
         location = "aligned";
-        path_table = path_to_table(path_cell,location,markers(1),channel_num,sample_name);
+        path_table = path_to_table(path_cell,location,config.markers(1),channel_num,sample_name);
         
         % Update tile intensity adjustments using newly aligned images.
         % Also, set light sheet width adjustments + flatfield adjustments
@@ -266,19 +259,14 @@ switch channel_alignment
             config.adj_params.adjust_ls_width = "false";
             config.shading_correction = "false";
             config.adj_params.shading_correction = "false";
-
-            for k = 1:length(markers)            
+            for k = 1:length(config.markers)            
                 fprintf("%s\t Updating intensity measurements for marker %s using "+...
                     "newly aligned images \n",datetime('now'),config.markers(k));
-
                 stack = path_table(path_table.markers == config.markers(k),:);
-
                 t_adj = measure_images(stack, config, k);
-
                 adj_params.t_adj{k} = t_adj;
             end
         end
-        
     case "false"
         % No channel alignment
         fprintf("%s\t No channel alignment selected \n",datetime('now'));
@@ -297,7 +285,7 @@ else
         location = 'aligned';
         path_table = path_to_table(path_reg,location,markers(1),channel_num,sample_name);
 
-        %%%%%%%%Edit this 
+        %%%%%%%% Edit this 
     elseif length(config.markers) > 1 && exist(fullfile(config.output_directory,'alignment_table.mat'),'file') == 2 && ~exist('alignment_table','var')
         fprintf("%s\t Using multi-channel alignment measurements from .mat file \n",datetime('now'));
         load(fullfile(char(output_directory),'alignment_table.mat'))

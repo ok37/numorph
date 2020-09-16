@@ -65,7 +65,7 @@ if any(v_low_flag(:)==1)
     v_disp_matrix(isnan(v_disp_matrix)) = sub_displacement;
 end
     fprintf(strcat(char(datetime('now')),'\t Final vertical displacement matrix:\t',mat2str(v_disp_matrix),'\n'))
-%[0 -2 -2 -1;0 -1 -1 -1;0 -2 -2 -1;0 -2 -2 -2]
+
     %%% Use minimum spanning tree to get final z displacement matrix
     z_disp_matrix = min_span_tree_2(v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix);
     fprintf(strcat(char(datetime('now')),'\t Final displacement matrix:\t',mat2str(z_disp_matrix),'\n'))

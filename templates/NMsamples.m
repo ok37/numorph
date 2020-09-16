@@ -9,7 +9,8 @@ switch sample
     case 'TEST1'
         %img_directory = "/ssd2/userdata/ok37/test/Ctip2-ToPro";
         %output_directory = "/ssd2/userdata/ok37/test/output";  
-        img_directory = "/Users/Oleh/Documents/MATLAB/numorph/test1.csv";  % Input image directory (required)
+        img_directory = "/users/Oleh/test_images/Ctip2-ToPro";  % Input image directory (required)
+        %img_directory = "/Users/Oleh/Documents/MATLAB/numorph/test1.csv";  % Input image directory (required)
         output_directory = "/users/Oleh/test_images/output";    % Ouput directory (required)
         sample_name = "TEST1";                                  % Sample name/id (required)
         group = "TEST";                                         % Group name/id (optional: used for evaluation steps)

@@ -565,4 +565,5 @@ elseif isequal(config.adjust_ls_width,'true')
        end
     end
 end
+
 end

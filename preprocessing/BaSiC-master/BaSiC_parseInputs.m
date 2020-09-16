@@ -15,6 +15,10 @@ options.max_iterations          = [];   % default value = 500
 options.optimization_tol        = [];   % default value = 1e-5;
 options.darkfield               = [];   % default value = 'false';
 options.lambda_darkfield        = [];   % defulat value estimated from input images directly
+
+%%%%%%
+options.smooth                  = 1;    % default value = 1
+
 % options.basefluo              = [];
 
 %% internal options, should not be reset by user without expert knowledge
@@ -43,6 +47,8 @@ for i = 1:numel(v)
                     options.lambda_darkfield = getParam(v,i);
             case{'basefluo','basefluorescence'}
                     options.basefluo = getParam(v,i);
+            case 'smooth'
+                    options.smooth = getParam(v,i);
             end       
     end
     

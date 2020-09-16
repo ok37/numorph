@@ -10,10 +10,7 @@ image_sampling = 0.1;   % Fraction of all images to sample
 
 % Load config parameters
 overlap = config.overlap;
-ls_width = config.ls_width(channel_idx);
-single_sheet = config.single_sheet;
 resolution = config.resolution;
-laser_y_displacement = config.laser_y_displacement(channel_idx);
 
 % Count number of images and measure image dimensions
 x_tiles = length(unique(stack.x));
@@ -46,7 +43,8 @@ overlap_max_v = {[overlap_max_r(1),overlap_max_r(end)],[1,ncols]};
 % Calculate and adjust for laser width
 if isequal(config.adjust_ls_width,"true")
     fprintf('%s\t Adjusting For Laser Width \n',datetime('now'));    
-    y_adj = adjust_intensity_measured(single_sheet,tempI,ls_width,resolution,laser_y_displacement)';
+    y_adj = adjust_intensity_measured(config.single_sheet(channel_idx),tempI,...
+    config.ls_width(channel_idx),resolution,config.laser_y_displacement(channel_idx))';
 else
     fprintf('%s\t No Laser Width Adjustment \n',datetime('now'));    
     y_adj = ones(nrows,1);
@@ -54,7 +52,7 @@ end
 
 % Calculate shading correction using BaSiC
 if isequal(config.shading_correction,"true")
-    [flatfield, darkfield]  = estimate_flatfield(stack, config);
+    [flatfield, darkfield]  = estimate_flatfield(config, stack);
     flatfield = single(flatfield);
     darkfield = single(darkfield);
 else

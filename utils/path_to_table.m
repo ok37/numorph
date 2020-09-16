@@ -166,6 +166,9 @@ switch location
 
             % Take only tif files
             paths = paths{1}(arrayfun(@(x) contains(x.name,'.tif'),paths{1}));
+            if isempty(paths)
+                error("No .tif files detected in input image directory")
+            end
 
             % Save full file path
             paths_sub = cell2struct(fullfile({paths.folder},{paths.name}),'file');
@@ -199,7 +202,7 @@ switch location
 end
 
 % Convert to table
-if ~ismepty(paths_new)
+if ~isempty(paths_new)
     paths_table_main = struct2table(reshape([paths_new{:}],[],1));
 end
 
@@ -215,9 +218,16 @@ if height(unique(paths_table_main(:,2:end),'rows')) ~= height(paths_table_main)
 end
 total_images = max(paths_table_main.x)*max(paths_table_main.y)*max(paths_table_main.z)*max(paths_table_main.channel_num);
 if total_images > height(paths_table_main)
-    error("Extra entries detected in assembled image file table")
+    error("Extra entries detected for %d tiles in assembled image file table",...
+        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
 elseif total_images < height(paths_table_main)
-    error("Missing entries detected in assembled image file table")
+    error("Missing entries detected for %d tiles in assembled image file table",...
+        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
+end
+
+% Check if images are single channel
+if length(imfinfo(paths_table_main.file{1})) > 1
+    error("Multi-page .tif detected. NuMorph currently does not support multi-channel .tif images")
 end
 
 end
