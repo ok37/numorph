@@ -13,12 +13,13 @@ function elastix_channel_alignment(x,y,path_table,config, chunk_pad)
 % directory
 %--------------------------------------------------------------------------
 
-if nargin<5
+if nargin<5 && ~isfield(config,'chunk_pad')
     chunk_pad = 30; %Important parameter. If misalignment is very large, you will have to increase to prevent zero areas from occuring in the output chunk edges
+else
+    chunk_pad = config.chunk_pad;
 end
 
-% Parameters not found in TCp_template 
-max_chunk_size = 300; %Important parameters. Decreasing might improve precision but takes longer. Higher values usually gives a more reproducible results
+% Parameters not found in NMp_template. Defaults
 img_gamma_adj = [1 0.8 0.7]; %Important parameter (0-1). Decrease for channels with low background. Different than gamma applied to image during intensity adjustment
 smooth_blobs = "false"; %Smooth blobs using median filter
 surpress_bright = "false"; %Remove bright spots from image
@@ -30,9 +31,11 @@ output_directory = config.output_directory;
 home_path = config.home_path;
 
 % Registration-specific parameters
+max_chunk_size = config.max_chunk_size; 
 h_bins = config.h_bins;
 mask_int_threshold = config.mask_int_threshold;
 s = config.resample_s;
+histogram_bins = config.hist_match; % Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave at 0. This can be useful for low contrast images
 
 % Unpack intensity adjustment variables
 lowerThresh = config.lowerThresh;
@@ -64,18 +67,16 @@ for i = 1:length(markers)-1
    end
 end
 
-%s Downsampling factor for downsizing images [y,x,z];
-histogram_bins = [0 0 128]; %Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave at 0. This can be useful for low contrast images
-
 %% Check if previous registration parameters exist
 if isequal(config.load_alignment_params,"true") || isequal(config.load_alignment_params,"update")
    fprintf("%s\t Loading previous registration parameters \n",datetime('now'))
     if ~isequal(exist(fullfile(output_directory,'variables',sprintf('out_0%d_0%d.mat',y,x)),'file'),2)
-        error("\t Could not locate elastix parameters in variables folder \n")
+        warning("Could not locate elastix parameters in variables folder. Running alignment from scratch")
+        using_loaded_parameters = 'false';
     else
         load(fullfile(output_directory,'variables',sprintf('out_0%d_0%d.mat',y,x)), 'out')
+        using_loaded_parameters = 'true';
     end
-    using_loaded_parameters = 'true';
 else
     using_loaded_parameters = 'false';
 end
@@ -90,12 +91,8 @@ else
 end    
 
 total_images = height(path_table)/length(markers);
-if ~isempty(config.align_slices) && isempty(config.align_chunks)
-    % Subset by slice range
-    %assert(length(config.align_slices)<max_chunk_size,...
-    %    "Length of specified target slices for alignment should be less "+...
-    %    "the max chunk size of %d",max_chunk_size)
-    
+if ~isempty(config.align_slices) && isequal(using_loaded_parameters,'true')
+    % Subset by slice range   
     for i = 1:length(config.align_slices)
         chunk_start(i) = min(config.align_slices{i});
         chunk_end(i) =  max(config.align_slices{i});
@@ -119,7 +116,7 @@ if ~isempty(config.align_slices) && isempty(config.align_chunks)
     path_table = path_table(ismember(path_table.z,z_min_adj:z_max_adj),:);
     z_range_save = unique([config.align_slices{:}]);
     
-elseif  ~isempty(config.align_chunks)
+elseif  ~isempty(config.align_chunks) && isequal(using_loaded_parameters,'true')
     % Subset by chunk
     align_chunks = config.align_chunks;
     chunk_start =  cellfun(@(s) s.chunk_start,out(align_chunks,1));
@@ -139,19 +136,19 @@ else
     % Use all images
     z_min_adj = 1;
     z_max_adj = total_images;
-    align_chunks = 1:size(out,1);
+    align_chunks = NaN;
     z_range_save = 1:total_images;
     init_tform = cell(1,length(markers)-1);
 end
 
 %% Read and preprocess images
 tic
+% Get basic image and file information 
 n_images = height(path_table)/length(markers);
 z_range_adj = z_min_adj:z_max_adj;
-I_raw = cell(1,length(markers));
 tempI = imread(path_table.file{1});
 [nrows, ncols] = size(tempI);
-cropping_flag =  [0 0 0]; %Flag for cropping images to reference channel
+cropping_flag =  [0 0 0]; % Flag for cropping images to reference channel
 
 % Check if channels have the same sized images
 for i = [1,align_channels]
@@ -163,21 +160,30 @@ for i = [1,align_channels]
 end
 
 % Initialize matrices for storing raw images
+I_raw = cell(1,length(markers));
 I_raw(:) = {uint16(zeros(nrows,ncols,total_images))};
 
 %Start parallel pool
-p = gcp('nocreate');
+try
+    p = gcp('nocreate');
+catch
+    warning("Could not load Parallel Computing Toolbox. It's recommended "+...
+        "that this toolbox be installed to speed up alignment and subsequent "+...
+        "analysis.")
+    p = 1;
+end
 if isempty(p)
-    %parpool(sum(c_idx)+1);
+    parpool(length(config.markers))
 end
 
+% Resampled image dimensions
 dim_adj = round([nrows ncols total_images]./s);
 
 if isequal(using_loaded_parameters,'true') && ~isequal(config.load_alignment_params,"update")
     fprintf('Reading images and pre-processing \n')
     for i = 1:length(markers)
-        % Using pre-computed parameters. Only going to apply the
-        % transformation
+        % If just applying pre-computed transfomrations, just read imgaes
+        % without any other adjustments other than cropping
         if i > 1 && c_idx(i) == 0
             continue
         end
@@ -198,6 +204,9 @@ else
         mask2 = zeros(size(I_raw{1}));
     end
     for i = 1:length(markers)
+        % Here we're going to perform registration so create a copy of
+        % images and perform adjustments on these to make the registration
+        % more accurate
         if i > 1 && c_idx(i) == 0
             continue
         end
@@ -211,7 +220,6 @@ else
             I_raw{i}(:,:,z_range_adj(j)) = img;
             if isequal(surpress_bright,"true")
                 idx = img>upperLimit(i);
-                %img(idx) = 100;
                 if i == 1
                     mask2(idx) = 1;
                 end
@@ -238,13 +246,6 @@ else
     else
         mask = zeros(size(I{1}));
         mask(:,:,chunk_start_adj(1):chunk_end_adj(1)) = 1;
-        %mask = generate_sampling_mask(I{1},mask_int_threshold,lowerThresh,upperThresh);
-
-        %disp(z_range_save)
-        %disp(size(mask))
-        %disp(sum(mask(:)))
-        %rm_idx = ~ismember(1:total_images,config.align_slices);
-        %mask(:,:,rm_idx) = 0;
         fprintf('Using masked ROI for slices \n')
     end
     
@@ -255,6 +256,11 @@ else
     
     % Determine chunk positions
     if isempty(config.align_chunks) && isempty(config.align_slices)
+        % If total number of images is less than the max chunk size, adjust
+        % padding
+        if max_chunk_size>total_images
+           chunk_pad = 0; 
+        end
         [chunk_start, chunk_end, chunk_start_adj, chunk_end_adj] = get_chunk_positions(mask, n_images, max_chunk_size, chunk_pad);
         align_chunks = 1:length(chunk_start);
     end
@@ -264,7 +270,7 @@ fprintf('Images loaded and pre-processed in %d seconds\n', round(toc))
 
 %% Now perform the registration
 if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
-    %Initial registration on whole downsampled stack
+    %Initial registration by translation on whole downsampled stack
     fprintf('Performing intial registration \n')
     fprintf('Using %d chunks\n', length(align_chunks))
     for i = 1:length(markers)-1
@@ -275,8 +281,9 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
        end
        [init_tform{i},~] = elastix(I{i+1}(:,:,z_range_adj),I{1}(:,:,z_range_adj),...
             outputDir{i},{transform_path_init},'s',s,'threads',[]);
-        disp(init_tform{i}.TransformParameters{1})
-        %imshowpair((img(:,:,500)),(I{1}(:,:,500)))
+        fprintf("Intial transform parameters: %s\n",sprintf("%.3f\t",init_tform{i}.TransformParameters{1}.TransformParameters))
+        % Preview registration
+        % imshowpair((img(:,:,500)),(I{1}(:,:,500)))
     end
         
     % Save transform parameters into cell array
@@ -328,7 +335,6 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
             
             out{i,j}.chunk_start_adj = chunk_start1;
             out{i,j}.chunk_end_adj = chunk_end1;
-            
             out{i,j}.chunk_start = chunk_start2;
             out{i,j}.chunk_end = chunk_end2;
             
@@ -345,7 +351,6 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
             %slices = 1:5:size(output,3);
             %I_sample1 = im2uint16(I_ref(:,:,slices));
             %I_sample2 = im2uint16(output(:,:,slices));
-            
             %options.overwrite = true;
             %saveastiff(I_sample1,sprintf('topro_%d.tif',i),options)
             %saveastiff(I_sample2,sprintf('transform_%d.tif',i),options)
@@ -387,7 +392,6 @@ end
 if ~isempty(config.align_slices) && isequal(config.load_alignment_params,'true')
     z_range_save = config.align_slices{1};
 end
-
 
 % Save aligned images
 for j = 1:length(markers)
@@ -516,6 +520,7 @@ else
     chunk_end_adj = chunk_end;
     chunk_end_adj(1:(n_chunks-1)) = chunk_end_adj(1:(n_chunks-1)) + chunk_pad;
 end
+
 end
 
 

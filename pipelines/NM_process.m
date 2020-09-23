@@ -3,24 +3,23 @@ function NM_process(config)
 % NuMorph processing pipeline designed to perform channel alignment,
 % intensity adjustment, and stitching on multi-channel light-sheet images.
 %--------------------------------------------------------------------------
-
 % Load configuration from .mat file, if not provided
 if nargin<1
-    %load(fullfile('templates','NM_variables.mat'));
     config = load(fullfile('templates','NM_variables.mat'));
 end
+config.var_directory = fullfile(config.output_directory,'variables');
+
 fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
 
 %% Create directories
 % Update image directory if using processed images
 if ~isequal(config.use_processed_images,"false")
-    img_directory = fullfile(output_directory,config.use_processed_images);
-    config.img_directory = img_directory;
-    if ~exist(img_directory,'dir')
-        error("Could not locate processed image directory %s\n",img_directory)
+    config.img_directory = fullfile(config.output_directory,config.use_processed_images);
+    if ~exist(config.img_directory,'dir')
+        error("Could not locate processed image directory %s\n",config.img_directory)
     end
     if isequal(config.use_processed_images,"aligned")
-        fprintf("%s\t Images already aligned. Skipping channel alignment \n",datetime('now'))
+        warning("%s\t Images already aligned. Skipping channel alignment \n",datetime('now'))
         config.channel_alignment = "false";
     end
 end
@@ -52,104 +51,110 @@ position_mat = reshape(1:nb_tiles,[nrows,ncols])';
 
 %% Measure Intensity of All Images
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(config.adjust_intensity,"true") || isequal(config.adjust_intensity,'update')
-    if isequal(config.adjust_intensity,"true")
-        % Define intensity adjustment parameters from scratch. Intensity
-        % adjustment measurements should be made on raw images.
-        fprintf("%s\t Defining new adjustment parameters \n",datetime('now'));        
-        adj_fields = {'adjust_intensity','adjust_ls_width','adjust_tile_intensity',...
-        'rescale_intensities','shading_correction','lowerThresh','upperThresh','gamma'};
+switch config.adjust_intensity
+    case {'true', 'update'}
+        if isequal(config.adjust_intensity,"true")
+            % Define intensity adjustment parameters from scratch. Intensity
+            % adjustment measurements should be made on raw images.
+            fprintf("%s\t Defining new adjustment parameters \n",datetime('now'));        
+            adj_fields = {'adjust_intensity','adjust_ls_width','adjust_tile_intensity',...
+            'rescale_intensities','shading_correction','lowerThresh','upperThresh','gamma'};
+        
+            % Update parameters from config structure
+            for i = 1:length(adj_fields)
+                try
+                    adj_params.(adj_fields{i}) = config.(adj_fields{i});
+                catch
+                end
+            end
+        else
+            % Load previous adjustment parameter structure
+            fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
+            load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
 
-        % Update parameters from config structure
-        for i = 1:length(adj_fields)
-            try
-                adj_params.(adj_fields{i}) = config.(adj_fields{i});
-            catch
+            % Update which adjustment to apply based on current config
+            adj_params.adjust_ls_width = config.adjust_ls_width;
+            adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
+            adj_params.rescale_intensities = config.rescale_intensities;
+            adj_params.shading_correction = config.shading_correction;
+        end
+        
+        % Measure sample images in overlapping regions and calculate
+        % intensity thresholds for each marker
+        lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
+        flatfield = cell(1,length(config.markers));  darkfield = flatfield;
+        for k = 1:length(config.markers)            
+            fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
+            stack = path_table(path_table.markers == config.markers(k),:);
+
+            % Take measurements
+            [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
+                measure_images(stack, config, k);
+
+            % Update adjustments parameters structure
+            if isequal(config.adjust_ls_width,"true") || isequal(config.adjust_intensity,"true")
+                adj_params.y_adj{k} = y_adj;
+            end
+            if isequal(config.adjust_tile_intensity,"true") || isequal(config.adjust_intensity,"true")
+                adj_params.t_adj{k} = t_adj;
+            end
+            if isequal(config.shading_correction,"true") || isequal(config.adjust_intensity,"true")
+                adj_params.flatfield{k} = flatfield{k};
+                adj_params.darkfield{k} = darkfield{k};
             end
         end
-    else
-        % Load previous adjustment parameter structure
-        fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
-        load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
-        
-        % Update which adjustment to apply based on current config
-        adj_params.adjust_ls_width = config.adjust_ls_width;
-        adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
-        adj_params.rescale_intensities = config.rescale_intensities;
-        adj_params.shading_correction = config.shading_correction;
-    end
 
-    % Measure sample images in overlapping regions and calculate
-    % intensity thresholds
-    lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
-    flatfield = cell(1,length(config.markers));  darkfield = flatfield;
-    for k = 1:length(config.markers)            
-        fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
+        % Check for user-defined intensity threshold values
+        [adj_params, config, lowerThresh, upperThresh] = check_adj_parameters(adj_params,...
+            config, lowerThresh_measured, upperThresh_measured);
+        config.adj_params = adj_params;
 
-        stack = path_table(path_table.markers == config.markers(k),:);
+        % Save adjustment parameters to output directory
+        fprintf("%s\t Saving adjustment parameters \n", datetime('now'));
+        save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
 
-        [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
-            measure_images(stack, config, k);
-
-        % Update adjustments parameters structure
-        if isequal(config.adjust_ls_width,"true") || isequal(config.adjust_intensity,"true")
-            adj_params.y_adj{k} = y_adj;
+        % Save flatfield and darkfield as seperate variables
+        if isequal(config.shading_correction,"true")
+            fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
+            save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
+            save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
         end
-        if isequal(config.adjust_tile_intensity,"true") || isequal(config.adjust_intensity,"true")
-            adj_params.t_adj{k} = t_adj;
+
+        config.adjust_intensity = "true";
+
+    case 'load'
+        % Load adjustment parameters from output directory and use as is  
+        fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
+        load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
+        [adj_params, config] = check_adj_parameters(adj_params,config);
+        config.adj_params = adj_params;
+        config.adjust_intensity = "true";
+
+        % Update which adjustment to apply based on current configs
+        config.adj_params.adjust_ls_width = config.adjust_ls_width;
+        config.adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
+        config.adj_params.rescale_intensities = config.rescale_intensities;
+        config.adj_params.shading_correction = config.shading_correction;
+        
+    case 'false'
+        % No intensity adjustments
+        fprintf("%s\t No intensity Adjustments Selected \n",datetime('now'));
+        config.adj_params = [];
+
+        if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
+            config.lowerThresh = config.lowerThresh/65535;
+            config.upperThresh = config.upperThresh/65535;
+        elseif exist(fullfile(config.output_directory,'variables','adj_params.mat'),'file') == 2
+            fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
+                "Loading these from adjustment parameters that already exist. \n",datetime('now'));
+            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
+            config.lowerThresh = adj_params.lowerThresh;
+            config.upperThresh = adj_params.upperThresh;
         end
-        if isequal(config.shading_correction,"true") || isequal(config.adjust_intensity,"true")
-            adj_params.flatfield{k} = flatfield{k};
-            adj_params.darkfield{k} = darkfield{k};
-        end
-    end
 
-    % Check for user-defined intensity threshold values
-    [adj_params, config, lowerThresh, upperThresh] = check_adj_parameters(adj_params,...
-        config, lowerThresh_measured, upperThresh_measured);
-    config.adj_params = adj_params;
-
-    % Save adjustment parameters to output directory
-    fprintf("%s\t Saving adjustment parameters \n",datetime('now'));
-    save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
-        
-    % Save flatfield and darkfield as seperate variables
-    if isequal(config.shading_correction,"true")
-        fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
-        save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
-        save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
-    end
-
-    config.adjust_intensity = "true";
-
-elseif isequal(config.adjust_intensity,"load")
-    % Load adjustment parameters from output directory and use as is  
-    fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
-    load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-    [adj_params, config] = check_adj_parameters(adj_params,config);
-    config.adj_params = adj_params;
-    config.adjust_intensity = "true";
-        
-    % Update which adjustment to apply based on current configs
-    config.adj_params.adjust_ls_width = config.adjust_ls_width;
-    config.adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
-    config.adj_params.rescale_intensities = config.rescale_intensities;
-    config.adj_params.shading_correction = config.shading_correction;
-        
-elseif isequal(config.adjust_intensity,"false")
-    fprintf("%s\t No intensity Adjustments Selected \n",datetime('now'));
-    config.adj_params = [];
-        
-    if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
-        config.lowerThresh = config.lowerThresh/65535;
-        config.upperThresh = config.upperThresh/65535;
-    else
-        fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
-            "Attempting to load from adjustment parameters.\n",datetime('now'));
-    end
-else
-    error("%s\t Unrecognized selection for adjust_intensity. "+...
-        "Please select ""true"", ""load"", or ""false"".\n",string(datetime('now')))
+    otherwise
+        error("%s\t Unrecognized selection for adjust_intensity. "+...
+            "Please select ""true"", ""load"", or ""false"".\n",string(datetime('now')))
 end
 
 %% Channel Alignment
@@ -160,9 +165,10 @@ switch config.channel_alignment
         
         % Determine z displacement from reference channel
         % Check first if .mat file exists in output directory
-        if exist(fullfile(config.output_directory,'z_displacement_align.mat'),'file') == 2
+        if exist(fullfile(config.output_directory,'variables','z_displacement_align.mat'),'file') == 2 || ...
+                isequal(config.update_z_adjustment,"true")
             fprintf("%s\t Loading z displacement matrix \n",datetime('now'));
-            load(fullfile(config.output_directory,'z_displacement_align.mat'),'z_displacement_align')
+            load(fullfile(config.output_directory,'variables','z_displacement_align.mat'),'z_displacement_align')
         else
             z_displacement_align = zeros([nrows,ncols,numel(config.markers)-1]);
             for k = 2:length(config.markers)
@@ -177,7 +183,6 @@ switch config.channel_alignment
                     % This measures the displacement in z for a given channel to the reference
                     [z_tile(idx),ave_signal(idx)] = z_align_channel(path_mov,path_ref,config.z_positions,config.z_window,...
                         config.lowerThresh(k),config.z_initial(k));
-                    
                     fprintf("%s\t Predicted z displacement of %d for tile %d x %d \n",...
                         datetime('now'),z_tile(idx),y,x);
                 end
@@ -186,36 +191,51 @@ switch config.channel_alignment
             end
             % Save displacement variable to output directory
             fprintf("%s\t Saving z displacement matrix \n",datetime('now'));
-            save(fullfile(config.output_directory,'z_displacement_align.mat'), 'z_displacement_align')
+            save(fullfile(config.output_directory,'variables','z_displacement_align.mat'), 'z_displacement_align')
         end
 
-        % Perform channel alignment
+        % Create variable
         alignment_table = cell(ncols,nrows);
-        for idx = 1:numel(position_mat)
+        save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
+        if ~exist(save_path,'file')
+            save(save_path,'alignment_table')
+        end
+        
+        % Define which tiles to align if only doing subset
+        tiles_to_align = 1:nb_tiles;
+        if ~isempty(config.align_tiles) && all(ismember(config.align_tiles,tiles_to_align))
+            tiles_to_align = config.align_tiles;
+        elseif ~isempty(config.align_tiles) && ~all(ismember(config.align_tiles,tiles_to_align))
+            error("Selected subset of tiles to align outside range of all tiles")
+        end
+        
+        % Perform channel alignment
+        for idx = tiles_to_align
             [y,x] = find(position_mat==idx);            
             fprintf("%s\t Aligning channels to %s for tile %d x %d \n",...
                         datetime('now'),config.markers{1},y,x);
             path_align = path_table(path_table.x==x & path_table.y==y,:);
             alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align(y,x));
+            save(save_path,'alignment_table')
         end
-        
-        % Save registration variable to output directory
-        save(fullfile(output_directory,'alignment_table.mat'), 'alignment_table')
         fprintf("%s\t Alignment completed! \n",datetime('now'));
         
         % Change image directory to aligned directory so that subsequent
         % steps load these images
-        if isequal(save_aligned_images,"true")
-            img_directory = fullfile(char(output_directory),'aligned');
+        if isequal(config.save_aligned_images,"true")
+            config.img_location = fullfile(config.output_directory,"aligned");
+            location = "aligned";
+            path_table = path_to_table(config,location);
         end
     case 'elastix'
         fprintf("%s\t Aligning channels using B-splines \n",datetime('now'));
 
         % Define which tiles to align if only doing subset
-        if isempty(config.align_tiles)
-            tiles_to_align = 1:nb_tiles;
-        else
+        tiles_to_align = 1:nb_tiles;
+        if ~isempty(config.align_tiles) && all(ismember(config.align_tiles,tiles_to_align))
             tiles_to_align = config.align_tiles;
+        elseif ~isempty(config.align_tiles) && ~all(ismember(config.align_tiles,tiles_to_align))
+            error("Selected subset of tiles to align outside range of all tiles")
         end
         
         % Check for intensity bounds which are required for alignment
@@ -246,7 +266,6 @@ switch config.channel_alignment
         % Change image directory to aligned directory so that subsequent
         % steps load these images
         config.img_directory = fullfile(output_directory,'aligned');
-        img_directory = fullfile(output_directory,'aligned');
         path_cell = {dir(config.img_directory)};
         location = "aligned";
         path_table = path_to_table(path_cell,location,config.markers(1),channel_num,sample_name);
@@ -270,31 +289,27 @@ switch config.channel_alignment
     case "false"
         % No channel alignment
         fprintf("%s\t No channel alignment selected \n",datetime('now'));
+    otherwise
+        error("%s\t Unrecognized selection for channel_alignment. "+...
+            "Please select ""translation"", ""elastix"", or ""false"".\n",string(datetime('now')))
 end
 
 %% Stitching
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(stitch_img,"false")
+if isequal(config.stitch_img,"false")
     fprintf("%s\t No image stitching selected \n",datetime('now'));
 else
-    fprintf("%s\t No image stitching selected \n",datetime('now'));
+    fprintf("%s\t Perfoming iterative 2D image stitching \n",datetime('now'));
+    
     % Check for aligned images
-    if isequal(config.img_directory, fullfile(output_directory,'aligned'))
+    if isequal(config.img_directory, fullfile(config.output_directory,'aligned'))
         fprintf("%s\t Using images from aligned directory \n",datetime('now'));
-        path_reg{1} = dir(img_directory);
-        location = 'aligned';
-        path_table = path_to_table(path_reg,location,markers(1),channel_num,sample_name);
-
-        %%%%%%%% Edit this 
-    elseif length(config.markers) > 1 && exist(fullfile(config.output_directory,'alignment_table.mat'),'file') == 2 && ~exist('alignment_table','var')
-        fprintf("%s\t Using multi-channel alignment measurements from .mat file \n",datetime('now'));
-        load(fullfile(char(output_directory),'alignment_table.mat'))
-        path_table = cellfun(@(s) s{:,2}, alignment_table,'UniformOutput',false);
-        alignment_table = cellfun(@(s) s{:,1}, alignment_table,'UniformOutput',false);
-        path_table = vertcat(path_table{:});
+    elseif isequal(config.load_alignment_params,"true")
+        fprintf("%s\t Loading channel alignment translations \n",datetime('now'));
+        load(fullfile(config.output_directory,'variables','alignment_table.mat'),'alignment_table')
     end
   
-    %Trim z positions that aren't present in all tiles
+    % Trim z positions that aren't present in all tiles
     min_z_mat = zeros(nrows,ncols);
     max_z_mat = zeros(nrows,ncols);
     for i = 1:ncols
@@ -307,63 +322,58 @@ else
     min_z = max(min_z_mat(:));
     path_table(path_table.z>max_z,:)=[];
     path_table(path_table.z<min_z,:)=[];
+    
+    % If applying channel alignment, add field and check tiles
+    if exist('alignment_table','var') == 0
+        config.alignment_table = [];
+    else
+        empty_alignment_tiles = find(cellfun(@(s) isempty(s),alignment_table'));
+        if empty_alignment_tiles
+            error("No alingment parameters to apply for tiles %s",...
+                sprintf("%s",num2str(empty_alignment_tiles)))
+        end
+        config.alignment_table = alignment_table;
+    end
 
-    % Adjust z position based overlapping regions 
-    switch adjust_z 
-        case "true"
-            % Calculate z displacements
-            fprintf("%s\t Calculating z displacements for stitching \n",datetime('now'));
-            z_adj = calculate_adjusted_z(path_table,nrows,ncols,markers,...
-                overlap,z_positions,z_window,lowerThresh,output_directory);
-            [~,z_idx] = setdiff(path_table.file,z_adj.file);
-            path_table(z_idx,:) = [];
-            path_table.z_adj = z_adj.z_adj;
-
-        case 'file'
-            % Load previously calculated z displacements for these images 
-            fprintf("%s\t Loading adjusted z positions \n",datetime('now'));
-            load(fullfile(output_directory,'variables','adjusted_z.mat'), 'z_adj')
-            [~,z_idx] = setdiff(path_table.file,z_adj.file);
-            path_table(z_idx,:) = []; 
-            try
-                path_table.z_adj = z_adj.z_adj;
-            catch ME
-                if isequal(ME.identifier,'MATLAB:table:RowDimensionMismatch')
-                    error("%s\t Loaded z-positions do not match specified "+...
-                        "file information. Rerun adjust_z \n",string(datetime('now')))
-                end
-            end
-        case 'matrix'
-            % Load z displacement info from a matrix, ignoring whether
-            % filenames match up
-            fprintf("%s\t Loading z displacement matrix \n",datetime('now'));
-            load(fullfile(output_directory,'variables', 'z_disp_matrix'), 'z_disp_matrix')
-            z_adj = apply_adjusted_z(path_table, z_disp_matrix);
-            [~,z_idx] = setdiff(path_table.file,z_adj.file);
-            path_table(z_idx,:) = []; 
-            path_table.z_adj = z_adj.z_adj;
-        case "false"
-            path_table.z_adj = path_table.z;
+    % Calculate adjustments in z
+    if isequal(config.update_z_adjustment,"true") || exist(fullfile(config.var_directory,'z_disp_matrix.mat'),'file') ~= 2
+        % Calculate z displacements
+        fprintf("%s\t Calculating z displacement matrix for stitching \n",datetime('now'));
+        z_adj = calculate_adjusted_z(path_table,nrows,ncols,config.markers,...
+                config.overlap,config.z_positions,config.z_window,config.lowerThresh,...
+                config.output_directory);
+        [~,z_idx] = setdiff(path_table.file,z_adj.file);
+        path_table(z_idx,:) = [];
+        path_table.z_adj = z_adj.z_adj;
+    else
+        % Load z displacement info from a matrix, ignoring whether
+        % filenames match up
+        fprintf("%s\t Loading z displacement matrix for stitching \n",datetime('now'));
+        load(fullfile(config.var_directory, 'z_disp_matrix.mat'), 'z_disp_matrix')
+        assert(nrows == size(z_disp_matrix,1) && ncols == size(z_disp_matrix,2), "Loaded z adjustment parameters do not match number of tiles "+...
+            "detected in the input image directory. Check input image directory or update z adjustment")
+        z_adj = apply_adjusted_z(path_table, z_disp_matrix);
+        [~,z_idx] = setdiff(path_table.file,z_adj.file);
+        path_table(z_idx,:) = []; 
+        path_table.z_adj = z_adj.z_adj;
     end
     
     % Trim markers to only the ones specified
     if ~isempty(config.stitch_sub_channel)
-       markers = markers(config.stitch_sub_channel);
+       markers = config.markers(config.stitch_sub_channel);
        path_table = path_table(ismember(path_table.markers,markers),:);
-    end
-    
-    % Create empty alignment_table if not doing multi-channel alignment
-    if exist('alignment_table','var') == 0
-        config.alignment_table = [];
     end
         
     % Check whether to stitch from previously calculated transforms.
     % Otherwise stitch from scratch
-    if isequal(stitch_img,"load")
+    if isequal(config.stitch_img,"load")
         fprintf("%s\t Loading previously calculated stitching parameters \n",datetime('now'));
-
         % Load stitching parameters
-        load(fullfile(output_directory,'variables','stitch_tforms.mat'))
+        try
+            load(fullfile(config.var_directory,'stitch_tforms.mat'), 'h_stitch_tforms','v_stitch_tforms')
+        catch 
+            error("Could not locate stitching transforms in variables directory. Re-run image stitching")
+        end
                 
         % Check if sizes match up
         nb_images = length(min(path_table.z_adj):max(path_table.z_adj));
@@ -371,7 +381,7 @@ else
         if size(h_stitch_tforms,2) ~= nb_images
            error("%s\t Number of slices z slices in stitching parameters does not match loaded images \n",string(datetime('now')))
         elseif size(h_stitch_tforms,1) ~= (ncols-1)*nrows*2
-           error("%s\t Number of columns positions does not match loaded stitching parameters \n",string(datetime('now')))
+           error("%s\t Number of column positions does not match loaded stitching parameters \n",string(datetime('now')))
         elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
            error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
         end
@@ -380,11 +390,10 @@ else
         stitch_from_loaded_parameters(path_table, h_stitch_tforms, v_stitch_tforms, config)
     else
         % Perform stitching
-        stitch_old4(path_table,output_directory,overlap,sd,config,adj_params,...
-            markers,stitch_sub_stack,alignment_table,use_middle,subtract_img_background,...
-            sift_refinement,blending_method,number_of_cores)
+        stitch_iterative(config,path_table)
     end
 
     fprintf("%s\t Stitching completed! \n",datetime('now'));
 end
+
 end

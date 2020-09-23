@@ -13,6 +13,11 @@ function config = NM_config(stage, sample, run)
 %   config - parameter configuration structure
 %--------------------------------------------------------------------------
 
+% Elastix paths
+% Uncomment and specify your path to elastix bin and library
+ elastix_path_bin = '/Users/Oleh/Programs/elastix-5.0.0-mac/bin';
+ elastix_path_lib = '/Users/Oleh/Programs/elastix-5.0.0-mac/lib';
+
 % Make sure path is set
 addpath(genpath('.'))
 
@@ -79,6 +84,31 @@ if nargout == 1
     config = load(fullfile('templates','NM_variables.mat'));
 end
 
+% Add elastix paths if present
+if exist('elastix_path_bin','var')
+    path1 = getenv('PATH');
+    if ~contains(path1,'elastix')
+        path1 = [path1, ':', elastix_path_bin];
+        setenv('PATH',path1)
+    end
+end
+
+if exist('elastix_path_lib','var')
+    if ismac
+        path2 = getenv('DYLD_LIBRARY_PATH');
+        path2 = [path2, ':', elastix_path_lib];
+        if ~contains(path2,'elastix')
+            setenv('DYLD_LIBRARY_PATH',path2)
+        end
+    else
+        path2 = getenv('LD_LIBRARY_PATH');
+        path2 = [path2, ':', elastix_path_lib];
+        if ~contains(path2,'elastix')
+            setenv('LD_LIBRARY_PATH',path2)
+        end
+    end
+end
+
 % Run
 if nargin>2 && run
     switch stage
@@ -98,7 +128,7 @@ function check_variable_lengths
 % and match number of markers in most cases
 
 % Variables to check
-variable_names = {'markers','single_sheet','ls_width','laser_y_displacement'};
+variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method'};
 load(fullfile('templates','NM_variables.mat'),variable_names{:});
 
 for i = 1:length(variable_names)
@@ -108,6 +138,8 @@ for i = 1:length(variable_names)
         ls_width = repmat(ls_width,1,length(markers));
     elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1
         laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
+    elseif exist('blending_method','var') == 1 && length(blending_method) == 1
+        blending_method = repmat(blending_method,1,length(markers));
     end
 end
 

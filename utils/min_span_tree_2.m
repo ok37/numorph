@@ -5,15 +5,6 @@ function [global_z_img_pos] = min_span_tree_2(v_disp_matrix, h_disp_matrix, q_v_
 
 % Constants for direction instructions
 MST_START_TILE = 10;
-MST_CONNECTED_NORTH = 11;
-MST_CONNECTED_SOUTH = 12;
-MST_CONNECTED_LEFT = 22;
-MST_CONNECTED_RIGHT = 21;
-    
-MST_NORTH = 11;
-MST_SOUTH = 12;
-MST_WEST = 22;
-MST_EAST = 21;
 
 [nb_vertical_tiles, nb_horizontal_tiles] = size(v_disp_matrix);
 % Initialize the starting point of each image. These starting points are computed relative to Matlab image coordinate system ==>
@@ -55,7 +46,13 @@ global_z_img_pos = global_z_img_pos - max(global_z_img_pos(:)) + 1;
 end
 
 
-function [tiling_indicator, global_z_img_pos, tiling_coeff] = minimum_spanning_tree_worker(tiling_indicator, global_z_img_pos, v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix); 
+function [tiling_indicator, global_z_img_pos, tiling_coeff] = minimum_spanning_tree_worker(tiling_indicator, global_z_img_pos, v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix)
+
+% Constants for direction instructions
+MST_CONNECTED_NORTH = 11;
+MST_CONNECTED_SOUTH = 12;
+MST_CONNECTED_LEFT = 22;
+MST_CONNECTED_RIGHT = 21;
 
 % Initialize the minimum spanning tree value and set the first value in tiling_coeff to the highest = -1.
 [tile_y, tile_x] = size(v_disp_matrix);

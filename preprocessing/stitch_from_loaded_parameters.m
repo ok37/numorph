@@ -4,11 +4,12 @@ function stitch_from_loaded_parameters(path_table, h_stitch_tforms, v_stitch_tfo
 % Stitch images using previously calculated parameters
 fprintf('%s\t Begin stitching \n',datetime('now'))
 
-%Create directory for stitched images
+% Create directory for stitched images
 if ~exist(fullfile(config.output_directory,'stitched'),'dir')
   mkdir(fullfile(config.output_directory,'stitched'))
 end
 
+% Check if only certain channels to be stitched
 if isempty(config.stitch_sub_channel)
     config.stitch_sub_channel = 1:length(config.markers);
 end
@@ -45,11 +46,18 @@ elseif isequal(config.adjust_intensity,"false")
     fprintf('%s\t Stitching without intensity adjustments \n',datetime('now'))
 end
 
-% Start parallel pool
-p = gcp('nocreate');
-if isempty(p) && config.number_of_cores>1 && length(z_range) > 1
-    parpool(config.number_of_cores)
+%Start parallel pool
+try
     p = gcp('nocreate');
+catch
+    warning("Could not load Parallel Computing Toolbox. It's recommended "+...
+        "that this toolbox is installed to speed up stitching and subsequent "+...
+        "analysis.")
+    p = 1;
+end
+
+if isempty(p) && length(z_range)>1
+    parpool
 end
 
 % Begin stitching

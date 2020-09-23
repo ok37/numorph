@@ -11,10 +11,13 @@ function mask = generate_sampling_mask(I, mask_int_threshold,lowerThresh,upperTh
     
 % Generate mask
 % Downsample to 20% resolution
-I2 = imresize3(I,0.20,'linear'); 
+I2 = imresize3(im2uint16(I),0.20,'linear'); 
 
+% Calculate mask intensity threshold
+% These are empirically determined based on adjusted otsu thresholding and
+% lowerThresh determined from examining all images
 if isempty(mask_int_threshold)
-    mask_int_threshold = graythresh(I2)*0.75;
+    mask_int_threshold = min(graythresh(I2)*0.75,(lowerThresh(1)/upperThresh(1))*1.25);
 end
 
 % Binarize mask and fill holes

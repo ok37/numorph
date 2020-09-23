@@ -44,15 +44,23 @@ switch location
         %Generate table components
         components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
         components = vertcat(components{:});
+        
+        assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image path")
+        assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
+            " does not match number of markers specified for this sample")
 
         %Take image information
-        [paths_sub.sample_name] = components{:,1};
-        [paths_sub.channel_num] = components{:,3};
-        [paths_sub.markers] = components{:,4};
+        for i = 1:length(paths_sub)
+            paths_sub(i).sample_name = string(components{i,1});
+            paths_sub(i).markers = string(components{i,4});
+        end
+        
         positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
         [paths_sub.x] = positions{:,1};
         [paths_sub.y] = positions{:,2};
         [paths_sub.z] = positions{:,3};
+        channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
+        [paths_sub.channel_num] = channel_num{:,1};
 
         paths_new = {rmfield(paths_sub,{'name'})};
 
