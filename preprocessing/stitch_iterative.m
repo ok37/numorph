@@ -106,9 +106,6 @@ end
 try
     p = gcp('nocreate');
 catch
-    warning("Could not load Parallel Computing Toolbox. It's recommended "+...
-        "that this toolbox be installed to speed up stitching and subsequent "+...
-        "analysis.")
     p = 1;
 end
 
@@ -411,9 +408,30 @@ for i = 1:length(B)-1
     pre_v_tform{i} = [final_tform.T(3), final_tform.T(6)];
 end
 
-%Subtract background
-if isequal(config.subtract_img_background,'true')
-    I = cellfun(@(s) subtract_background(s,strel('disk',adj_params.nuc_radius*2),1,1,0,1,1,'true'),I,'UniformOutput',false);
+
+% Apply background subtraction
+for i = 1:nchannels
+    c_idx = config.stitch_sub_channel(i);
+    if isequal(config.subtract_background(c_idx),"true")
+        se = strel('disk', config.nuc_radius*2);
+        I{i} = I{i} - imopen(I{i},se);
+    end
+end
+
+% Apply Difference-of-Gaussian filter
+for i = 1:nchannels
+    c_idx = config.stitch_sub_channel(i);
+    if isequal(config.DoG_img(c_idx),"true")
+        I{i} = dog_adjust(I{i},config.nuc_radius,config.dog(c_idx));                
+    end
+end
+
+% Apply smoothing filter
+for i = 1:nchannels
+    c_idx = config.stitch_sub_channel(i);
+    if isequal(config.smooth_img(c_idx),"true")
+        I{i} = apply_guided_filter(I{i});                
+    end
 end
 
 %Crop or pad images based on ideal size

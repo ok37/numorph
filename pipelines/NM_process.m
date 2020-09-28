@@ -3,11 +3,26 @@ function NM_process(config)
 % NuMorph processing pipeline designed to perform channel alignment,
 % intensity adjustment, and stitching on multi-channel light-sheet images.
 %--------------------------------------------------------------------------
+
 % Load configuration from .mat file, if not provided
 if nargin<1
     config = load(fullfile('templates','NM_variables.mat'));
+elseif isstring(config)
+    config = load(fullfile(config,'NM_variables.mat'));
+elseif ~isstruct(config)
+    error("Invalid configuartion input")
 end
 config.var_directory = fullfile(config.output_directory,'variables');
+
+% Make an output directory
+if exist(config.output_directory,'dir') ~= 7
+    mkdir(config.output_directory);
+end
+
+% Make a variables directory
+if exist(config.var_directory,'dir') ~= 7
+    mkdir(config.var_directory);
+end
 
 fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
 
@@ -30,18 +45,16 @@ if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
     % Start from after multi-channel alignment    
     fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
     location = "aligned";
-    path_table = path_to_table(config,location);
 elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
     % Start from after stitching
     fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
     location = "stitched";
-    path_table = path_to_table(config,location);
 else
     %Start from raw image directory
     fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
     location = "raw";
-    path_table = path_to_table(config,location);
 end
+path_table = path_to_table(config,location);
 
 % Count number of x,y tiles
 ncols = length(unique(path_table.x));
@@ -89,7 +102,7 @@ switch config.adjust_intensity
 
             % Take measurements
             [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
-                measure_images(stack, config, k);
+                measure_images(config, stack, k);
 
             % Update adjustments parameters structure
             if isequal(config.adjust_ls_width,"true") || isequal(config.adjust_intensity,"true")
@@ -223,12 +236,25 @@ switch config.channel_alignment
         % Change image directory to aligned directory so that subsequent
         % steps load these images
         if isequal(config.save_aligned_images,"true")
-            config.img_location = fullfile(config.output_directory,"aligned");
+            config.img_directory = fullfile(config.output_directory,"aligned");
             location = "aligned";
             path_table = path_to_table(config,location);
         end
     case 'elastix'
         fprintf("%s\t Aligning channels using B-splines \n",datetime('now'));
+        
+        % Create variable
+        alignment_params = cell(ncols,nrows);
+        save_path = fullfile(config.output_directory,'variables','alignment_params.mat');
+        if ~exist(save_path,'file')
+            save(save_path,'alignment_params','-v7.3')
+        else
+            load(save_path,'alignment_params')
+            assert(size(alignment_params,1) == nrows, "Number of row positions do not "+...
+                "match loaded alignment parameters")
+            assert(size(alignment_params,2) == ncols, "Number of row positions do not "+...
+                "match loaded alignment parameters")
+        end
 
         % Define which tiles to align if only doing subset
         tiles_to_align = 1:nb_tiles;
@@ -260,29 +286,31 @@ switch config.channel_alignment
             path_align = path_table(path_table.x==x & path_table.y==y,:);
             fprintf("%s\t Aligning channels to %s for tile 0%dx0%d \n",...
                 datetime('now'),config.markers{1},y,x);
-            elastix_channel_alignment(x, y, path_align, config);
+            alignment_params(y,x) = elastix_channel_alignment(config,path_align,true);
+            save(save_path,'alignment_params','-v7.3')
         end
                 
         % Change image directory to aligned directory so that subsequent
         % steps load these images
-        config.img_directory = fullfile(output_directory,'aligned');
-        path_cell = {dir(config.img_directory)};
+        config.img_directory = fullfile(config.output_directory,'aligned');
         location = "aligned";
-        path_table = path_to_table(path_cell,location,config.markers(1),channel_num,sample_name);
+        path_table = path_to_table(config,location);
         
         % Update tile intensity adjustments using newly aligned images.
         % Also, set light sheet width adjustments + flatfield adjustments
         % to false as these were applied during the alignment step
-        if ~isempty(config.adj_params)
-            config.adjust_ls_width = "false";
-            config.adj_params.adjust_ls_width = "false";
-            config.shading_correction = "false";
-            config.adj_params.shading_correction = "false";
+        config.adjust_ls_width = "false";
+        config.adj_params.adjust_ls_width = "false";
+        config.shading_correction = "false";
+        config.adj_params.shading_correction = "false";
+            
+       % In case applying tile adjustments, re-calculate thresholds
+        if isequal(config.adjust_intensity,"true") && isequal(config.adjust_tile_intensity,"true")
             for k = 1:length(config.markers)            
                 fprintf("%s\t Updating intensity measurements for marker %s using "+...
                     "newly aligned images \n",datetime('now'),config.markers(k));
                 stack = path_table(path_table.markers == config.markers(k),:);
-                t_adj = measure_images(stack, config, k);
+                t_adj = measure_images(config, stack, k);
                 adj_params.t_adj{k} = t_adj;
             end
         end
@@ -324,12 +352,12 @@ else
     path_table(path_table.z<min_z,:)=[];
     
     % If applying channel alignment, add field and check tiles
-    if exist('alignment_table','var') == 0
+    if exist('alignment_table','var') == 0 || isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
         config.alignment_table = [];
     else
         empty_alignment_tiles = find(cellfun(@(s) isempty(s),alignment_table'));
         if empty_alignment_tiles
-            error("No alingment parameters to apply for tiles %s",...
+            error("No alignment parameters to apply for tiles %s",...
                 sprintf("%s",num2str(empty_alignment_tiles)))
         end
         config.alignment_table = alignment_table;

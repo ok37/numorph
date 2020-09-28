@@ -1,4 +1,4 @@
-function mask = generate_sampling_mask(I, mask_int_threshold,lowerThresh,upperThresh)
+function mask = generate_sampling_mask(I,mask_int_threshold,lowerThresh,upperThresh)
 
 % Generate intensity threshold if not provided
 %if isempty(mask_int_threshold)

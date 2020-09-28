@@ -309,7 +309,7 @@ if isequal(save_aligned_images,"true")
                 mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
             end
             % Write aligned images
-            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_name,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),col,row);
+            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_name,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
             img_path = fullfile(output_directory,'aligned',img_name);
             imwrite(mov_img,img_path)
         end

@@ -1,4 +1,4 @@
-function [t_adj, lowerThresh, upperThresh, y_adj, flatfield, darkfield] = measure_images(stack, config, channel_idx)
+function [t_adj, lowerThresh, upperThresh, y_adj, flatfield, darkfield] = measure_images(config, stack, channel_idx)
 %--------------------------------------------------------------------------
 % Calculate various intensity adjustments including tile differences,
 % light-sheet width correction, flatfield + darkfield shading correction
@@ -89,6 +89,7 @@ for i = 1:y_tiles
             I_right(:,:,k) = imread(file_right.file{1},'PixelRegion',overlap_min_h);  
         end
         
+        % Remove any zero values from shifting image
         I_left = single(I_left(I_left>0));
         I_right = single(I_right(I_right>0));
                 
@@ -96,18 +97,18 @@ for i = 1:y_tiles
         %I_left = (single(I_left)-d_left)./f_left + d_left;
         %I_right = (single(I_right)-d_right)./f_right + d_right;
         
-        %Difference in average intensity indicates between tile differences
+        % Difference in average intensity indicates between tile differences
         I_left1 = I_left*h_matrix1(i,j);
         I_right1 = I_right*h_matrix1(i,j+1);
         h_matrix1(i,j+1) = prctile(I_left1,low_prct)/prctile(I_right1,low_prct);
 
-        %Difference in average intensity indicates between tile differences
+        % Difference in average intensity indicates between tile differences
         I_left1 = I_left*h_matrix2(i,j);
         I_right1 = I_right*h_matrix2(i,j+1) * h_matrix1(i,j+1);
         h_matrix2(i,j+1) = prctile(I_left1,high_prct)/prctile(I_right1,high_prct);
 
-        %Measure 1 percentile of all pixels. This gives rough background
-        %and upper intensity
+        % Measure 1 percentile of all pixels. This gives rough background
+        % and upper intensity
         p_low(idx) = mean([prctile(I_left,low_prct) prctile(I_right,low_prct)]);
         p_high(idx) = mean([prctile(I_left,high_prct) prctile(I_right,high_prct)]);
         %stdev(idx) = std([I_left; I_right]);
@@ -123,10 +124,10 @@ v_matrix1 = ones(y_tiles,x_tiles);
 v_matrix2 = ones(y_tiles,x_tiles);
 
 % Get flatfield and darkfield sections
-f_top = flatfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
-f_bottom = flatfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
-d_top = darkfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
-d_bottom = darkfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
+%f_top = flatfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
+%f_bottom = flatfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
+%d_top = darkfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
+%d_bottom = darkfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
 
 for i = 1:y_tiles-1
     for j = 1:x_tiles
@@ -169,7 +170,7 @@ end
 v_matrix1 = v_matrix1/mean2(v_matrix1);
 v_matrix2 = v_matrix2/mean2(v_matrix2);
 
-% Combine matrices by column-wise multiplicaiton of each column
+% Combine matrices by row-wise multiplicaiton of each row
 adj_matrix1a = zeros(size(h_matrix1));
 adj_matrix1b = zeros(size(h_matrix1));
 for i = 1:size(h_matrix1,1)
@@ -177,6 +178,7 @@ for i = 1:size(h_matrix1,1)
     adj_matrix1b = adj_matrix1b + v_matrix2.*h_matrix2(i,:)/size(h_matrix2,1); 
 end
 
+% Combine matrices by column-wise multiplication of column
 adj_matrix2a = zeros(size(h_matrix1));
 adj_matrix2b = zeros(size(h_matrix1));
 for i = 1:size(v_matrix1,2)
@@ -184,9 +186,11 @@ for i = 1:size(v_matrix1,2)
     adj_matrix2b = adj_matrix2b + v_matrix2(:,i).*h_matrix2/size(h_matrix2,2);
 end
 
+% Calculate final adjustments by averaging column-wise/row-wise matrices
 adj_matrix1 = (adj_matrix1a+adj_matrix2a)/2;
 adj_matrix2 = (adj_matrix1b+adj_matrix2b)/2;
 
+% Display final adjustment matrices
 fprintf('%s\t Final Tile Adjustment Matrices:\n',datetime('now'));    
 disp(adj_matrix1)
 disp(adj_matrix2)

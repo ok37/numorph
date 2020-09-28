@@ -1,23 +1,23 @@
 function resample_img_to_atlas(path_table, output_directory, res, resample_res)
 
-%Create directory for resampled images
+% Create directory for resampled images
 if exist(char(strcat(output_directory,'/resampled')),'dir') ~= 7
   mkdir(char(strcat(output_directory,'/resampled')))
 end
 
 nb_images = height(path_table);
 
-%Measure image dimensions for high resolution image
+% Measure image dimensions for high resolution image
 tempI = imread(path_table.file{1});
 [img_height,img_width] = size(tempI);
 
-%Calculate image dimensions for target resolution
+% Calculate image dimensions for target resolution
 re_v = resample_res./res;
 re_height = round(img_height/re_v(1));
 re_width = round(img_width/re_v(2));
 re_z = round(nb_images/re_v(3));
 
-%Intialize matrix for resampled image
+% Intialize matrix for resampled image
 re_I = zeros(re_height,re_width,re_z,'uint16');
 
 % Resample first only in x,y to decrease memory demands

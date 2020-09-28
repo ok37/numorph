@@ -67,22 +67,7 @@ if ~isequal(use_processed_images,"false")
 end
 
 % Check variable lengths for some variables
-check_variable_lengths
-
-% Make an output directory
-if exist(output_directory,'dir') ~= 7
-    mkdir(output_directory);
-end
-
-% Make a variables directory
-if exist(fullfile(output_directory,'variables'),'dir') ~= 7
-    mkdir(fullfile(output_directory,'variables'))
-end
-
-% Reload config
-if nargout == 1
-    config = load(fullfile('templates','NM_variables.mat'));
-end
+check_variable_lengths(stage)
 
 % Add elastix paths if present
 if exist('elastix_path_bin','var')
@@ -92,55 +77,105 @@ if exist('elastix_path_bin','var')
         setenv('PATH',path1)
     end
 end
-
 if exist('elastix_path_lib','var')
     if ismac
         path2 = getenv('DYLD_LIBRARY_PATH');
-        path2 = [path2, ':', elastix_path_lib];
         if ~contains(path2,'elastix')
+            path2 = [path2, ':', elastix_path_lib];
             setenv('DYLD_LIBRARY_PATH',path2)
         end
     else
         path2 = getenv('LD_LIBRARY_PATH');
-        path2 = [path2, ':', elastix_path_lib];
         if ~contains(path2,'elastix')
+            path2 = [path2, ':', elastix_path_lib];
             setenv('LD_LIBRARY_PATH',path2)
         end
     end
 end
 
+% Check if MATLAB toolboxes exist
+try
+    gcp('nocreate');
+catch
+    warning("Could not load Parallel Computing Toolbox. It's recommended "+...
+        "that this toolbox be installed to speed up analysis.")
+end
+
+% Reload config
+if nargout == 1
+    config = load(fullfile('templates','NM_variables.mat'));
+end
+
 % Run
 if nargin>2 && run
+    % Make an output directory
+    if exist(output_directory,'dir') ~= 7
+        mkdir(output_directory);
+    end
+
+    % Make a variables directory
+    var_directory = fullfile(output_directory,'variables');
+    if exist(var_directory,'dir') ~= 7
+        mkdir(var_directory);
+    end
+    
+    % Copy variables to output destination
+    copyfile(fullfile('templates', 'NM_variables.mat'),var_directory)
+    
+    % Run pipeline
     switch stage
         case 'process'
-            NM_process
+            NM_process(var_directory)
         case 'analyze'
-            NM_analyze
+            NM_analyze(var_directory)
         case 'evaluate'
-            NM_evaluate
+            NM_evaluate(var_directory)
     end
 end
 end
 
 
-function check_variable_lengths
+function check_variable_lengths(stage)
 % Check user input variable lengths to make sure they're the correct length
 % and match number of markers in most cases
 
-% Variables to check
-variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method'};
-load(fullfile('templates','NM_variables.mat'),variable_names{:});
+switch stage
+    case 'process'
+        % Variables to check
+        variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
+            'param_folder','rescale_intensities','subtract_background','gamma','smooth_img','smooth_sigma',...
+            'DoG_img','DoG_minmax','DoG_factor'};
+        load(fullfile('templates','NM_variables.mat'),variable_names{:});
 
-for i = 1:length(variable_names)
-    if exist('single_sheet','var') == 1 && length(single_sheet) == 1
-        single_sheet = repmat(single_sheet,1,length(markers));
-    elseif exist('ls_width','var') == 1 && length(ls_width) == 1
-        ls_width = repmat(ls_width,1,length(markers));
-    elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1
-        laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
-    elseif exist('blending_method','var') == 1 && length(blending_method) == 1
-        blending_method = repmat(blending_method,1,length(markers));
-    end
+        for i = 1:length(variable_names)
+            if exist('single_sheet','var') == 1 && length(single_sheet) == 1 && i == 1
+                single_sheet = repmat(single_sheet,1,length(markers));
+            elseif exist('ls_width','var') == 1 && length(ls_width) == 1 && i == 2
+                ls_width = repmat(ls_width,1,length(markers)); idx(3) = false;
+            elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1 && i == 3
+                laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
+            elseif exist('blending_method','var') == 1 && length(blending_method) == 1 && i == 4
+                blending_method = repmat(blending_method,1,length(markers));
+            elseif exist('param_folder','var') == 1 && length(param_folder) == 1 && i == 5
+                param_folder = repmat(param_folder,1,length(markers)-1);
+            elseif exist('rescale_intensities','var') == 1 && length(rescale_intensities) == 1 && i == 6
+                rescale_intensities = repmat(rescale_intensities,1,length(markers));
+            elseif exist('subtract_background','var') == 1 && length(subtract_background) == 1 && i == 7
+                subtract_background = repmat(subtract_background,1,length(markers));
+            elseif exist('gamma','var') == 1 && length(gamma) == 1 || isempty(gamma) && i == 8
+                gamma = ones(1,length(markers));
+            elseif exist('smooth_img','var') == 1 && length(smooth_img) == 1 && i == 9
+                smooth_img = repmat(smooth_img,1,length(markers));
+            elseif exist('smooth_sigma','var') == 1 && length(smooth_sigma) == 1 && i == 10
+                smooth_sigma = repmat(0.5,1,length(markers));
+            elseif exist('DoG_img','var') == 1 && length(DoG_img) == 1 && i == 11
+                DoG_img = repmat(DoG_img,1,length(markers));
+            elseif exist('DoG_minmax','var') == 1 && isempty(DoG_minmax) == 1 && i == 12
+                DoG_minmax = [0.8,1.25];
+            elseif exist('DoG_factor','var') == 1 && length(DoG_factor) == 1 || isempty(DoG_factor) && i == 13
+                DoG_factor = ones(1,length(markers));
+            end
+        end
 end
 
 % Resave these variables

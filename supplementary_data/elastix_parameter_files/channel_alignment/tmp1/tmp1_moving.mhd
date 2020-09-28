@@ -1,0 +1,11 @@
+ObjectType = Image
+CompressedData = False
+BinaryData = True
+NDims = 3
+DataType = short
+DimSize = 600 767 21 
+ElementSize = 3 3 1
+ElementSpacing =  3 3 1
+ElementType = MET_SHORT
+ElementByteOrderMSB = False
+ElementDataFile = tmp1_moving.raw
