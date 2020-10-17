@@ -5,51 +5,101 @@ function NM_analyze(config)
 % in whole brain images.
 %--------------------------------------------------------------------------
 
-if nargin<1 
-    load 'NM_variables.mat'
+% Load configuration from .mat file, if not provided
+if nargin<1
     config = load(fullfile('templates','NM_variables.mat'));
+elseif isstring(config)
+    config = load(fullfile(config,'NM_variables.mat'));
+elseif ~isstruct(config)
+    error("Invalid configuartion input")
 end
-fprintf('%s\t Working on sample %s \n',datetime('now'),config.sample_name)
+config.var_directory = fullfile(config.output_directory,'variables');
+
+% Make an output directory
+if exist(config.output_directory,'dir') ~= 7
+    mkdir(config.output_directory);
+end
+
+% Make a variables directory
+if exist(config.var_directory,'dir') ~= 7
+    mkdir(config.var_directory);
+end
+
+fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
+
+%% Read image filename information
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
+    % Start from after multi-channel alignment    
+    fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
+    location = "aligned";
+elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
+    % Start from after stitching
+    fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
+    location = "stitched";
+else
+    %Start from raw image directory
+    fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
+    location = "raw";
+end
+path_table = path_to_table(config,location);
 
 %% Read Filename Information
 % Load image paths for registration
-if any(strcmp([resample_image,register_image],"true"))
-    if isequal(resample_image,"true")
-        % Resample images to desired atlas resolution
-        fprintf('%s\t Reading image filename information from stitched directory \n',datetime('now'))
-        path_cell{1} = dir(img_directory);
-        if isequal(fullfile(output_directory,'stitched'),img_directory)
-            location = 'stitched';
-            path_table_stitched = path_to_table(path_cell,location,markers,channel_num);
-        end
+%if any(strcmp([config.resample_image,config.register_image],"true"))
+%    if isequal(config.resample_image,"true")
+%        % Resample images to desired atlas resolution
+%        fprintf('%s\t Reading image filename information from stitched
+%        directory \n',datetime('now'))
+%        path_cell{1} = dir(config.img_directory);
+%        if isequal(fullfile(config.output_directory,'stitched'),config.img_directory)
+%            location = "stitched";
+%        else
+%            location = "raw";
+%        end
+%        path_table = path_to_table(config,location);
 
         % Unless specified otherwise, resample all markers
-        if isempty(config.resample_markers)
-            resample_markers = 1:length(markers);
-        end
-        for k = resample_markers
-            fprintf('%s\t Resampling channel %s\n',datetime('now'),markers(k))            
-            path_sub = path_table_stitched(path_table_stitched.markers == markers(k),:);
-            resample_img_to_atlas(path_sub, output_directory, resolution, resample_res);
-        end
-        resample_image = "load";
-    end
+%        if isempty(config.resample_markers)
+%            resample_markers = 1:length(config.markers);
+%        end
+%        for k = resample_markers
+%            fprintf('%s\t Resampling channel %s\n',datetime('now'),markers(k))            
+%            path_sub = path_table(path_table.markers == markers(k),:);
+%            resample_img_to_atlas(path_sub, output_directory, resolution, resample_res);
+%        end
+%        resample_image = "load";
+%    end
 
-    if exist(fullfile(output_directory,'resampled'),'dir') == 7 && isequal(resample_image,"load")
-        % Load images from resampled directory
-        fprintf('%s\t Reading image filename information from resampled directory \n',datetime('now'))
-        path_cell{1} = dir(fullfile(output_directory,'resampled'));
-        location = 'resampled';
-        path_table_resampled = path_to_table(path_cell,location,markers,channel_num);        
-    else
-        error('%s\t Could not locate resampled directory in the specified image directory. ' +...
-            "Set resample_image to ""true"" to generate images for registration",string(datetime('now')));
-    end
-end
+%    if exist(fullfile(output_directory,'resampled'),'dir') == 7 && isequal(resample_image,"load")
+%        % Load images from resampled directory
+%        fprintf('%s\t Reading image filename information from resampled directory \n',datetime('now'))
+%        path_cell{1} = dir(fullfile(output_directory,'resampled'));
+%        location = 'resampled';
+%        path_table_resampled = path_to_table(path_cell,location,markers,channel_num);        
+%    else
+%        error('%s\t Could not locate resampled directory in the specified image directory. ' +...
+%            "Set resample_image to ""true"" to generate images for registration",string(datetime('now')));
+%    end
+%end
 
 %% Function for Registration
-switch register_image
+switch config.register_image
     case 'true'
+        % Resample image to lower resolution for registration
+        resample_dir = fullfile(config.output_directory, 'resampled');
+        
+        a = 1;
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         mov_img_path = path_table_resampled.file{1};
         
         % Calculate registration parameters
@@ -98,7 +148,9 @@ switch generate_mask
         % Transform atlas
         I_mask = transformix(I_mask,reg_params.atlas_to_img,[s, s, s], []);
         
-        measure_dice = true;
+        %%%%%% Additional option for comparing with true positive trace and
+        %%%%%% measuring DICE score
+        measure_dice = false;
         if measure_dice
             % Find true positive, manually traced mask. This is at 10um resolution
             mask_location = fullfile(output_directory,'resampled');
@@ -148,7 +200,7 @@ if exist(img_directory,'dir') == 7
     path_cell{1} = dir(img_directory);
     if isequal(fullfile(output_directory,'stitched'),img_directory)
         location = 'stitched';
-        path_table_stitched = path_to_table(path_cell,location,[],[]);
+        path_table = path_to_table(path_cell,location,[],[]);
     end
 else
     error('%s\t Could not locate images in the specified image directory',string(datetime('now')));
@@ -177,33 +229,6 @@ switch count_cells
         end
 end
 
-%% Generate Background Mask 
-if isequal(measure_local_background,"true")
-    fprintf('%s\t Generating image of local background intensities \n',datetime('now'))
-    [B, S] = create_background_image(path_table_stitched, config);
-elseif isequal(measure_local_background,"load")
-    fprintf('%s\t Loading previous background images \n',datetime('now'))
-    path_background = fullfile(output_directory, 'background');
-    files = dir(path_background);
-    B = cell(1,length(markers));
-    S = cell(1,length(markers));
-    for i = 1:length(markers)
-        img_idx = contains({files.name}, "background.nii") &...
-            contains({files.name}, markers(i));
-        if any(img_idx)
-            B{i} = niftiread(fullfile(path_background,files(img_idx).name));
-        end
-        img_idx = contains({files.name}, "back_std.nii") &...
-                       contains({files.name}, markers(i)); 
-        if any(img_idx)
-           S{i} = niftiread(fullfile(path_background,files(img_idx).name));
-        end
-    end
-else
-    B = cell(1,length(markers));
-    S = cell(1,length(markers));
-end
-
 %% Classify Cell-Types
 % Load previous cell counting results. Should be located in the output directory.
 path_centroids = fullfile(output_directory, sprintf('%s_centroids.csv',sample_name));
@@ -216,7 +241,7 @@ else
 end
 
 if isequal(config.remeasure_centroids,'true')
-    centroids = remeasure_centroids(centroids,path_table_stitched,config);
+    centroids = remeasure_centroids(centroids,path_table,config);
     writematrix(centroids,path_centroids);
 end
 
@@ -238,7 +263,7 @@ switch count_colocalized
         %end
     case 'supervised'
         %get_centroid_patches(centroids,path_table_stitched, config,[50,7])
-        ct = classify_cells_svm(centroids, path_table_stitched, config);
+        ct = classify_cells_svm(centroids, path_table, config);
         
     case 'threshold'
         ct = classify_cells_threshold(centroids, config, B, S);

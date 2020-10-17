@@ -144,7 +144,7 @@ switch stage
         % Variables to check
         variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
             'param_folder','rescale_intensities','subtract_background','gamma','smooth_img','smooth_sigma',...
-            'DoG_img','DoG_minmax','DoG_factor'};
+            'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
 
         for i = 1:length(variable_names)
@@ -166,16 +166,26 @@ switch stage
                 gamma = ones(1,length(markers));
             elseif exist('smooth_img','var') == 1 && length(smooth_img) == 1 && i == 9
                 smooth_img = repmat(smooth_img,1,length(markers));
+            elseif exist('smooth_sigma','var') == 1 && isempty(smooth_sigma) && i == 10
+                smooth_sigma = ones(1,length(markers));
             elseif exist('smooth_sigma','var') == 1 && length(smooth_sigma) == 1 && i == 10
-                smooth_sigma = repmat(0.5,1,length(markers));
+                smooth_sigma = repmat(smooth_sigma,1,length(markers));
             elseif exist('DoG_img','var') == 1 && length(DoG_img) == 1 && i == 11
                 DoG_img = repmat(DoG_img,1,length(markers));
             elseif exist('DoG_minmax','var') == 1 && isempty(DoG_minmax) == 1 && i == 12
-                DoG_minmax = [0.8,1.25];
-            elseif exist('DoG_factor','var') == 1 && length(DoG_factor) == 1 || isempty(DoG_factor) && i == 13
-                DoG_factor = ones(1,length(markers));
+                DoG_minmax = [0.8,1.5];
+            elseif exist('DoG_factor','var') == 1 && length(DoG_factor) == 1 && i == 13
+                DoG_factor = repmat(DoG_factor,1,length(markers));
+            elseif exist('darkfield_intensity','var') == 1 && length(darkfield_intensity) == 1 && i == 14
+                darkfield_intensity = repmat(darkfield_intensity,1,length(markers));
+            elseif exist('update_intensity_channels','var') == 1 && isempty(update_intensity_channels) && i == 15
+                update_intensity_channels = 1:length(markers);
             end
         end
+    case 'analyze'
+        % Variables to check
+        variable_names = {};
+        load(fullfile('templates','NM_variables.mat'),variable_names{:});
 end
 
 % Resave these variables

@@ -38,22 +38,19 @@ idx = p.Results.idx; % Channel
 r = p.Results.r; % Row
 c = p.Results.c; % Column
 if ~isempty(adj_params)
-    if isequal(adj_params.adjust_tile_intensity,'true')
+    if isequal(adj_params.adjust_tile_position,'true')
         t_adj = adj_params.t_adj{idx}(r,c,:);
         l_thresh = adj_params.lowerThresh(idx);
     end
-    if isequal(adj_params.adjust_ls_width,'true')
+    if isequal(adj_params.adjust_tile_shading,'basic')
+       flatfield = adj_params.flatfield{idx};
+       darkfield = adj_params.darkfield{idx};
+    elseif isequal(adj_params.adjust_tile_shading,'manual')
         y_adj = adj_params.y_adj{idx};
         l_thresh = adj_params.lowerThresh(idx);
     end
-    if isequal(adj_params.rescale_intensities,'true')
-        l_thresh = adj_params.lowerThresh(idx);
-        u_thresh = adj_params.upperThresh(idx);
-        gamma = adj_params.gamma(idx);
-    end
-    if isequal(adj_params.shading_correction,'true')
-       flatfield = adj_params.flatfield{idx};
-       darkfield = adj_params.darkfield{idx};
+    if ~isempty(adj_params.darkfield_intensity)
+        dak_val = adj_params.darkfield_intensity(idx);
     end
 end
 

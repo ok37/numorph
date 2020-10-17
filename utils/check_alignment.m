@@ -33,10 +33,9 @@ end
 fprintf("Loading image information \n")
 
 % Load images from aligned directory
-img_directory = fullfile(config.output_directory,'aligned');
-path_cell{1} = dir(img_directory);
 location = "aligned";
-path_table = path_to_table(path_cell,location,[],[]);
+config.img_directory = fullfile(config.output_directory,'aligned');
+path_table = path_to_table(config,location);
 
 % Subset x,y positions
 path_table = path_table(ismember(path_table.markers,markers),:);

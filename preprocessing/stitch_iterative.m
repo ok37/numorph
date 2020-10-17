@@ -408,30 +408,10 @@ for i = 1:length(B)-1
     pre_v_tform{i} = [final_tform.T(3), final_tform.T(6)];
 end
 
-
-% Apply background subtraction
+% Postprocess the image with various filters, background subtraction, etc.
 for i = 1:nchannels
     c_idx = config.stitch_sub_channel(i);
-    if isequal(config.subtract_background(c_idx),"true")
-        se = strel('disk', config.nuc_radius*2);
-        I{i} = I{i} - imopen(I{i},se);
-    end
-end
-
-% Apply Difference-of-Gaussian filter
-for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    if isequal(config.DoG_img(c_idx),"true")
-        I{i} = dog_adjust(I{i},config.nuc_radius,config.dog(c_idx));                
-    end
-end
-
-% Apply smoothing filter
-for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    if isequal(config.smooth_img(c_idx),"true")
-        I{i} = apply_guided_filter(I{i});                
-    end
+    I{c_idx} = postprocess_image(config, I{c_idx}, c_idx);
 end
 
 %Crop or pad images based on ideal size

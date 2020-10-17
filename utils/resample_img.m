@@ -1,9 +1,23 @@
-function resample_img(config, resample_res, markers, file_type)
+function re_I = resample_img(config, resample_res, markers, file_type)
 %--------------------------------------------------------------------------
 % Resample mage to specified resolution. Only requires NM_analysis config 
-% structure, desired resolution, and image filetype.
+% structure, desired resolution, and image filetype. One file contains
+% entire stack.
 %--------------------------------------------------------------------------
-
+% Inputs:
+% config - config structure from NM_analyze.
+% 
+% resample_res - 1x3 interger. Resolution to resample to.
+%
+% markers - (optional) numeric or string array specifying which markers to
+% resample. Default is to resample all markers.
+%
+% file_type - (optional) '.nii' or '.tif'. Which filetype to save to.
+% Default is .nii.
+%
+% Outputs:
+% re_I - resampled image.
+%--------------------------------------------------------------------------
 if length(resample_res) == 1
     resample_res = repmat(resample_res,1,3);
 end
@@ -61,7 +75,7 @@ for i = 1:length(markers)
     re_I = imresize3(re_I,[re_height,re_width,re_z]);
     re_I = uint16(re_I);
 
-    % Save as nii series
+    % Save as nii series or tif stack
     save_directory = fullfile(config.output_directory,'resampled');
     channel_idx = find(config.markers == markers(i));
     

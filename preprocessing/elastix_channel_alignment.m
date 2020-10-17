@@ -67,7 +67,7 @@ for i = 1:length(markers)-1
             "in %s",config.param_folder(i),parameterDir)
     end
     % Create empty tmp directory for saving images/transforms
-    outputDir{i} = fullfile(parameterDir,sprintf('tmp%d',i));
+    outputDir{i} = fullfile(config.output_directory,sprintf('tmp%d',i));
     if ~exist(outputDir{i},'dir')
         mkdir(outputDir{i})
     else

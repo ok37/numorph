@@ -70,26 +70,17 @@ switch config.adjust_intensity
             % Define intensity adjustment parameters from scratch. Intensity
             % adjustment measurements should be made on raw images.
             fprintf("%s\t Defining new adjustment parameters \n",datetime('now'));        
-            adj_fields = {'adjust_intensity','adjust_ls_width','adjust_tile_intensity',...
-            'rescale_intensities','shading_correction','lowerThresh','upperThresh','gamma'};
+            adj_fields = {'adjust_intensity','adjust_tile_shading',...
+                'adjust_tile_position','lowerThresh','upperThresh'};
         
             % Update parameters from config structure
             for i = 1:length(adj_fields)
-                try
-                    adj_params.(adj_fields{i}) = config.(adj_fields{i});
-                catch
-                end
+                adj_params.(adj_fields{i}) = config.(adj_fields{i});
             end
         else
             % Load previous adjustment parameter structure
             fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
-            load(fullfile(output_directory,'variables','adj_params.mat'),'adj_params')
-
-            % Update which adjustment to apply based on current config
-            adj_params.adjust_ls_width = config.adjust_ls_width;
-            adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
-            adj_params.rescale_intensities = config.rescale_intensities;
-            adj_params.shading_correction = config.shading_correction;
+            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
         end
         
         % Measure sample images in overlapping regions and calculate
@@ -97,6 +88,9 @@ switch config.adjust_intensity
         lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
         flatfield = cell(1,length(config.markers));  darkfield = flatfield;
         for k = 1:length(config.markers)            
+            if isequal(config.adjust_intensity,"update") && ~ismember(k,config.update_intensity_channels)
+                continue
+            end
             fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
             stack = path_table(path_table.markers == config.markers(k),:);
 
@@ -104,16 +98,26 @@ switch config.adjust_intensity
             [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
                 measure_images(config, stack, k);
 
-            % Update adjustments parameters structure
-            if isequal(config.adjust_ls_width,"true") || isequal(config.adjust_intensity,"true")
+            % Save new adjustments parameters structure
+            if isequal(config.adjust_intensity,"true")
                 adj_params.y_adj{k} = y_adj;
-            end
-            if isequal(config.adjust_tile_intensity,"true") || isequal(config.adjust_intensity,"true")
                 adj_params.t_adj{k} = t_adj;
-            end
-            if isequal(config.shading_correction,"true") || isequal(config.adjust_intensity,"true")
                 adj_params.flatfield{k} = flatfield{k};
                 adj_params.darkfield{k} = darkfield{k};
+                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
+            else
+                % Update adjustments parameters structure
+                if ~all(y_adj==1)
+                   adj_params.y_adj{k} = y_adj;
+                end
+                if ~all(t_adj(:)==1)
+                   adj_params.t_adj{k} = t_adj;
+                end
+                if ~all(flatfield{k}(:)==1)
+                    adj_params.flatfield{k} = flatfield{k};
+                    adj_params.darkfield{k} = darkfield{k};
+                end
+                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
             end
         end
 
@@ -127,12 +131,11 @@ switch config.adjust_intensity
         save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
 
         % Save flatfield and darkfield as seperate variables
-        if isequal(config.shading_correction,"true")
+        if isequal(config.adjust_tile_shading,"basic")
             fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
             save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
             save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
         end
-
         config.adjust_intensity = "true";
 
     case 'load'
@@ -144,10 +147,8 @@ switch config.adjust_intensity
         config.adjust_intensity = "true";
 
         % Update which adjustment to apply based on current configs
-        config.adj_params.adjust_ls_width = config.adjust_ls_width;
-        config.adj_params.adjust_tile_intensity = config.adjust_tile_intensity;
-        config.adj_params.rescale_intensities = config.rescale_intensities;
-        config.adj_params.shading_correction = config.shading_correction;
+        config.adj_params.adjust_tile_shading = config.adjust_tile_shading;
+        config.adj_params.adjust_tile_position = config.adjust_tile_position;
         
     case 'false'
         % No intensity adjustments
@@ -164,10 +165,10 @@ switch config.adjust_intensity
             config.lowerThresh = adj_params.lowerThresh;
             config.upperThresh = adj_params.upperThresh;
         end
-
+        
     otherwise
         error("%s\t Unrecognized selection for adjust_intensity. "+...
-            "Please select ""true"", ""load"", or ""false"".\n",string(datetime('now')))
+            "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
 end
 
 %% Channel Alignment

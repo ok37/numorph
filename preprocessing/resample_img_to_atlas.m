@@ -1,4 +1,19 @@
 function resample_img_to_atlas(path_table, output_directory, res, resample_res)
+%--------------------------------------------------------------------------
+% Resample image to match 
+%--------------------------------------------------------------------------
+% Inputs:
+% config - config structure from NM_process.
+%
+% ranges - 1x2 or 1x3 cell array containing tile row and column. 3d value
+% can be a range of slices in the slices (e.g. 1:100).
+%
+% markers - (optional) string array containing which markers to produce
+% images for. Can also also specify as numeric for marker number.
+%
+% spacing - (optional) 1x3 double for the amount of downsampling for each
+% dimension.
+%--------------------------------------------------------------------------
 
 % Create directory for resampled images
 if exist(char(strcat(output_directory,'/resampled')),'dir') ~= 7

@@ -1,10 +1,9 @@
 function [S, B] = estimate_flatfield(config, path_table)
 %--------------------------------------------------------------------------
-% Wrapper function to 
-
-
-
-sampling_freq = 0.2;
+% Wrapper function to estimate flatfield and darkfield image using BaSIC
+% algorithm.
+%--------------------------------------------------------------------------
+sampling_freq = config.sampling_frequency;
 
 if ~isempty(config.shading_correction_tiles)
     max_x = max(unique(path_table.x));

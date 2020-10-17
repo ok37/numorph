@@ -83,7 +83,8 @@ switch location
 
         % Take image information
         [paths_sub.sample_name] = components{:,1};
-        [paths_sub.channel_num] = components{:,3};
+        channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
+        [paths_sub.channel_num] = channel_num{:,1};
         [paths_sub.markers] = components{:,4};
         positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
         x = num2cell(ones(1,length(paths_sub)));

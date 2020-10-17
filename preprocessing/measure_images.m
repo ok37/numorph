@@ -3,6 +3,7 @@ function [t_adj, lowerThresh, upperThresh, y_adj, flatfield, darkfield] = measur
 % Calculate various intensity adjustments including tile differences,
 % light-sheet width correction, flatfield + darkfield shading correction
 %--------------------------------------------------------------------------
+% Some additional defaults for tile position adjustment
 low_prct = 5;   % Low percentile for sampling background pixels
 high_prct = 95; % High percentile for sampling bright pixels
 pads = 0.25;     % Crop this fraction of image from the sides of images
@@ -41,17 +42,16 @@ overlap_min_v = {[1,overlap_min_r(end)],[1,ncols]};
 overlap_max_v = {[overlap_max_r(1),overlap_max_r(end)],[1,ncols]};
 
 % Calculate and adjust for laser width
-if isequal(config.adjust_ls_width,"true")
+if isequal(config.adjust_tile_shading,"manual")
     fprintf('%s\t Adjusting For Laser Width \n',datetime('now'));    
     y_adj = adjust_intensity_measured(config.single_sheet(channel_idx),tempI,...
     config.ls_width(channel_idx),resolution,config.laser_y_displacement(channel_idx))';
 else
-    fprintf('%s\t No Laser Width Adjustment \n',datetime('now'));    
     y_adj = ones(nrows,1);
 end  
 
 % Calculate shading correction using BaSiC
-if isequal(config.shading_correction,"true")
+if isequal(config.adjust_tile_shading,"basic")
     [flatfield, darkfield]  = estimate_flatfield(config, stack);
     flatfield = single(flatfield);
     darkfield = single(darkfield);
@@ -67,13 +67,6 @@ h_matrix2 = ones(y_tiles,x_tiles);
 % Initialize measurement vectors
 p_low = zeros(1,y_tiles*(x_tiles-1)+(y_tiles-1)*x_tiles);
 p_high = zeros(1,y_tiles*(x_tiles-1)+(y_tiles-1)*x_tiles);
-stdev = zeros(1,y_tiles*(x_tiles-1)+(y_tiles-1)*x_tiles);
-
-% Get flatfield and darkfield sections
-%f_left = flatfield(overlap_max_h{1}(1):overlap_max_h{1}(2),overlap_max_h{2}(1):overlap_max_h{2}(2));
-%f_right = flatfield(overlap_min_h{1}(1):overlap_min_h{1}(2),overlap_min_h{2}(1):overlap_min_h{2}(2));
-%d_left = darkfield(overlap_max_h{1}(1):overlap_max_h{1}(2),overlap_max_h{2}(1):overlap_max_h{2}(2));
-%d_right = darkfield(overlap_min_h{1}(1):overlap_min_h{1}(2),overlap_min_h{2}(1):overlap_min_h{2}(2));
 
 idx = 1;
 for i = 1:y_tiles
@@ -107,11 +100,9 @@ for i = 1:y_tiles
         I_right1 = I_right*h_matrix2(i,j+1) * h_matrix1(i,j+1);
         h_matrix2(i,j+1) = prctile(I_left1,high_prct)/prctile(I_right1,high_prct);
 
-        % Measure 1 percentile of all pixels. This gives rough background
-        % and upper intensity
+        % Measure upper and lower percentile of pixels for thresholds
         p_low(idx) = mean([prctile(I_left,low_prct) prctile(I_right,low_prct)]);
         p_high(idx) = mean([prctile(I_left,high_prct) prctile(I_right,high_prct)]);
-        %stdev(idx) = std([I_left; I_right]);
         idx = idx+1;
     end
 end
@@ -122,12 +113,6 @@ h_matrix2 = h_matrix2/mean2(h_matrix2);
 fprintf('%s\t Measuring Between Tile Differences Vertically \n',datetime('now'));    
 v_matrix1 = ones(y_tiles,x_tiles);
 v_matrix2 = ones(y_tiles,x_tiles);
-
-% Get flatfield and darkfield sections
-%f_top = flatfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
-%f_bottom = flatfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
-%d_top = darkfield(overlap_max_v{1}(1):overlap_max_v{1}(2),overlap_max_v{2}(1):overlap_max_v{2}(2));
-%d_bottom = darkfield(overlap_min_v{1}(1):overlap_min_v{1}(2),overlap_min_v{2}(1):overlap_min_v{2}(2));
 
 for i = 1:y_tiles-1
     for j = 1:x_tiles
@@ -159,11 +144,9 @@ for i = 1:y_tiles-1
         I_bottom1 = I_bottom*v_matrix2(i+1,j)*v_matrix1(i+1,j);
         v_matrix2(i+1,j) = prctile(I_top1,high_prct)/prctile(I_bottom1,high_prct);
         
-        %Measure 1 percentile of all pixels. This gives rough background
-        %and upper intensity
+        % Measure upper and lower percentile of pixels for thresholds
         p_low(idx) = mean([prctile(I_top,low_prct) prctile(I_bottom,low_prct)]);
         p_high(idx) = mean([prctile(I_top,high_prct) prctile(I_bottom,high_prct)]);
-        %stdev(idx) = std([I_top; I_bottom]);
         idx = idx+1;
     end
 end
@@ -202,7 +185,12 @@ fprintf('%s\t Measured Lower and Upper Intensities:\t %.1f\t %.1f\n',datetime('n
     lowerThresh,upperThresh);    
 
 % Save tile adjustment
-t_adj(:,:,1) = adj_matrix1;
-t_adj(:,:,2) = adj_matrix2;
+if isequal(config.adjust_tile_position,"true")
+    t_adj(:,:,1) = adj_matrix1;
+    t_adj(:,:,2) = adj_matrix2;
+else
+    t_adj(:,:,1) = ones(size(adj_matrix1));
+    t_adj(:,:,2) = ones(size(adj_matrix2));
+end
 
 end
