@@ -5,7 +5,7 @@ function [t_adj, lowerThresh, upperThresh, y_adj, flatfield, darkfield] = measur
 %--------------------------------------------------------------------------
 % Some additional defaults for tile position adjustment
 low_prct = 5;   % Low percentile for sampling background pixels
-high_prct = 95; % High percentile for sampling bright pixels
+high_prct = 99; % High percentile for sampling bright pixels
 pads = 0.25;     % Crop this fraction of image from the sides of images
 image_sampling = 0.1;   % Fraction of all images to sample
 
@@ -184,7 +184,7 @@ upperThresh = max(p_high);
 fprintf('%s\t Measured Lower and Upper Intensities:\t %.1f\t %.1f\n',datetime('now'),...
     lowerThresh,upperThresh);    
 
-% Save tile adjustment
+% Store tile adjustment
 if isequal(config.adjust_tile_position,"true")
     t_adj(:,:,1) = adj_matrix1;
     t_adj(:,:,2) = adj_matrix2;

@@ -62,114 +62,8 @@ nrows = length(unique(path_table.y));
 nb_tiles = ncols * nrows;
 position_mat = reshape(1:nb_tiles,[nrows,ncols])';
 
-%% Measure Intensity of All Images
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-switch config.adjust_intensity
-    case {'true', 'update'}
-        if isequal(config.adjust_intensity,"true")
-            % Define intensity adjustment parameters from scratch. Intensity
-            % adjustment measurements should be made on raw images.
-            fprintf("%s\t Defining new adjustment parameters \n",datetime('now'));        
-            adj_fields = {'adjust_intensity','adjust_tile_shading',...
-                'adjust_tile_position','lowerThresh','upperThresh'};
-        
-            % Update parameters from config structure
-            for i = 1:length(adj_fields)
-                adj_params.(adj_fields{i}) = config.(adj_fields{i});
-            end
-        else
-            % Load previous adjustment parameter structure
-            fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
-            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-        end
-        
-        % Measure sample images in overlapping regions and calculate
-        % intensity thresholds for each marker
-        lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
-        flatfield = cell(1,length(config.markers));  darkfield = flatfield;
-        for k = 1:length(config.markers)            
-            if isequal(config.adjust_intensity,"update") && ~ismember(k,config.update_intensity_channels)
-                continue
-            end
-            fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
-            stack = path_table(path_table.markers == config.markers(k),:);
-
-            % Take measurements
-            [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
-                measure_images(config, stack, k);
-
-            % Save new adjustments parameters structure
-            if isequal(config.adjust_intensity,"true")
-                adj_params.y_adj{k} = y_adj;
-                adj_params.t_adj{k} = t_adj;
-                adj_params.flatfield{k} = flatfield{k};
-                adj_params.darkfield{k} = darkfield{k};
-                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
-            else
-                % Update adjustments parameters structure
-                if ~all(y_adj==1)
-                   adj_params.y_adj{k} = y_adj;
-                end
-                if ~all(t_adj(:)==1)
-                   adj_params.t_adj{k} = t_adj;
-                end
-                if ~all(flatfield{k}(:)==1)
-                    adj_params.flatfield{k} = flatfield{k};
-                    adj_params.darkfield{k} = darkfield{k};
-                end
-                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
-            end
-        end
-
-        % Check for user-defined intensity threshold values
-        [adj_params, config, lowerThresh, upperThresh] = check_adj_parameters(adj_params,...
-            config, lowerThresh_measured, upperThresh_measured);
-        config.adj_params = adj_params;
-
-        % Save adjustment parameters to output directory
-        fprintf("%s\t Saving adjustment parameters \n", datetime('now'));
-        save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
-
-        % Save flatfield and darkfield as seperate variables
-        if isequal(config.adjust_tile_shading,"basic")
-            fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
-            save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
-            save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
-        end
-        config.adjust_intensity = "true";
-
-    case 'load'
-        % Load adjustment parameters from output directory and use as is  
-        fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
-        load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-        [adj_params, config] = check_adj_parameters(adj_params,config);
-        config.adj_params = adj_params;
-        config.adjust_intensity = "true";
-
-        % Update which adjustment to apply based on current configs
-        config.adj_params.adjust_tile_shading = config.adjust_tile_shading;
-        config.adj_params.adjust_tile_position = config.adjust_tile_position;
-        
-    case 'false'
-        % No intensity adjustments
-        fprintf("%s\t No intensity Adjustments Selected \n",datetime('now'));
-        config.adj_params = [];
-
-        if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
-            config.lowerThresh = config.lowerThresh/65535;
-            config.upperThresh = config.upperThresh/65535;
-        elseif exist(fullfile(config.output_directory,'variables','adj_params.mat'),'file') == 2
-            fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
-                "Loading these from adjustment parameters that already exist. \n",datetime('now'));
-            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-            config.lowerThresh = adj_params.lowerThresh;
-            config.upperThresh = adj_params.upperThresh;
-        end
-        
-    otherwise
-        error("%s\t Unrecognized selection for adjust_intensity. "+...
-            "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
-end
+%% Intensity Adjustment
+config = intensity_adjustment(config, path_table);
 
 %% Channel Alignment
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -423,6 +317,125 @@ else
     end
 
     fprintf("%s\t Stitching completed! \n",datetime('now'));
+end
+
+end
+
+function config = intensity_adjustment(config, path_table)
+
+%% Measure Intensity of All Images
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+switch config.adjust_intensity
+    case {'true', 'update'}
+        if isequal(config.adjust_intensity,"true")
+            % Define intensity adjustment parameters from scratch. Intensity
+            % adjustment measurements should be made on raw images.
+            fprintf("%s\t Defining new adjustment parameters \n",datetime('now'));        
+            adj_fields = {'adjust_intensity','adjust_tile_shading',...
+                'adjust_tile_position','lowerThresh','upperThresh'};
+        
+            % Update parameters from config structure
+            for i = 1:length(adj_fields)
+                adj_params.(adj_fields{i}) = config.(adj_fields{i});
+            end
+        else
+            % Load previous adjustment parameter structure
+            fprintf("%s\t Updating previous adjustment parameter fields \n",datetime('now'));
+            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
+        end
+        
+        % Measure sample images in overlapping regions and calculate
+        % intensity thresholds for each marker
+        lowerThresh_measured = zeros(1,length(config.markers)); upperThresh_measured = lowerThresh_measured;
+        flatfield = cell(1,length(config.markers));  darkfield = flatfield;
+        for k = 1:length(config.markers)            
+            if isequal(config.adjust_intensity,"update") && ~ismember(k,config.update_intensity_channels)
+                continue
+            end
+            fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
+            stack = path_table(path_table.markers == config.markers(k),:);
+
+            % Take measurements
+            [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
+                measure_images(config, stack, k);
+
+            % Save new adjustments parameters structure
+            if isequal(config.adjust_intensity,"true")
+                adj_params.y_adj{k} = y_adj;
+                adj_params.t_adj{k} = t_adj;
+                adj_params.flatfield{k} = flatfield{k};
+                adj_params.darkfield{k} = darkfield{k};
+                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
+            else
+                % Update adjustments parameters structure
+                if ~all(y_adj==1)
+                   adj_params.y_adj{k} = y_adj;
+                end
+                if ~all(t_adj(:)==1)
+                   adj_params.t_adj{k} = t_adj;
+                end
+                if ~all(flatfield{k}(:)==1)
+                    adj_params.flatfield{k} = flatfield{k};
+                    adj_params.darkfield{k} = darkfield{k};
+                end
+                adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
+            end
+        end
+
+        % Check for user-defined intensity threshold values
+        [adj_params, config] = check_adj_parameters(adj_params, config,...
+            lowerThresh_measured, upperThresh_measured);
+        config.adj_params = adj_params;
+        config.adjust_intensity = "true";
+
+        % Save adjustment parameters to output directory
+        fprintf("%s\t Saving adjustment parameters \n", datetime('now'));
+        save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
+
+        % Save flatfield and darkfield as seperate variables
+        if isequal(config.adjust_tile_shading,"basic")
+            fprintf("%s\t Saving flatfield and darkfield images \n",datetime('now'));
+            save(fullfile(config.output_directory,'variables','flatfield.mat'), 'flatfield')
+            save(fullfile(config.output_directory,'variables','darkfield.mat'), 'darkfield')
+        end
+        
+        % Save samples
+        if isequal(config.save_samples,"true")
+            fprintf('%s\t Saving Samples \n',datetime('now'));    
+            save_samples(config,'intensity',path_table)
+        end
+
+    case 'load'
+        % Load adjustment parameters from output directory and use as is  
+        fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
+        load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
+        [adj_params, config] = check_adj_parameters(adj_params,config);
+        config.adj_params = adj_params;
+        config.adjust_intensity = "true";
+
+        % Update which adjustment to apply based on current configs
+        config.adj_params.adjust_tile_shading = config.adjust_tile_shading;
+        config.adj_params.adjust_tile_position = config.adjust_tile_position;
+        
+    case 'false'
+        % No intensity adjustments
+        fprintf("%s\t No intensity Adjustments Selected \n",datetime('now'));
+        config.adj_params = [];
+
+        if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
+            config.lowerThresh = config.lowerThresh/65535;
+            config.upperThresh = config.upperThresh/65535;
+        elseif exist(fullfile(config.output_directory,'variables','adj_params.mat'),'file') == 2
+            fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
+                "Loading these from adjustment parameters that already exist. \n",datetime('now'));
+            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
+            config.lowerThresh = adj_params.lowerThresh;
+            config.upperThresh = adj_params.upperThresh;
+        end
+        
+    otherwise
+        error("%s\t Unrecognized selection for adjust_intensity. "+...
+            "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
 end
 
 end

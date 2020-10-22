@@ -32,6 +32,10 @@ if nargin<4
     file_type = '.nii';
 end
 
+if nargin<5
+    use_chunks = false;
+end
+
 % Create directory for resampled images
 if exist(fullfile(config.output_directory,'resampled'),'dir') ~= 7
   mkdir(fullfile(config.output_directory,'resampled'))
@@ -50,17 +54,17 @@ for i = 1:length(markers)
     path_sub = path_table(path_table.markers == markers(i),:);
     nb_images = height(path_sub);
     
-    %Measure image dimensions for high resolution image
+    % Measure image dimensions for high resolution image
     tempI = imread(path_sub.file{1});
     [img_height,img_width] = size(tempI);
 
-    %Calculate image dimensions for target resolution
+    % Calculate image dimensions for target resolution
     re_v = resample_res./config.resolution;
     re_height = round(img_height/re_v(1));
     re_width = round(img_width/re_v(2));
     re_z = round(nb_images/re_v(3));
 
-    %Intialize matrix for resampled image
+    % Intialize matrix for resampled image
     re_I = zeros(re_height,re_width,re_z,'uint16');
 
     % Resample first only in x,y to decrease memory demands

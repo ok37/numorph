@@ -195,7 +195,11 @@ for k = 1:nchannels
             else
                 ref_img_name = img_grid(i,j,1);
                 mov_img_entry = config.alignment_table{i,j}(string(config.alignment_table{i,j}{:,1}) == ref_img_name,:);
-                A{i,j,k} = imread(mov_img_entry.file_2{:});
+                if ~isempty(mov_img_entry)
+                    A{i,j,k} = imread(mov_img_entry.file_2{:});
+                else
+                    error("Alignement filenames do not match")
+                end
             end
             
             %Crop or pad images
@@ -205,22 +209,8 @@ for k = 1:nchannels
             
             % Apply intensity adjustments
             if isequal(config.adjust_intensity,"true")
-                adj_params.r = i;
-                adj_params.c = j;
-                adj_params.idx = c_idx;
-                
-               % Crop laser width adjustment if necessary
-                if length(config.adj_params.y_adj{k}) ~= length(config.adj_params.y_adj{1})
-                    config.adj_params.y_adj{k} = crop_to_ref(config.adj_params.y_adj{1},...
-                        config.adj_params.y_adj{k});
-                    A{i,j,k} = crop_to_ref(A{1,1,1},A{i,j,k});
-                end
-                A{i,j,k} = apply_intensity_adjustment(A{i,j,k},config.adj_params,...
+                A{i,j,k} = apply_intensity_adjustment(A{i,j,k},'params',config.adj_params,...
                     'r',i,'c',j,'idx',c_idx);
-            end
-            
-            if ~isempty(adj_params) && ~isequal(config.adjust_intensity,'false')
-                A{i,j,k} = apply_intensity_adjustment(A{i,j,k},'p',adj_params,'r',i,'c',j,'idx',k);
             end
             
             % Apply alignment transforms

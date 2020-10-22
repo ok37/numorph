@@ -83,12 +83,19 @@ elseif isnumeric(flatfield)
 end
 
 % Adjust for light-sheet width
-if isnumeric(y_adj) && l_thresh > 0
-    a = (l_thresh*65535)*(y_adj-1);
-    I = I.*y_adj - a;
-elseif isnumeric(y_adj)
-    a = dark_val*(y_adj-1);
-    I = I.*y_adj - a;
+if isnumeric(y_adj)
+   % Crop laser width adjustment if necessary
+    if length(y_adj) ~= size(I,1)
+        y_ref = 1:size(I,1);
+        y_adj = crop_to_ref(y_ref,y_adj);
+    end
+    if l_thresh > 0
+        a = (l_thresh*65535)*(y_adj-1);
+        I = I.*y_adj - a;
+    else
+        a = dark_val*(y_adj-1);
+        I = I.*y_adj - a;
+    end
 end
 
 % Rescale intensities

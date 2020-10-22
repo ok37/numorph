@@ -80,7 +80,6 @@ df3 = df3(idx,:);
 
 % Plotting
 [scat] = make_plot(df2,s2,BW,2,1);
-\a = 1;
 
 
 end

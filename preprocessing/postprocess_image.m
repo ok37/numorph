@@ -25,4 +25,21 @@ if ~isequal(config.smooth_img(marker_idx),"false")
     I = smooth_image(I, config.smooth_img(marker_idx),config.smooth_sigma(marker_idx));                
 end
 
+% Apply permutations
+if isfield(config,"flip_axis")
+    if isequal(config.flip_axis,"horizontal")
+        I = flip(I,2);
+    elseif isequal(config.flip_axis,"vertical")
+        I = flip(I,1);
+    elseif isequal(config.flip_axis,"both")
+        I = flip(I,1);
+        I = flip(I,2);
+    end
+end
+if isfield(config,"rotate_axis")
+    if config.rotate_axis ~= 0
+        I = imrotate(I, config.rotate_axis);
+    end
+end
+
 end

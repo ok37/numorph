@@ -133,14 +133,16 @@ switch location
                 new_channels = 1:length(markers);
             end
             
-            
             for i = 1:length(paths)
                 % Take only tif files
                 path_idx = paths{i}(arrayfun(@(x) contains(x.name,'.tif'),paths{i}));
                 
+                % Subset only this marker
+                path_idx = path_idx(arrayfun(@(x) contains(x.name,markers(i)),path_idx));
+                
                 % Save full file path
                 paths_sub = cell2struct(fullfile({path_idx.folder},{path_idx.name}),'file');
-                
+                                
                 % Scan through each filename for relevant information
                 for j = 1:length(path_idx)
                     try
@@ -156,6 +158,13 @@ switch location
                 end
                 % Save into cell array
                 paths_new{i} = paths_sub;
+                
+                % Check to see if equal number of z positions
+                %%%%%%% Change in future update where z resolution is not
+                %%%%%%% equal
+                if numel(paths_sub) == numel(paths_new{1})
+                    error("Unequal z positions")
+                end
             end
         else
             % Directories contain multiple channels

@@ -2,7 +2,7 @@
 % These are the key parameters
 % Set flags to indicate how/whether to run process
 adjust_intensity = "load";              % true, update, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should ideally be performed on raw images
-adjust_tile_shading = "basic";          % basic, manual, false; Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
+adjust_tile_shading = "manual";          % basic, manual, false; Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
 adjust_tile_position = "true";          % true, false; Normalize tile intensities by position using overlapping regions
 
 channel_alignment = "false";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
@@ -67,7 +67,7 @@ use_middle = "false";                               % true, false; Recommended: 
 % These all currently occur during stitching step after the completed image
 % has been merged.
 % Parameters for rescale_intensities
-rescale_intensities = "true";           % true, false; Rescaling intensities and applying gamma
+rescale_intensities = "false";           % true, false; Rescaling intensities and applying gamma
 lowerThresh = [100 100];                % 1xn_channels numeric; Intensity values of dimmest feature of interest. If left empty, pipeline will automatically calculate this for each channel as it is required for elastix alignment and stitching
 upperThresh = [1000 2000];              % 1xn_channels numeric; Max intensity of brightest features.If left empty, pipeline will automatically calculate this for each channel as it is required for elastix channel alignment
 gamma = [];                             % 1xn_channels numeric; Gamma intensity adjustment
@@ -84,3 +84,7 @@ smooth_sigma = [];                      % 1xn_channels numeric; Size of smoothin
 DoG_img = "false";                          % true,false; Apply difference of gaussian enhancement of blobs
 DoG_minmax = [0.8,2];                       % 1x2 numeric; Min/max sigma values to take differene from.
 DoG_factor = 1;                             % [0,1]; Factor controlling amount of adjustment to apply. Set to 1 for absolute DoG
+
+% Permute image
+flip_axis = "none";               % "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
+rotate_axis = 0;                        % 90 or -90; Rotate image
