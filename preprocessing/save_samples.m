@@ -67,13 +67,15 @@ switch process
             
             % Save t_adj
             t_adj = config.adj_params.t_adj{i};
-            t_adj = t_adj(:,:,2).*t_adj(:,:,1);
-            fig = figure('visible','off');
-            heatmap(t_adj)
-            caxis([0.5,1.5])
-            colormap parula
-            exportgraphics(fig,fullfile(sub_directory,...
-                sprintf('tile_adj_%d.png',i)))
+            if t_adj~=1
+                t_adj = t_adj(:,:,2).*t_adj(:,:,1);
+                fig = figure('visible','off');
+                heatmap(t_adj)
+                caxis([0.5,1.5])
+                colormap parula
+                exportgraphics(fig,fullfile(sub_directory,...
+                    sprintf('tile_adj_%d.png',i)))
+            end
         end
         
         % Create image

@@ -1,4 +1,4 @@
-function [z_displacement,ave_score] = z_align_channel(path_mov,path_ref,z_positions,z_window,lowerThresh,z_initial)
+function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,channel_idx)
 %--------------------------------------------------------------------------
 % Align .tif series from 2 channels along z dimension.
 %--------------------------------------------------------------------------
@@ -6,6 +6,26 @@ function [z_displacement,ave_score] = z_align_channel(path_mov,path_ref,z_positi
 % Set number of peaks and subixel value
 peaks = 3;
 usfac = 1;
+max_shift = 0.1;
+verbose = false;
+
+% Unpack variables
+z_positions = config.z_positions;
+z_window = config.z_window;
+lowerThresh = config.lowerThresh(channel_idx);
+z_initial = config.z_initial(channel_idx);
+
+% Adjust for resolution
+res_adj = config.resolution{1}./config.resolution{channel_idx};
+res_equal = all(res_adj == 1);
+
+tempI = imread(path_ref.file{1});
+shift_threshold = max(size(tempI))*max_shift;
+
+if ~res_equal
+    res_adj = size(tempI).*res_adj(1:2);
+    shift_threshold = max(res_adj)*max_shift;
+end
 
 % Check lowerThresh
 if lowerThresh<1
@@ -18,7 +38,7 @@ nb_imgs_ref = height(path_ref);
 
 % Check file lengths
 if nb_imgs_mov ~= nb_imgs_ref
-    error("Number of images do not match up")
+%    error("Number of images do not match up")
 end
 
 % Pick reference images in range
@@ -40,8 +60,16 @@ for i = 1:length(z)
     end
     
     ref_img = imread(path_ref.file{i});
+
+    % Resample the reference image if the resolution is different
+    % Note: we're resizing reference image instead of moving image for
+    % speed and because moving image is usually at lower resolution
+    if ~res_equal
+        ref_img = imresize(ref_img, res_adj);
+    end
+
     signal = zeros(1,length(z_range));
-    b=1;
+    b = 1;
     for j = z_range
         % Read moving image
         mov_img = imread(path_mov.file{j});
@@ -53,7 +81,7 @@ for i = 1:length(z)
         if signal(b)<0.01
             cc(a,b) = 0;
             continue
-        else
+        end
         
         % Do simple crop in case image sizes don't match up
         if any(size(ref_img) ~= size(mov_img))
@@ -61,22 +89,29 @@ for i = 1:length(z)
         end    
         
         %Calculate phase correlation
-        [~,~,~,type,cc(a,b)] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
-        
+        [~,~,~,type,cc(a,b)] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac,shift_threshold);        
+
         %If pc didn't work, set cc to 0
         if type == 0
             cc(a,b) = 0;
         end
+
         %Check results
+        %[pc_img,ref_img2,~,type,cc(a,b)] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac,shift_threshold);
         %disp(cc)
-        %if i == 5
-        %    imshowpair(ref_img2*30,pc_img*250)
+        %if i == 1
+            %figure
+            %imshowpair(ref_img2*30,uint16(pc_img)*25)
         %end
-        end
         b = b+1;
     end
     max_signal(i) = max(signal);
     a = a+1;
+end
+
+% Display cross-correlation matrix
+if verbose
+    disp(cc)
 end
 
 % Generate score by multiplying intensity value by cross-correlation. This

@@ -1,23 +1,54 @@
-function coreg_table = align_by_translation(config,path_table,z_displacement)
+function coreg_table = align_by_translation(config,path_table,z_displacement_align)
 %--------------------------------------------------------------------------
-% Align image channels by translation using MATLAB's imregister
+% Align image channels by translating 2D slices. Requires a z_displacement
+% structure to pre-align slices along z. Phase correlation is used to get a
+% rough alignment and actual registration is performed  using MATLAB's 
+% imregister function (Image Processing Toolbox).
 %--------------------------------------------------------------------------
+
+% Define intensity-based registration settings
+% Use optimizer and metric setting
+metric = registration.metric.MattesMutualInformation;
+optimizer = registration.optimizer.RegularStepGradientDescent;
+       
+metric.NumberOfSpatialSamples = 100;
+metric.NumberOfHistogramBins = 50;
+       
+optimizer.GradientMagnitudeTolerance = 1.00000e-04;
+optimizer.MinimumStepLength = 1.00000e-05;
+optimizer.MaximumStepLength = 1.00000e-01;
+optimizer.MaximumIterations = 50;
+optimizer.RelaxationFactor = 0.5;
 
 % Unpack important variables from config structure
 output_directory = config.output_directory;
 lowerThresh = config.lowerThresh;
 align_stepsize = config.align_stepsize;
 save_aligned_images = config.save_aligned_images;
-markers = config.markers;
+
+% Get relevant tile information
+channel_num = unique(path_table.channel_num);
+markers = config.markers(channel_num);
 col = unique(path_table.x);
 row = unique(path_table.y);
 
-% Default displacement threshold for comparing to previous translation.
-% Multiplied by the average dimension of the image.
-distance_threshold = 0.005;
+% Default displacement threshold for comparing to previous translation in
+% pixels.
+distance_threshold = 5;
+max_shift = 100;
 
-assert(length(row) == 1 & length(col) ==1 , "Image path table should contain only 1 unique tile position")
+% Make sure there's only 1 tile
+assert(length(row) == 1 & length(col) ==1 ,...
+    "Image path table should contain only 1 unique tile position")
 
+% Adjust for resolution
+res_adj = cell(1,length(markers)-1); res_equal = true(1,length(markers)-1);
+for i = 2:length(markers)
+    tempI = imread(path_table(path_table.channel_num == channel_num(i),:).file{1});
+    res_adj{i-1} = size(tempI)./(config.resolution{1}(1:2)./config.resolution{channel_num(i)}(1:2));
+    res_equal(i-1) = all(config.resolution{1}(1:2) == config.resolution{i}(1:2));
+end
+    
 % Check lower threshold
 if any(lowerThresh<1)
     lowerThresh = lowerThresh*65535;
@@ -26,6 +57,11 @@ end
 % Set precision and number of cc peaks
 usfac = 10;
 peaks = 5;
+
+% Get z displacement
+for i = 2:length(markers)
+    z_displacement(i-1) = z_displacement_align.(markers(i))(row,col);
+end
 
 % Create matrix with with z displacements for each channel
 z_displacement = cat(2,0,z_displacement(:)');
@@ -77,26 +113,9 @@ end
 sort_row = 1+numel(markers);
 order_m(sort_row,:) = mean(order_m(2:length(markers),:),1);
 
-% Adjust distance threshold based on size of image
-distance_threshold = distance_threshold * mean(size(mov_img));
-
 % Sort the matrix to register brightest positions first
 order_m = sortrows(order_m',sort_row,'descend');
 reg_img = cell(1,length(markers)-1);
-
-% Define intensity-based registration settings
-% Use optimizer and metric setting
-metric = registration.metric.MattesMutualInformation;
-optimizer = registration.optimizer.RegularStepGradientDescent;
-       
-metric.NumberOfSpatialSamples = 500;
-metric.NumberOfHistogramBins = 50;
-       
-optimizer.GradientMagnitudeTolerance = 1.00000e-04;
-optimizer.MinimumStepLength = 1.00000e-05;
-optimizer.MaximumStepLength = 1.00000e-01;
-optimizer.MaximumIterations = 100;
-optimizer.RelaxationFactor = 0.5;
 
 % Run channel coregistration
 for i = 1:size(order_m,1)
@@ -110,70 +129,76 @@ for i = 1:size(order_m,1)
     % For each non-reference channel, perform registration using translation
     for j = 2:numel(markers)
         if order_m(i,j) > 1E-3
-        % Index within order matrix
-        idx = 2+length(markers)+4*(j-2);
+            % Index within order matrix
+            idx = 2+length(markers)+4*(j-2);
 
-        % Read moving image
-        path = path_new(path_new.z==z_idx & path_new.markers==markers(j),:);
-        mov_img = imread(path.file{:});
-       
-       % Do simple crop in case image sizes don't match up
-       if any(size(ref_img) ~= size(mov_img))
-           mov_img = crop_to_ref(ref_img, mov_img);
-       end
-       
-       % Register using phase correlation. Record 1,cross correlation,error
-       [~,~,tform,~,~] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
-       
-       % If tform is empty, use nearest translation
-       if isempty(tform)
-           m_subset = order_m(order_m(:,idx)~=0,:);
-           [~,nearest_idx] = min(abs(m_subset(:,1)-z_idx));
-           tform = affine2d([1 0 0; 0 1 0; 0 0 1]);
-           tform.T(3) = m_subset(nearest_idx,idx+1);
-           tform.T(6) = m_subset(nearest_idx,idx+2);
-           order_m(i,idx) = 1; % indicates poor initial phase correlation    
-       end
-   
-       % Check for big translations in phase correlation. It's very important to use
-       % a good initial translation before intensity-based registration
-       if i>1
-           % Take median of translations calculated so far            
-           x_med = median(order_m(1:i-1,idx+1));
-           y_med = median(order_m(1:i-1,idx+2));
-      
-           % Calculate distance from median value
-           d = ((tform.T(3)-x_med).^2 + (tform.T(6)-y_med).^2).^0.5;
-      
-           % If translation is too far from the median, take nearest
-           % translation
-           if d > distance_threshold
+            % Read moving image
+            path = path_new(path_new.z==z_idx & path_new.markers==markers(j),:);
+            mov_img = imread(path.file{:});
+
+            % Readjust resolution if necessary
+            if ~res_equal(j-1)
+                mov_img = imresize(mov_img,res_adj{j-1},'bicubic');
+            end
+
+           % Do simple crop in case image sizes don't match up
+           if any(size(ref_img) ~= size(mov_img))
+               mov_img = crop_to_ref(ref_img, mov_img);
+           end
+
+           % Register using phase correlation. Record 1,cross correlation,error
+           [~,~,tform,~,~] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac,max_shift);
+
+           % If tform is empty, use nearest translation
+           if isempty(tform)
                m_subset = order_m(order_m(:,idx)~=0,:);
                [~,nearest_idx] = min(abs(m_subset(:,1)-z_idx));
+               tform = affine2d([1 0 0; 0 1 0; 0 0 1]);
                tform.T(3) = m_subset(nearest_idx,idx+1);
                tform.T(6) = m_subset(nearest_idx,idx+2);
-               order_m(i,idx)=1; %note poor initial phase correlation          
+               order_m(i,idx) = 1; % indicates poor initial phase correlation    
            end
-       end
-    
-       % Use MATLAB's intensity-based registration to refine registration
-       % Calculate transform
-       tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
-           'PyramidLevels',2,'InitialTransformation',tform);
-   
-       % Apply the transform
-       reg_img{j-1} = imwarp(mov_img,tform,'OutputView',imref2d(size(ref_img)));
 
-       order_m(i,idx)=order_m(i,idx)+1; %note registration
-           
-       % Save x,y translations
-       order_m(i,idx+1)=tform.T(3);
-       order_m(i,idx+2)=tform.T(6);
-       
-       % Calculate cross correlation
-       ref_img(reg_img{j-1} == 0) = 0;
-       reg_img{j-1}(ref_img == 0) = 0;
-       order_m(i,idx+3) = corr2(reg_img{j-1},ref_img);
+           % Check for big translations in phase correlation. It's very important to use
+           % a good initial translation before intensity-based registration
+           if i>1
+               % Take median of translations calculated so far            
+               x_med = median(order_m(1:i-1,idx+1));
+               y_med = median(order_m(1:i-1,idx+2));
+
+               % Calculate distance from median value
+               d = ((tform.T(3)-x_med).^2 + (tform.T(6)-y_med).^2).^0.5;
+
+               % If translation is too far from the median, take nearest
+               % translation
+               if d > distance_threshold
+                   m_subset = order_m(order_m(:,idx)~=0,:);
+                   [~,nearest_idx] = min(abs(m_subset(:,1)-z_idx));
+                   tform.T(3) = m_subset(nearest_idx,idx+1);
+                   tform.T(6) = m_subset(nearest_idx,idx+2);
+                   order_m(i,idx)=1; %note poor initial phase correlation          
+               end
+           end
+
+           % Use MATLAB's intensity-based registration to refine registration
+           % Calculate transform
+           tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
+               'PyramidLevels',2,'InitialTransformation',tform);
+
+           % Apply the transform
+           reg_img{j-1} = imwarp(mov_img,tform,'OutputView',imref2d(size(ref_img)));
+
+           % Save registration details via index
+           order_m(i,idx)=order_m(i,idx)+1;
+
+           % Save x,y translations
+           order_m(i,idx+1)=tform.T(3);
+           order_m(i,idx+2)=tform.T(6);
+
+           % Calculate cross correlation
+           ref_img(reg_img{j-1} == 0) = 0;
+           reg_img{j-1}(ref_img == 0) = 0;
+           order_m(i,idx+3) = corr2(reg_img{j-1},ref_img);
        end
     end
     
@@ -282,7 +307,7 @@ if isequal(save_aligned_images,"true")
         mkdir(fullfile(output_directory,'aligned'));
     end
     
-    % Get column index for translations for each marker
+    % Get table index for translations for each marker
     t_idx = zeros(1,length(markers));
     for i = 2:length(markers)
         t_idx(i) = find(contains(coreg_table.Properties.VariableNames,'X') & contains(coreg_table.Properties.VariableNames,markers(i)));
@@ -292,26 +317,46 @@ if isequal(save_aligned_images,"true")
         path_sub = coreg_table(coreg_table.Reference_Z == i,:);        
         for j = 1:length(markers)
             mov_img = imread(string(table2cell(coreg_table(i,j))));
-            % Apply intensity adjustment
-            if isequal(config.shading_correction,'true')
-                if i == 1
-                   fprintf(strcat(char(datetime('now')),'\t Applying flatfield correction for marker: %s\n'),markers(j));
-                end
-                   mov_img = apply_intensity_adjustment(mov_img,'flatfield', config.adj_params.flatfield{j},'darkfield',config.adj_params.darkfield{j});
-            elseif isequal(config.adjust_ls_width,'true')
-                if i == 1
-                   fprintf(strcat(char(datetime('now')),'\t Adjusting for light sheet width for marker: %s\n'),markers(j));
-                end
-                   mov_img = apply_intensity_adjustment(mov_img,'y_adj', config.adj_params.y_adj{j});
+            
+            % Apply intensity adjustments
+            if isequal(config.adjust_intensity,"true")
+                mov_img = apply_intensity_adjustment(mov_img,'params',config.adj_params,...
+                    'r',row,'c',col,'idx',channel_num(j));
             end
+            
+            % Apply intensity adjustment
+            %if isequal(config.shading_correction,'true')
+            %   if i == 1
+            %       fprintf(strcat(char(datetime('now')),'\t Applying flatfield correction for marker: %s\n'),markers(j));
+            %    end
+            %       mov_img = apply_intensity_adjustment(mov_img,'flatfield', config.adj_params.flatfield{j},'darkfield',config.adj_params.darkfield{j});
+            %elseif isequal(config.adjust_ls_width,'true')
+            %    if i == 1
+            %       fprintf(strcat(char(datetime('now')),'\t Adjusting for light sheet width for marker: %s\n'),markers(j));
+            %    end
+            %       mov_img = apply_intensity_adjustment(mov_img,'y_adj', config.adj_params.y_adj{j});
+            %end
+            
             % Apply translations to non-reference image
             if j > 1
+                % Adjust resample resolution if necessary
+                if ~res_equal(j-1)
+                    mov_img = imresize(mov_img,res_adj{j-1},'bicubic');
+                end
+                
+                % Crop or pad to reference image
+                if any(size(ref_img) ~= size(mov_img))
+                    mov_img = crop_to_ref(ref_img, mov_img);
+                end
+
+                % Translate
                 mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
             end
+            
             % Write aligned images
             img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_name,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
             img_path = fullfile(output_directory,'aligned',img_name);
-            imwrite(mov_img,img_path)
+            imwrite(uint16(mov_img),img_path)
         end
     end
 end

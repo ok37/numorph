@@ -75,17 +75,16 @@ for i = 1:y_tiles-1
         file_bottom = stack(stack.y == i+1 & stack.z == k,:);
         
         for kk = 1:height(file_top)
-        
-        I_top = double(imread(file_top.file{kk},'PixelRegion',overlap_max_v));
-        I_bottom = double(imread(file_bottom.file{kk},'PixelRegion',overlap_min_v));
-                  
-        %Measure 1 percentile of all pixels. This gives rough background
-        p_low(img_idx) = mean([prctile(I_top(:),1) prctile(I_bottom(:),1)]);
-        p_high(img_idx) = max(max([I_top(:), I_bottom(:)]));
-        stdev(img_idx) = std2([I_top I_bottom]);
-            
-        %Update vector indices
-        img_idx = img_idx+1;
+            I_top = double(imread(file_top.file{kk},'PixelRegion',overlap_max_v));
+            I_bottom = double(imread(file_bottom.file{kk},'PixelRegion',overlap_min_v));
+
+            %Measure 1 percentile of all pixels. This gives rough background
+            p_low(img_idx) = mean([prctile(I_top(:),1) prctile(I_bottom(:),1)]);
+            p_high(img_idx) = max(max([I_top(:), I_bottom(:)]));
+            stdev(img_idx) = std2([I_top I_bottom]);
+
+            %Update vector indices
+            img_idx = img_idx+1;
         end
     end
 end

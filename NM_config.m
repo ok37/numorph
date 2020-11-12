@@ -6,7 +6,7 @@ function config = NM_config(stage, sample, run)
 % 
 % Inputs:
 %   stage - 'process', 'analyze', 'evaluate'
-%   sample - (string) sample or group identifier(s) in NMsamples
+%   sample - (string) sample or group identifier(s) in NM_samples
 %   run - (optional, logical) whether to run respective pipeline
 %
 % Output:
@@ -40,13 +40,13 @@ save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
 if nargin > 1 && ~isequal(stage,'evaluate')
-    [img_directory, output_directory] = NMsamples(sample, true);
+    [img_directory, output_directory] = NM_samples(sample, true);
 elseif nargin > 1 && isequal(stage,'evaluate')
-    fid = fopen('./templates/NMsamples.m');
+    fid = fopen('./templates/NM_samples.m');
     c = textscan(fid,'%s');
     sample_idx = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
     for i = 1:length(sample_idx)
-        [~, centroids_directory(i), group(i)] = NMsamples(sample_idx{i}(2:end-1),false);
+        [~, centroids_directory(i), group(i)] = NM_samples(sample_idx{i}(2:end-1),false);
     end
     fclose(fid);
     output_directory = results_directory;
@@ -144,14 +144,15 @@ switch stage
         % Variables to check
         variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
             'param_folder','rescale_intensities','subtract_background','gamma','smooth_img','smooth_sigma',...
-            'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels'};
+            'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels','resolution',...
+            'adjust_intensity','adjust_tile_shading','adjust_tile_position'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
 
         for i = 1:length(variable_names)
             if exist('single_sheet','var') == 1 && length(single_sheet) == 1 && i == 1
                 single_sheet = repmat(single_sheet,1,length(markers));
             elseif exist('ls_width','var') == 1 && length(ls_width) == 1 && i == 2
-                ls_width = repmat(ls_width,1,length(markers)); idx(3) = false;
+                ls_width = repmat(ls_width,1,length(markers));
             elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1 && i == 3
                 laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
             elseif exist('blending_method','var') == 1 && length(blending_method) == 1 && i == 4
@@ -179,7 +180,15 @@ switch stage
             elseif exist('darkfield_intensity','var') == 1 && length(darkfield_intensity) == 1 && i == 14
                 darkfield_intensity = repmat(darkfield_intensity,1,length(markers));
             elseif exist('update_intensity_channels','var') == 1 && isempty(update_intensity_channels) && i == 15
-                update_intensity_channels = 1:length(markers);
+                %update_intensity_channels = 1:length(markers);
+            elseif exist('resolution','var') == 1 && ~iscell(resolution) && i == 16
+                resolution = {resolution};
+            elseif exist('adjust_intensity','var') == 1 && length(adjust_intensity) == 1 && i == 17
+                adjust_intensity = repmat(adjust_intensity,1,length(markers));
+            elseif exist('adjust_tile_shading','var') == 1 && length(adjust_tile_shading) == 1 && i == 18
+                adjust_tile_shading = repmat(adjust_tile_shading,1,length(markers));
+            elseif exist('adjust_tile_position','var') == 1 && length(adjust_tile_position) == 1 && i == 19
+                adjust_tile_position = repmat(adjust_tile_position,1,length(markers));
             end
         end
     case 'analyze'

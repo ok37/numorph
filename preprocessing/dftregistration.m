@@ -1,4 +1,4 @@
-function output = dftregistration(ref_img,mov_img,peaks,usfac)
+function output = dftregistration(ref_img,mov_img,peaks,usfac,max_shift)
 %Note: original code was modified to test n number of peaks defined by
 %'peaks' at pixel resolution. The translation resulting in the highest
 %cross-correlation at pixel resolution is then refined to be subpixel based
@@ -84,12 +84,16 @@ CCabs = abs(CC);
 for i = 1:peaks
     [row_sh, col_sh] = find(CCabs == max(CCabs(:)),1,'first');
     CCabs(row_sh,col_sh) = -1;
-    CCmax = CC(row_sh,col_sh)*nr*nc;
     % Now change shifts so that they represent relative shifts and not indices
     row_shift(i) = Nr(row_sh);
     col_shift(i) = Nc(col_sh);
 end
 
+% If all peaks result in large translations, re
+if all(abs(row_shift)>max_shift) || all(abs(col_shift)>max_shift)
+    output = [];
+    return
+end
 
 % Test cross-correlation for each peak (x,y shift)
 cc = zeros(1,peaks);
@@ -102,11 +106,9 @@ for i = 1:peaks
     cc(i) = corr2(ref_img(ref_img>0),reg_img(reg_img>0));
 end
 
-
 [~,idx] = max(cc);
 row_sh = row_shift(idx);
 col_sh = col_shift(idx);
-
 
 if usfac>1
     %%% DFT computation %%%
@@ -118,7 +120,6 @@ if usfac>1
     % Locate maximum and map back to original pixel grid 
     CCabs = sqrt(real(CC2).^2 + imag(CC2).^2);
     [rloc, cloc] = find(CCabs == max(CCabs(:)),1,'first');
-    CCmax = CC2(rloc,cloc);
     rloc = rloc - dftshift - 1;
     cloc = cloc - dftshift - 1;
     row_shift = row_sh + rloc/usfac;

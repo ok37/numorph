@@ -1,13 +1,13 @@
 %% Template to run Tissue Clearing Processing Pipeline
 % These are the key parameters
 % Set flags to indicate how/whether to run process
-adjust_intensity = "load";              % true, update, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should ideally be performed on raw images
-adjust_tile_shading = "manual";          % basic, manual, false; Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
-adjust_tile_position = "true";          % true, false; Normalize tile intensities by position using overlapping regions
+adjust_intensity = ["true","load"];               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
+adjust_tile_shading = "manual";          % basic, manual, false; Can be 1xn_channels. Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
+adjust_tile_position = "true";           % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
 
-channel_alignment = "false";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+channel_alignment = "translation";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
 
-stitch_img = "true";                    % true, load, false; 2D iterative stitching
+stitch_img = "false";                    % true, load, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Direct pipeline to load previously processed images in output directory
 save_samples = "true";                  % true, false; Save sample results for each major step
@@ -28,10 +28,10 @@ shading_smoothness = 5;                 % numeric; Factor for adjusting smoothne
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
-update_z_adjustment = "false";          % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
+update_z_adjustment = "false";           % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
 z_positions = 2;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
-z_window = 5;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
-z_initial = [0 0 0];                    % 1xn_channels interger; Predicted initial z displacement between channels (lasers)
+z_window = 3;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
+z_initial = [0 0 0];                    % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
 load_alignment_params = "true";          % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
@@ -41,7 +41,7 @@ align_slices = {};                       % Option to align only certain slice ra
 
 % Specific to translation method
 align_stepsize = 10;                     % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
-save_aligned_images = "false";           % true or false. Save aligned images. If using elastix, images will automatically be saved
+save_aligned_images = "true";           % true or false. Save aligned images. If using elastix or aligning different resolutions, images will automatically be saved
 
 % Specific to elastix method
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
@@ -61,7 +61,7 @@ blending_method = "sigmoid";                        % sigmoid, max. Recommended:
 sd = 3;                                             % numeric >= 1; Steepness of sigmoid-based blending (closer to 1 gives more linear while high values (>50) is closer to block-face)
 border_pad = 50;                                    % numeric >= 0; Crops borders during stitching. Increase if images shift significantly during alignment to prevent zeros values from entering stitched image
 sift_refinement = "false";                          % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-use_middle = "false";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
+use_middle = "true";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
 
 %% Additional Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image

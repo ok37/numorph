@@ -1,9 +1,9 @@
 function [z_displacement, q, low_flag] = zAlign_stitch(path_mov,path_ref,overlap,positions,range,direction,lowerThresh)
-%Determine pairwise z displacement between z-stack tiles by taking sections
-%within a moving image and performing 2D phase correlation to the overlapped
-%region within the reference stack. Average cross correlation for the
-%selected slices in the stack are then used to determine the final
-%z-displacement
+% Determine pairwise z displacement between z-stack tiles by taking sections
+% within a moving image and performing 2D phase correlation to the overlapped
+% region within the reference stack. Average cross correlation for the
+% selected slices in the stack are then used to determine the final
+% z-displacement
 
 peaks = 3;
 usfac = 1;
@@ -83,8 +83,7 @@ if sum(cc(:)) > 0
 else
     f_num = 0;
 end
-
-disp(mean(cc))
+%disp(mean(cc))
 
 %If images contain positive pixels, save best transform. Otherwise set as
 %NaN and mark flag
@@ -104,7 +103,7 @@ if f_num>0
 
     %Take z_displacements of both
     z_displacement = z1 - (range+1);
-    disp(z_displacement)
+    %disp(z_displacement)
 
     %q is the difference in quality of the 2 best matches
     q = mean(q1-q2);
@@ -114,6 +113,6 @@ else
     z_displacement = NaN;
     q = -1;
     low_flag = 1;
-    disp('low')
+    %disp('low')
 end
 end

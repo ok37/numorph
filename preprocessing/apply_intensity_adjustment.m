@@ -38,7 +38,7 @@ idx = p.Results.idx; % Channel
 r = p.Results.r; % Row
 c = p.Results.c; % Column
 if ~isempty(adj_params)
-    if isequal(adj_params.adjust_tile_position,'true')
+    if isequal(adj_params.adjust_tile_position,'true') && ~isempty(adj_params.t_adj{idx})
         t_adj = adj_params.t_adj{idx}(r,c,:);
         l_thresh = adj_params.lowerThresh(idx);
     end

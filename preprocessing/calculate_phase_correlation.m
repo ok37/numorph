@@ -34,7 +34,7 @@ if nargin<3 || isempty(peaks)
 end
 
 % Set precision as 1 pixel unless specified
-if nargin<3 || isempty(usfac)
+if nargin<4 || isempty(usfac)
     usfac = 3;
 end
 
@@ -47,7 +47,7 @@ warning('off','images:imregcorr:weakPeakCorrelation')
 
 % Perform subpixel registration using phase correlation. 
 % Output is y_translation;x_translation
-output = dftregistration(ref_img,mov_img,peaks,usfac);
+output = dftregistration(ref_img,mov_img,peaks,usfac,shift_threshold);
 type = 1;
 
 if isempty(output)
@@ -58,7 +58,7 @@ if isempty(output)
     output = [tform.T(6); tform.T(3)];
     type = 2; 
     % Remove if contains large shifts
-    if output(1)>shift_threshold || output(2)>shift_threshold
+    if abs(output(1))>shift_threshold || abs(output(2))>shift_threshold
         output = [];
     end
     % Try first without windowing. Then try with windowing
@@ -67,7 +67,7 @@ if isempty(output)
         output = [tform.T(6); tform.T(3)];
         type = 3; 
         % Remove if contains large shifts
-        if output(1)>shift_threshold || output(2)>shift_threshold
+        if abs(output(1))>shift_threshold || abs(output(2))>shift_threshold
             output = [];
         end
     end

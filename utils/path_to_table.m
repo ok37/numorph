@@ -26,73 +26,14 @@ end
 % Remove unnecessary fields
 fields_to_remove = {'folder','date','isdir','bytes','datenum'};
 
+% Get munged paths
 % Read filename information from previously done processing steps
 switch location
     case 'aligned'
-        % From alignment step
-        paths_sub = dir(fullfile(paths{1}(1).folder));
-
-        %Check .tif in current folder
-        paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.tif'),paths_sub));
-
-        %Create new field for file location
-        C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
-        [paths_sub.file] = C{:};
-
-        paths_sub = rmfield(paths_sub,fields_to_remove);
-
-        %Generate table components
-        components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
-        components = vertcat(components{:});
-        
-        assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image path")
-        assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
-            " does not match number of markers specified for this sample")
-
-        %Take image information
-        for i = 1:length(paths_sub)
-            paths_sub(i).sample_name = string(components{i,1});
-            paths_sub(i).markers = string(components{i,4});
-        end
-        
-        positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
-        [paths_sub.x] = positions{:,1};
-        [paths_sub.y] = positions{:,2};
-        [paths_sub.z] = positions{:,3};
-        channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
-        [paths_sub.channel_num] = channel_num{:,1};
-
-        paths_new = {rmfield(paths_sub,{'name'})};
+        paths_new = munge_aligned(paths);
 
     case 'stitched'
-        %From stitching step  
-        paths_sub = dir(fullfile(paths{1}(1).folder));
-
-        % Check .tif in current folder
-        paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.tif'),paths_sub));
-
-        % Create new field for file location
-        C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
-        [paths_sub.file] = C{:};
-
-        paths_sub = rmfield(paths_sub,fields_to_remove);
-
-        % Generate table components
-        components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
-        components = vertcat(components{:});
-
-        % Take image information
-        [paths_sub.sample_name] = components{:,1};
-        channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
-        [paths_sub.channel_num] = channel_num{:,1};
-        [paths_sub.markers] = components{:,4};
-        positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
-        x = num2cell(ones(1,length(paths_sub)));
-        [paths_sub.x] = x{:};
-        [paths_sub.y] = x{:};
-        [paths_sub.z] = positions{:,3};
-
-        paths_new = {rmfield(paths_sub,{'name'})};
+        paths_new = munge_stitched(paths);
         
     case 'resampled'
         paths_sub = dir(fullfile(paths{1}(1).folder));
@@ -100,7 +41,7 @@ switch location
         % Check .nii in current folder
         paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.nii'),paths_sub));
         
-        if ~isequal(length(paths_sub), length(markers))
+        if ~isequal(length(paths_sub), length(config.markers))
             error("Number of .nii files does not match number of specified markers");
         end
     
@@ -140,6 +81,11 @@ switch location
                 % Subset only this marker
                 path_idx = path_idx(arrayfun(@(x) contains(x.name,markers(i)),path_idx));
                 
+                % Subset only this channel
+                if isfield(config,'channel_num')
+                    path_idx = path_idx(arrayfun(@(x) contains(x.name,config.channel_num(i)),path_idx));
+                end
+                
                 % Save full file path
                 paths_sub = cell2struct(fullfile({path_idx.folder},{path_idx.name}),'file');
                                 
@@ -150,21 +96,38 @@ switch location
                         paths_sub(j).y = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(1),'match'),'[^\d+]',''));
                         paths_sub(j).x = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(2),'match'),'[^\d+]',''));
                         paths_sub(j).z = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(3),'match'),'[^\d+]',''));
+                        
+                        if isempty([paths_sub(j).x]) || isempty([paths_sub(j).y]) || isempty([paths_sub(j).z])
+                            if contains(path_idx(j).name,'stitched.tif')
+                                paths_sub = munge_stitched(path_idx);
+                                break
+                            elseif contains(path_idx(j).name,'aligned.tif')
+                                paths_sub = munge_aligned(path_idx);
+                                break
+                            else
+                                error("Error reading file: %s",paths_sub(j).file)
+                            end
+                        end
                         paths_sub(j).channel_num = new_channels(i);
                         paths_sub(j).markers = markers(i);
                     catch ME
                         error("Error reading file: %s",paths_sub(j).file)
                     end
                 end
-                % Save into cell array
-                paths_new{i} = paths_sub;
                 
-                % Check to see if equal number of z positions
-                %%%%%%% Change in future update where z resolution is not
-                %%%%%%% equal
-                if numel(paths_sub) == numel(paths_new{1})
-                    error("Unequal z positions")
+                % Save into cell array
+                if iscell(paths_sub)
+                    paths_new(i) = paths_sub;
+                else
+                    paths_new{i} = paths_sub;
                 end
+                    
+            end
+            % Check to see if equal number of z positions
+            %%%%%%% Change in future update where z resolution is not
+            %%%%%%% equal
+            if ~all(cellfun(@(s) length(s),paths_new))
+                error("Unequal z positions")
             end
         else
             % Directories contain multiple channels
@@ -207,7 +170,11 @@ switch location
                     paths_sub(i).channel_num = new_channels(channel_idx);
                     paths_sub(i).markers = markers(channel_idx);
                 catch
-                    error("Error reading file: %s",paths_sub{i}.file)
+                    if iscell(paths_sub(i))
+                        error("Error reading file: %s",paths_sub{i}.file)
+                    else
+                        error("Error reading file: %s",paths_sub(i).file)
+                    end
                 end
             end
             paths_new{1} = paths_sub;
@@ -221,7 +188,20 @@ end
 
 % Convert to table
 if ~isempty(paths_new)
-    paths_table_main = struct2table(reshape([paths_new{:}],[],1));
+    for i = 1:length(paths_new)
+        paths_table = struct2table(reshape([paths_new{i}],[],1));
+
+        % Subset positions and channel numbers to base 1 index
+        paths_table.x = paths_table.x + 1-min(paths_table.x);
+        paths_table.y = paths_table.y + 1-min(paths_table.y);
+        paths_table.z = paths_table.z + 1-min(paths_table.z);
+        
+        if i > 1
+            paths_table_main = cat(1,paths_table_main,paths_table);
+        else
+            paths_table_main = paths_table;
+        end
+    end
 end
 
 % Subset positions and channel numbers to base 1 index
@@ -234,18 +214,112 @@ paths_table_main.channel_num = paths_table_main.channel_num + 1-min(paths_table_
 if height(unique(paths_table_main(:,2:end),'rows')) ~= height(paths_table_main)
     error("Duplicate entries found in assmebled image file table")
 end
-total_images = max(paths_table_main.x)*max(paths_table_main.y)*max(paths_table_main.z)*max(paths_table_main.channel_num);
-if total_images > height(paths_table_main)
-    error("Extra entries detected for %d tiles in assembled image file table",...
-        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
-elseif total_images < height(paths_table_main)
-    error("Missing entries detected for %d tiles in assembled image file table",...
-        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
-end
+
+%total_images = max(paths_table_main.x)*max(paths_table_main.y)*max(paths_table_main.z)*max(paths_table_main.channel_num);
+%if total_images > height(paths_table_main)
+%    error("Extra entries detected for %d tiles in assembled image file table",...
+%        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
+%elseif total_images < height(paths_table_main)
+%    error("Missing entries detected for %d tiles in assembled image file table",...
+%        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
+%end
 
 % Check if images are single channel
 if length(imfinfo(paths_table_main.file{1})) > 1
     error("Multi-page .tif detected. NuMorph currently does not support multi-channel .tif images")
 end
+
+end
+
+
+function paths_new = munge_stitched(paths)
+%From stitching step  
+
+% Remove unnecessary fields
+fields_to_remove = {'folder','date','isdir','bytes','datenum'};
+
+% Get directory contents
+if ~isstruct(paths)
+    paths_sub = dir(fullfile(paths{1}(1).folder));
+else
+    paths_sub = paths;
+end
+
+% Check .tif in current folder
+paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.tif'),paths_sub));
+
+% Create new field for file location
+C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
+[paths_sub.file] = C{:};
+
+% Remove unused fields
+paths_sub = rmfield(paths_sub,fields_to_remove);
+
+% Generate table components
+components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
+components = vertcat(components{:});
+
+% Take image information
+[paths_sub.sample_name] = components{:,1};
+channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
+[paths_sub.channel_num] = channel_num{:,1};
+[paths_sub.markers] = components{:,4};
+positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
+x = num2cell(ones(1,length(paths_sub)));
+
+% Set x,y tiles as 1 and save z positions
+[paths_sub.x] = x{:};
+[paths_sub.y] = x{:};
+[paths_sub.z] = positions{:,3};
+
+paths_new = {rmfield(paths_sub,{'name'})};
+
+end
+
+
+function paths_new = munge_aligned(paths)
+%From alignment step  
+
+% Remove unnecessary fields
+fields_to_remove = {'folder','date','isdir','bytes','datenum'};
+
+% Get directory contents
+if ~isstruct(paths)
+    paths_sub = dir(fullfile(paths{1}(1).folder));
+else
+    paths_sub = paths;
+end
+
+%Check .tif in current folder
+paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.tif'),paths_sub));
+
+%Create new field for file location
+C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
+[paths_sub.file] = C{:};
+
+paths_sub = rmfield(paths_sub,fields_to_remove);
+
+%Generate table components
+components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
+components = vertcat(components{:});
+
+assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image path")
+assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
+    " does not match number of markers specified for this sample")
+
+%Take image information
+for i = 1:length(paths_sub)
+    paths_sub(i).sample_name = string(components{i,1});
+    paths_sub(i).markers = string(components{i,4});
+end
+
+positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
+[paths_sub.x] = positions{:,1};
+[paths_sub.y] = positions{:,2};
+[paths_sub.z] = positions{:,3};
+channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
+[paths_sub.channel_num] = channel_num{:,1};
+
+paths_new = {rmfield(paths_sub,{'name'})};
 
 end

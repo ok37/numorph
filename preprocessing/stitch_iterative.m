@@ -7,7 +7,6 @@ function stitch_iterative(config, path_table)
 % work its way out towards the first and last slice.
 %--------------------------------------------------------------------------
 
-fprintf("%s\t Begin stitching \n",datetime('now'))
 usfac = 10;
 peaks = 5;
 
@@ -31,7 +30,7 @@ if isempty(config.stitch_sub_channel)
 end
 
 % Generate image name grid
-img_name_grid = cell(max(path_table.y),max(path_table.x),length(config.markers),max(path_table.z_adj));
+img_name_grid = cell(max(path_table.y),max(path_table.x),length(config.stitch_sub_channel),max(path_table.z_adj));
 path_table = sortrows(path_table,["z_adj","channel_num","x","y"],'ascend');
 
 % Arrange images into correct positions
@@ -47,6 +46,8 @@ end
 nb_sections = size(img_name_grid,4);
 [nrows,ncols] = size(img_name_grid(:,:,1));
 nb_img_tiles = size(img_name_grid,1)*size(img_name_grid,2);
+
+fprintf("%s\t Begin stitching %d slices \n",datetime('now'),nb_sections)
 
 %Check if only certain sub-section is to be stitched
 if ~isempty(config.stitch_sub_stack)
@@ -502,7 +503,6 @@ switch blending_method
             %Concatanate images
             ref_img = horzcat(ref_img,mov_img);
         else
-
             %Perform non-linear weight
             w(sum(mov_img(overlap_min),2)==0)=0;
             inv_w = 1-w;            

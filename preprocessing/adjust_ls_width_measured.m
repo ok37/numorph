@@ -1,4 +1,4 @@
-function y_adj = adjust_intensity_measured(single_sheet,tempI,ls_width,res,laser_y_displacement)
+function y_adj = adjust_ls_width_measured(single_sheet,tempI,ls_width,res,laser_y_displacement)
 
 if isequal(single_sheet,'true')
     %Measured intensities for single sheet acquisition 
