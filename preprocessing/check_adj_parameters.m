@@ -33,6 +33,7 @@ if isempty(lowerThresh)
     config.lowerThresh = lowerThresh_measured;
 else
     adj_params.lowerThresh = lowerThresh;
+    config.lowerThresh = lowerThresh;
 end
 
 if isempty(upperThresh)
@@ -41,6 +42,7 @@ if isempty(upperThresh)
     config.upperThresh = upperThresh_measured;
 else
     adj_params.upperThresh = upperThresh;
+    config.upperThresh = upperThresh;
 end
 
 % Set gamma equal to 1 if undefined

@@ -143,7 +143,7 @@ switch stage
     case 'process'
         % Variables to check
         variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
-            'param_folder','rescale_intensities','subtract_background','gamma','smooth_img','smooth_sigma',...
+            'param_folder','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
             'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels','resolution',...
             'adjust_intensity','adjust_tile_shading','adjust_tile_position'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
@@ -163,8 +163,8 @@ switch stage
                 rescale_intensities = repmat(rescale_intensities,1,length(markers));
             elseif exist('subtract_background','var') == 1 && length(subtract_background) == 1 && i == 7
                 subtract_background = repmat(subtract_background,1,length(markers));
-            elseif exist('gamma','var') == 1 && length(gamma) == 1 || isempty(gamma) && i == 8
-                gamma = ones(1,length(markers));
+            elseif exist('Gamma','var') == 1 && length(Gamma) == 1 || isempty(Gamma) && i == 8
+                Gamma = ones(1,length(markers));
             elseif exist('smooth_img','var') == 1 && length(smooth_img) == 1 && i == 9
                 smooth_img = repmat(smooth_img,1,length(markers));
             elseif exist('smooth_sigma','var') == 1 && isempty(smooth_sigma) && i == 10

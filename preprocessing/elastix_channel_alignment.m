@@ -1,4 +1,4 @@
-function out = elastix_channel_alignment(config,path_table,warp_images,chunk_pad)
+function out = elastix_channel_alignment(config, path_table, warp_images, chunk_pad)
 %--------------------------------------------------------------------------
 % Aligning multiple channels to a reference nuclei channel using a coarse
 % non-linear B-Spline registration. This uses a modified version of
@@ -14,7 +14,7 @@ function out = elastix_channel_alignment(config,path_table,warp_images,chunk_pad
 %--------------------------------------------------------------------------
 
 if nargin<4 && ~isfield(config,'chunk_pad')
-    chunk_pad = 30; %Important parameter. If misalignment is very large, you will have to increase to prevent zero areas from occuring in the output chunk edges
+    chunk_pad = 30; %Important parameter. If misalignment is very large, you will have to increase to prevent zeroed areas from occuring in the output chunk edges
 else
     chunk_pad = config.chunk_pad;
 end
@@ -40,6 +40,12 @@ histogram_bins = config.hist_match; % Match histogram bins to reference channel?
 lowerThresh = config.lowerThresh;
 upperThresh = config.upperThresh;
 
+% Check if equal resolution
+equal_res = cellfun(@(s) all(config.resolution{1}(1:2) == s(1:2)),config.resolution);
+if ~any(equal_res)
+    res_adj = cellfun(@(s) config.resolution{1}(1:2)./s(1:2),config.resolution,'UniformOutput',false);
+end
+    
 % Get x,y tile positions from path_table
 x = unique(path_table.x);
 y = unique(path_table.y);
@@ -188,17 +194,25 @@ end
 dim_adj = round([nrows ncols total_images]./s);
 
 if isequal(using_loaded_parameters,'true') && ~isequal(config.load_alignment_params,"update")
-    fprintf('Reading images and pre-processing \n')
     for i = 1:length(markers)
-        % If just applying pre-computed transfomrations, just read imgaes
+        % If just applying pre-computed transformations, just read imgaes
         % without any other adjustments other than cropping
         if i > 1 && c_idx(i) == 0
             continue
+        else
+            fprintf('Reading images and pre-processing marker %s \n', markers(i))
         end
         path_sub = path_table(path_table.markers == markers(i),:);
-        % Crop or pad image if it is not the same size as reference image
         for j = 1:length(z_range_adj)
             img = imread(path_sub.file{j});
+            
+            % Resample image to image reference image if different
+            % resolutions
+            if ~any(equal_res)
+                img = imresize(img,round(size(img)./res_adj{j}),'Method','bicubic');
+            end
+            
+            % Crop or pad image if it is not the same size as reference image
             if cropping_flag(i) == 1
                 I_raw{i}(:,:,z_range_adj(j)) = crop_to_ref(tempI,img);
             else
@@ -223,11 +237,19 @@ else
         path_sub = path_table(path_table.markers == markers(i),:);
         for j = 1:length(z_range_adj)
             img = imread(path_sub.file{j});
+            
+            % Resample image to image reference image if different
+            % resolutions
+            if ~any(equal_res)
+                img = imresize(img,round(size(img)./res_adj{j}),'Method','bicubic');
+            end
+            
             % Crop or pad image if it is not the same size as reference image
             if cropping_flag(i) == 1
                 img = crop_to_ref(tempI,img);
             end
             I_raw{i}(:,:,z_range_adj(j)) = img;
+            
             % Detect bright feature and remove in image mask to ignore
             % these regions during registration. OK idea but does not do
             % much in practice
@@ -252,7 +274,7 @@ else
 
     % Histogram matching
     for i = align_channels
-        if histogram_bins(i) > 0 && c_idx(i-1) > 0
+        if ~isempty(histogram_bins) && histogram_bins(i) > 0 && c_idx(i-1) > 0
             I{i} = imhistmatch(I{i},I{1},histogram_bins(i));
         end 
     end

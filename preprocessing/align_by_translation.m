@@ -319,23 +319,10 @@ if isequal(save_aligned_images,"true")
             mov_img = imread(string(table2cell(coreg_table(i,j))));
             
             % Apply intensity adjustments
-            if isequal(config.adjust_intensity,"true")
+            if isequal(config.adjust_intensity(j),"true")
                 mov_img = apply_intensity_adjustment(mov_img,'params',config.adj_params,...
                     'r',row,'c',col,'idx',channel_num(j));
             end
-            
-            % Apply intensity adjustment
-            %if isequal(config.shading_correction,'true')
-            %   if i == 1
-            %       fprintf(strcat(char(datetime('now')),'\t Applying flatfield correction for marker: %s\n'),markers(j));
-            %    end
-            %       mov_img = apply_intensity_adjustment(mov_img,'flatfield', config.adj_params.flatfield{j},'darkfield',config.adj_params.darkfield{j});
-            %elseif isequal(config.adjust_ls_width,'true')
-            %    if i == 1
-            %       fprintf(strcat(char(datetime('now')),'\t Adjusting for light sheet width for marker: %s\n'),markers(j));
-            %    end
-            %       mov_img = apply_intensity_adjustment(mov_img,'y_adj', config.adj_params.y_adj{j});
-            %end
             
             % Apply translations to non-reference image
             if j > 1

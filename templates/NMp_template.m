@@ -1,11 +1,12 @@
 %% Template to run Tissue Clearing Processing Pipeline
 % These are the key parameters
 % Set flags to indicate how/whether to run process
-adjust_intensity = ["true","load"];               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
+adjust_intensity = ["load","load"];               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 adjust_tile_shading = "manual";          % basic, manual, false; Can be 1xn_channels. Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
 adjust_tile_position = "true";           % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
 
-channel_alignment = "translation";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+channel_alignment = "elastix";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+load_alignment_params = "false";          % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
 
 stitch_img = "false";                    % true, load, false; 2D iterative stitching
 
@@ -34,7 +35,6 @@ z_window = 3;                           % integer; Search window for finding cor
 z_initial = [0 0 0];                    % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
-load_alignment_params = "true";          % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
 align_tiles = [];                        % Option to align only certain stacks and not all stacks. Row-major order
 align_channels = [];                     % Option to align only certain channels (set to >1)
 align_slices = {};                       % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
@@ -70,7 +70,7 @@ use_middle = "true";                               % true, false; Recommended: f
 rescale_intensities = "false";           % true, false; Rescaling intensities and applying gamma
 lowerThresh = [100 100];                % 1xn_channels numeric; Intensity values of dimmest feature of interest. If left empty, pipeline will automatically calculate this for each channel as it is required for elastix alignment and stitching
 upperThresh = [1000 2000];              % 1xn_channels numeric; Max intensity of brightest features.If left empty, pipeline will automatically calculate this for each channel as it is required for elastix channel alignment
-gamma = [];                             % 1xn_channels numeric; Gamma intensity adjustment
+Gamma = [];                             % 1xn_channels numeric; Gamma intensity adjustment
 
 % Background subtraction
 subtract_background = "false";          % true, false. Subtrat background (similar to Fiji's rolling ball background subtraction)

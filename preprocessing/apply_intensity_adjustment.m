@@ -14,7 +14,7 @@ addOptional(p, 't_adj', false, @isnumeric) % Tile intensity adjustment value
 addOptional(p, 'y_adj', false, @isnumeric) % LS width adjustment vector
 addOptional(p, 'l_thresh', 0, @isnumeric) % Lower threshold rescale value
 addOptional(p, 'u_thresh', 1, @isnumeric) % Upper threshold rescale value
-addOptional(p, 'gamma', 1, @isnumeric) % Gamma adjustment value
+addOptional(p, 'Gamma', 1, @isnumeric) % Gamma adjustment value
 addOptional(p, 'flatfield', false, @isnumeric) % Flatfield matrix
 addOptional(p, 'darkfield', false, @isnumeric) % Darkfield matrix
 addOptional(p, 'idx', 1, @isnumeric) % Channel index
@@ -28,7 +28,7 @@ t_adj = p.Results.t_adj;
 y_adj = p.Results.y_adj;    
 l_thresh = p.Results.l_thresh;
 u_thresh = p.Results.u_thresh;
-gamma = p.Results.gamma;
+Gamma = p.Results.Gamma;
 flatfield = p.Results.flatfield;
 darkfield = p.Results.darkfield;
 
@@ -99,8 +99,8 @@ if isnumeric(y_adj)
 end
 
 % Rescale intensities
-if u_thresh<1 || gamma ~= 1
-    I = imadjust(uint16(I), [l_thresh u_thresh], [0 1], gamma);
+if u_thresh<1 || Gamma ~= 1
+    I = imadjust(uint16(I), [l_thresh u_thresh], [0 1], Gamma);
 end
 
 % Recast to original class if necessary

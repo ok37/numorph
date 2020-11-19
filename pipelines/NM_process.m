@@ -127,8 +127,8 @@ if any(config.adjust_intensity == "true")
     if any(config.adjust_intensity == "load")
         config.update_intensity_channels = find(config.adjust_intensity == "true");
     end
-elseif any(config.adjust_intensity == "load")
-    stage = 'false';
+elseif all(config.adjust_intensity == "load")
+    stage = 'load';
 elseif any(config.adjust_intensity ~= "false")
     error("%s\t Unrecognized selection for adjust_intensity. "+...
     "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
@@ -243,7 +243,7 @@ switch stage
         
     case 'false'
         % No intensity adjustments
-        fprintf("%s\t No intensity Adjustments Selected \n",datetime('now'));
+        fprintf("%s\t No intensity adjustments selected \n",datetime('now'));
         config.adj_params = [];
 
         if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
@@ -345,7 +345,7 @@ switch config.channel_alignment
         % Create variable
         alignment_params = cell(ncols,nrows);
         save_path = fullfile(config.output_directory,'variables','alignment_params.mat');
-        if ~exist(save_path,'file')
+        if ~exist(save_path,'file') || isequal(config.load_alignment_params,"false")
             save(save_path,'alignment_params','-v7.3')
         else
             load(save_path,'alignment_params')

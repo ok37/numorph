@@ -304,8 +304,8 @@ components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput
 components = vertcat(components{:});
 
 assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image path")
-assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
-    " does not match number of markers specified for this sample")
+%assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
+%    " does not match number of markers specified for this sample")
 
 %Take image information
 for i = 1:length(paths_sub)
