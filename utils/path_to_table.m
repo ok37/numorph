@@ -8,18 +8,37 @@ function paths_table_main = path_to_table(config,location)
 % series.
 %--------------------------------------------------------------------------
 
-if contains(config.img_directory,'.csv')
-    % Read from csv file
-    location = 'csv';
-else
-    % Unpack paths
-    for i = 1:length(config.img_directory)
-       paths{i} = dir(config.img_directory(i));
+% Check file location if not provided
+if nargin<2
+    if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
+        % Start from after multi-channel alignment    
+        fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
+        location = "aligned";
+    elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
+        % Start from after stitching
+        fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
+        location = "stitched";
+    elseif contains(config.img_directory,'.csv')
+        % Read from csv file
+        fprintf("%s\t Reading image filename information from .csv file \n",datetime('now'))
+        location = "csv";
+    else
+        %Start from raw image directory
+        fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
+        location = "raw";
     end
+elseif ~isequal(location,"raw")
+    config.img_directory = fullfile(config.output_directory,location);
+end
 
-    % Check for empty paths fields
-    if any(cellfun(@(x) isempty(x),paths))
-        error("Empty paths field detected. Check indicated channels and paths names for corrrect locations")
+% Unpack paths
+if ~isequal(location,"csv")
+    for i = 1:length(config.img_directory)
+        paths{i} = dir(config.img_directory(i));
+        % Check for empty paths fields
+        if isempty(paths{i})
+            error("Directory %s does not exist",config.img_directory(i))
+        end
     end
 end
 
@@ -64,6 +83,38 @@ switch location
 
     case 'raw'
         % Read filename information from ImSpector Software in Lavision
+        
+        % Check for subdirectories and use those
+        if length(paths) == 1          
+            % Subset folders with images 
+            paths_full = paths{1}(arrayfun(@(s) contains(s.name,cellstr(config.markers),'IgnoreCase',true),paths{1}),:);            
+            
+            % Check for multiple folders with same marker name
+            for i = 1:length(config.markers)
+                idx = contains({paths_full.name},config.markers(i));
+                if sum(idx) > 1
+                    error("Please specify image directories for each channel as string array")
+                end
+            end
+            paths_full = fullfile(paths_full(1).folder,{paths_full.name});
+            paths_full = paths_full(cellfun(@(s) ~endsWith(s,{'.','..'}),paths_full));
+            
+            processed_keys = {'stitched','aligned','resampled'};
+            
+            % Check for subdirectories
+            sub_dir = cellfun(@(s) isfolder(s),paths_full);
+            for i = 1:length(paths_full)
+                if ~sub_dir(i)
+                    continue
+                else
+                    paths_sub = dir(paths_full{i});
+                    if ~any(arrayfun(@(s) contains(s.name,processed_keys),paths_sub))
+                        paths = cat(2,paths,paths_sub);
+                    end
+                end
+            end
+        end
+        
         % Use regular expressions to extract information
         if length(config.img_directory) == length(config.markers)
             % Unique directory for each channel
@@ -169,11 +220,11 @@ switch location
                     end
                     paths_sub(i).channel_num = new_channels(channel_idx);
                     paths_sub(i).markers = markers(channel_idx);
-                catch
+                catch ME
                     if iscell(paths_sub(i))
-                        error("Error reading file: %s",paths_sub{i}.file)
+                        error("Error reading file: %s\n\n%s",paths_sub{i}.file,ME.message)
                     else
-                        error("Error reading file: %s",paths_sub(i).file)
+                        error("Error reading file: %s\n\n%s",paths_sub(i).file,ME.message)
                     end
                 end
             end
@@ -192,9 +243,15 @@ if ~isempty(paths_new)
         paths_table = struct2table(reshape([paths_new{i}],[],1));
 
         % Subset positions and channel numbers to base 1 index
-        paths_table.x = paths_table.x + 1-min(paths_table.x);
-        paths_table.y = paths_table.y + 1-min(paths_table.y);
-        paths_table.z = paths_table.z + 1-min(paths_table.z);
+        if iscell(paths_table.x)
+            paths_table.x = [paths_table.x{:}] + 1-min([paths_table.x{:}]);
+            paths_table.y = [paths_table.y{:}] + 1-min([paths_table.y{:}]);
+            paths_table.z = [paths_table.z{:}] + 1-min([paths_table.z{:}]);
+        else
+            paths_table.x = paths_table.x + 1-min(paths_table.x);
+            paths_table.y = paths_table.y + 1-min(paths_table.y);
+            paths_table.z = paths_table.z + 1-min(paths_table.z);
+        end
         
         if i > 1
             paths_table_main = cat(1,paths_table_main,paths_table);

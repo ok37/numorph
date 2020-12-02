@@ -54,13 +54,14 @@ for i = 1:y_tiles
     for j = 1:x_tiles-1
         I_left = zeros([nrows round(ncols*overlap)-pad_h length(img_range)],'uint16');
         I_right = zeros([nrows round(ncols*overlap)-pad_h length(img_range)],'uint16');
+        
         for k = 1:length(img_range)
             % Read image regions where tiles should overlap
             file_left = stack(stack.y == i & stack.x == j & stack.z == img_range(k),:);
             file_right = stack(stack.y == i & stack.x == j+1 & stack.z == img_range(k),:);
-
+            
             I_left(:,:,k) = imread(file_left.file{1},'PixelRegion',overlap_max_h);
-            I_right(:,:,k) = imread(file_right.file{1},'PixelRegion',overlap_min_h);  
+            I_right(:,:,k) = imread(file_right.file{1},'PixelRegion',overlap_min_h);
         end
 
         % Remove any zero values from shifting image

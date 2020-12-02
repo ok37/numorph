@@ -37,7 +37,7 @@ if ndims(im)>3
 	error('Not designed to handle more than three dimensions. You''d best get hacking!')
 end
 
-if ~ischar(fname)
+if ~isstring(fname) && ~ischar(fname)
 	error('fname should be a string')
 end
 

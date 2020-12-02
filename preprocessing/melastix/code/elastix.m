@@ -89,6 +89,11 @@ if isempty(r)
     return
 end
 
+%%%%%New: change outputDir to char if string
+if isstring(outputDir)
+    outputDir = char(outputDir);
+end
+
 %If the user supplies one input argument only and this is is a string then
 %we assume it's a request for the help or version so we run it 
 if nargin==1 & ischar(movingImage)
@@ -184,7 +189,7 @@ end
 % Create and move the images
 
 if ~iscell(movingImage)
-    movingFname=[dirName,'_moving']; %TODO: so the file name contains the dir name?
+    movingFname=sprintf('%s_moving',dirName); %TODO: so the file name contains the dir name?
     mhd_write(movingImage,movingFname,elementSpacing);
     if ~strcmp(outputDir,'.')
         if ~movefile([movingFname,'.*'],outputDir); error('Can''t move files'), end
@@ -210,7 +215,7 @@ if iscell(fixedImage)
 end
 
 if isnumeric(fixedImage)
-    targetFname=[dirName,'_target'];
+    targetFname=sprintf('%s_target',dirName);
     mhd_write(fixedImage,targetFname,elementSpacing);
     if ~strcmp(outputDir,'.') %Don't copy if we're already in the directory
         if ~movefile([targetFname,'.*'],outputDir); error('Can''t move files'), end

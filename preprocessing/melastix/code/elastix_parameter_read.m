@@ -19,13 +19,10 @@ function params=elastix_parameter_read(fname)
 % Also see: elastix_parameter_write, elastixYAML2struct
 
 
-
 fid=fopen(fname);
 if fid<0 
     error('Can not open %s',fname)
 end
-
-
 
 %Keep reading until we find the first non-comment line
 tline=fgetl(fid);
@@ -74,11 +71,6 @@ while ischar(tline)
     %Skip empty lines
     while isempty(tline), tline=fgetl(fid); end
 end
-
-
-
-
-
 
 fid=fclose(fid);
 if fid<0 

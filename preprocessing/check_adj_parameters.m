@@ -45,11 +45,11 @@ else
     config.upperThresh = upperThresh;
 end
 
-% Set gamma equal to 1 if undefined
-if isempty(config.gamma)
-    adj_params.gamma = ones(1,length(config.markers));
+% Set Gamma equal to 1 if undefined
+if isempty(config.Gamma)
+    adj_params.Gamma = ones(1,length(config.markers));
 else
-    adj_params.gamma = config.gamma; 
+    adj_params.Gamma = config.Gamma; 
 end
 
 % Set default nucleus diameter

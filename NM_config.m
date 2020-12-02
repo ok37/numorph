@@ -1,4 +1,4 @@
-function config = NM_config(stage, sample, run)
+function [config, path_table] = NM_config(stage, sample, run)
 %--------------------------------------------------------------------------
 % NM_config Save configured parameters for running a pipeline.
 %
@@ -13,6 +13,10 @@ function config = NM_config(stage, sample, run)
 %   config - parameter configuration structure
 %--------------------------------------------------------------------------
 
+if nargin<3
+    run = false;
+end
+    
 % Elastix paths
 % Uncomment and specify your path to elastix bin and library
  elastix_path_bin = '/Users/Oleh/Programs/elastix-5.0.0-mac/bin';
@@ -102,12 +106,12 @@ catch
 end
 
 % Reload config
-if nargout == 1
+if nargout > 0
     config = load(fullfile('templates','NM_variables.mat'));
 end
 
 % Run
-if nargin>2 && run
+if run
     % Make an output directory
     if exist(output_directory,'dir') ~= 7
         mkdir(output_directory);
@@ -131,7 +135,10 @@ if nargin>2 && run
         case 'evaluate'
             NM_evaluate(var_directory)
     end
+elseif nargout == 2
+    path_table = path_to_table(config);
 end
+
 end
 
 
@@ -183,6 +190,7 @@ switch stage
                 %update_intensity_channels = 1:length(markers);
             elseif exist('resolution','var') == 1 && ~iscell(resolution) && i == 16
                 resolution = {resolution};
+                resolution = repmat(resolution,1,length(markers));
             elseif exist('adjust_intensity','var') == 1 && length(adjust_intensity) == 1 && i == 17
                 adjust_intensity = repmat(adjust_intensity,1,length(markers));
             elseif exist('adjust_tile_shading','var') == 1 && length(adjust_tile_shading) == 1 && i == 18

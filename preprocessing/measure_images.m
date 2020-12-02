@@ -30,8 +30,8 @@ else
 end  
 
 % Calculate shading correction using BaSiC
-if isequal(config.adjust_tile_shading,"basic")
-    [flatfield, darkfield]  = estimate_flatfield(config, stack);
+if isequal(config.adjust_tile_shading(channel_idx),"basic")
+    %[flatfield, darkfield] = estimate_flatfield(config, stack);
     flatfield = single(flatfield);
     darkfield = single(darkfield);
 else
@@ -39,7 +39,7 @@ else
 end
 
 % Tile intensity adjustments
-if x_tiles*y_tiles>1 && isequal(config.adjust_tile_position,"true")
+if x_tiles*y_tiles>1 && isequal(config.adjust_tile_position(channel_idx),"true")
     % Measure overlapping tiles and get thresholds
     [adj_matrix1,adj_matrix2,lowerThresh,upperThresh] = adjust_tile_multi(config,stack,defaults);
     

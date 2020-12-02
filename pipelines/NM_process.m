@@ -1,4 +1,4 @@
-function [config,path_table] = NM_process(config)
+function [config, path_table] = NM_process(config)
 %--------------------------------------------------------------------------
 % NuMorph processing pipeline designed to perform channel alignment,
 % intensity adjustment, and stitching on multi-channel light-sheet images.
@@ -41,20 +41,8 @@ end
 
 %% Read image filename information
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
-    % Start from after multi-channel alignment    
-    fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
-    location = "aligned";
-elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
-    % Start from after stitching
-    fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
-    location = "stitched";
-else
-    %Start from raw image directory
-    fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
-    location = "raw";
-end
-path_table = path_to_table(config,location);
+% Generate table containing image information
+path_table = path_to_table(config);
 
 % Count number of x,y tiles for each channel
 nchannels = length(unique(path_table.channel_num));
@@ -66,6 +54,7 @@ for i = 1:nchannels
 end
 
 %% Intensity Adjustment
+% Configure intensity adjustments
 [config, path_table] = intensity_adjustment(config, path_table, nrows, ncols);
 
 % If equal numbers of column and row tiles, perform alignment on each tile,
@@ -74,6 +63,7 @@ end
 % each channel if multi-tile. Then run alignment
 equal_res = all(cellfun(@(s) config.resolution{1}(3) == s(1,3),config.resolution));
 if all(ncols == max(ncols)) && all(nrows == max(nrows))
+    % Equal number of tiles
     % Channel Alignment
     [config, path_table] = align_channels(config,path_table,equal_res);
     
@@ -84,6 +74,7 @@ if all(ncols == max(ncols)) && all(nrows == max(nrows))
         [config, path_table] = perform_stitching(config, path_table);
     end
 else
+    % Different number of tiles
     fprintf("%s\t Different number of tiles between channels \n",datetime('now'))
 
     % Check resolutions are present
@@ -266,7 +257,7 @@ function [config, path_table] = align_channels(config,path_table,equal_res)
 ncols = length(unique(path_table.x));
 nrows = length(unique(path_table.y));
 nb_tiles = ncols * nrows;
-position_mat = reshape(1:nb_tiles,[nrows,ncols])';
+position_mat = reshape(1:nb_tiles,[ncols,nrows])';
 
 % Check if z resolution is consistent for all channels
 if ~equal_res
@@ -329,6 +320,7 @@ switch config.channel_alignment
             path_align = path_table(path_table.x==x & path_table.y==y,:);
             alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align);
             save(save_path,'alignment_table')
+            
         end
         fprintf("%s\t Alignment completed! \n",datetime('now'));
         
@@ -385,8 +377,17 @@ switch config.channel_alignment
             path_align = path_table(path_table.x==x & path_table.y==y,:);
             fprintf("%s\t Aligning channels to %s for tile 0%dx0%d \n",...
                 datetime('now'),config.markers{1},y,x);
-            alignment_params(y,x) = elastix_channel_alignment(config,path_align,true);
+            alignment_params{y,x} = elastix_channel_alignment(config,path_align,true);
             save(save_path,'alignment_params','-v7.3')
+            
+            % Save samples
+            if isequal(config.save_samples,"true")
+                fprintf('%s\t Saving samples \n',datetime('now'));
+                path_align = path_to_table(config,"aligned");
+                path_align = 
+                
+                save_samples(config,'alignment',path_align)
+            end
         end
                 
         % Change image directory to aligned directory so that subsequent
@@ -398,10 +399,8 @@ switch config.channel_alignment
         % Update tile intensity adjustments using newly aligned images.
         % Also, set light sheet width adjustments + flatfield adjustments
         % to false as these were applied during the alignment step
-        config.adjust_ls_width = "false";
-        config.adj_params.adjust_ls_width = "false";
-        config.shading_correction = "false";
-        config.adj_params.shading_correction = "false";
+        config.adjust_tile_shading = "false";
+        config.adj_params.adjust_tile_shading = "false";
             
        % In case applying tile adjustments, re-calculate thresholds
         if isequal(config.adjust_intensity,"true") && isequal(config.adjust_tile_intensity,"true")

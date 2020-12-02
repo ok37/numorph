@@ -22,7 +22,7 @@ end
 % Parameters not found in NMp_template. Defaults
 img_gamma_adj = [1,1,1]; % Apply gamma during intensity adjustment. Decrease for channels with low background
 smooth_blobs = "false"; % Smooth blobs using gaussian filter
-surpress_bright = "false"; % Remove bright spots from mask during registration
+%suppress_bright = "false"; % Remove bright spots from mask during registration
 
 % Unpack image information variables
 sample_name = config.sample_name;
@@ -44,6 +44,8 @@ upperThresh = config.upperThresh;
 equal_res = cellfun(@(s) all(config.resolution{1}(1:2) == s(1:2)),config.resolution);
 if ~any(equal_res)
     res_adj = cellfun(@(s) config.resolution{1}(1:2)./s(1:2),config.resolution,'UniformOutput',false);
+else
+    res_adj = ones(1,length(markers));
 end
     
 % Get x,y tile positions from path_table
@@ -53,27 +55,28 @@ assert(length(x) == 1, "More than 1 tile column detected")
 assert(length(y) == 1, "More than 1 tile row detected")
 
 % Paths to elastix parameter files
-parameterDir = fullfile(home_path,'supplementary_data','elastix_parameter_files','channel_alignment');
+parameter_path = fullfile(home_path,'supplementary_data','elastix_parameter_files','channel_alignment');
 transform_path = cell(length(markers)-1,3); outputDir = cell(1,length(markers)-1);
 for i = 1:length(markers)-1
-    idx = find({dir(parameterDir).name} == config.param_folder(i), 1);
+    parameter_dir = dir(parameter_path);
+    idx = find({parameter_dir.name} == config.param_folder(i), 1);
     if ~isempty(idx)
-        parameterSub = dir(fullfile(parameterDir,config.param_folder(i)));
-        for j = 1:3
-            idx = arrayfun(@(s) contains(s.name,'Translation'),parameterSub);
-            transform_path{i,1} = char(fullfile(parameterDir,config.param_folder(i),parameterSub(idx).name));
-            idx = arrayfun(@(s) contains(s.name,'Rigid'),parameterSub);
-            transform_path{i,2} = char(fullfile(parameterDir,config.param_folder(i),parameterSub(idx).name));
-            idx = arrayfun(@(s) contains(s.name,'BSpline'),parameterSub);
-            transform_path{i,3} = char(fullfile(parameterDir,config.param_folder(i),parameterSub(idx).name));
-        end
-        assert(~any(cellfun(@(s) isempty(s),transform_path)),"Missing or mislabeled elastix transform parameter file")
+        parameterSub = dir(fullfile(parameter_path,config.param_folder(i)));
+            
+        idx = arrayfun(@(s) contains(s.name,'Translation'),parameterSub);
+        transform_path{i,1} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
+        idx = arrayfun(@(s) contains(s.name,'Rigid'),parameterSub);
+        transform_path{i,2} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
+        idx = arrayfun(@(s) contains(s.name,'BSpline'),parameterSub);
+        transform_path{i,3} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
+
+        assert(~any(cellfun(@(s) isempty(s),transform_path(i,:))),"Missing or mislabeled elastix transform parameter file")
     else
         error("Could not locate elastix parameter folder %s "+...
-            "in %s",config.param_folder(i),parameterDir)
+            "in %s",config.param_folder(i),parameter_path)
     end
     % Create empty tmp directory for saving images/transforms
-    outputDir{i} = fullfile(config.output_directory,sprintf('tmp%d',i));
+    outputDir{i} = string(fullfile(config.output_directory,sprintf('tmp%d',i)));
     if ~exist(outputDir{i},'dir')
         mkdir(outputDir{i})
     else
@@ -158,7 +161,7 @@ else
     init_tform = cell(1,length(markers)-1);
 end
 
-%% Read and preprocess images
+%% Preconfigure matrixes
 tic
 % Get basic image and file information 
 n_images = height(path_table)/length(markers);
@@ -178,7 +181,7 @@ end
 
 % Initialize matrices for storing raw images
 I_raw = cell(1,length(markers));
-I_raw(:) = {uint16(zeros(nrows,ncols,total_images))};
+I_raw(:) = {zeros(nrows,ncols,total_images,'uint16')};
 
 %Start parallel pool
 try
@@ -193,6 +196,7 @@ end
 % Resampled image dimensions
 dim_adj = round([nrows ncols total_images]./s);
 
+%% Read the images
 if isequal(using_loaded_parameters,'true') && ~isequal(config.load_alignment_params,"update")
     for i = 1:length(markers)
         % If just applying pre-computed transformations, just read imgaes
@@ -222,10 +226,10 @@ if isequal(using_loaded_parameters,'true') && ~isequal(config.load_alignment_par
     end
 else
     I = I_raw;
-    upperLimit = upperThresh*65535;
-    if isequal(surpress_bright,"true")
-        mask2 = zeros(size(I_raw{1}));
-    end
+    %if isequal(surpress_bright,"true")
+    %    upperLimit = upperThresh*65535;
+    %    mask2 = zeros(size(I_raw{1}));
+    %end
     for i = 1:length(markers)
         % Here we're going to perform registration so create a copy of
         % images and perform adjustments on these to make the registration
@@ -253,12 +257,11 @@ else
             % Detect bright feature and remove in image mask to ignore
             % these regions during registration. OK idea but does not do
             % much in practice
-            if isequal(surpress_bright,"true")
-                idx = img>upperLimit(i);
-                if i == 1
-                    mask2(idx) = 1;
-                end
-            end
+            %if isequal(suppress_bright,"true") && i == 1
+            %    idx = img>upperLimit(i);
+            %    mask2(idx) = 1;
+            %end
+            
             % Smooth blobs using Guassian filter to reduce effects of
             % noise. Not a big impact if resampling
             if isequal(smooth_blobs,"true")
@@ -291,10 +294,10 @@ else
     end
     
     % Remove bright regions from mask
-    if isequal(surpress_bright,"true")
-        mask2 = imresize3(mask2,size(mask),'Method','nearest');
-        mask(mask2==1) = 0;
-    end
+    %if isequal(suppress_bright,"true")
+    %    mask2 = imresize3(mask2,size(mask),'Method','nearest');
+    %    mask(mask2==1) = 0;
+    %end
     
     % Determine chunk positions
     if isempty(config.align_chunks) && isempty(config.align_slices)
@@ -309,7 +312,7 @@ else
 end
 fprintf('Images loaded and pre-processed in %d seconds\n', round(toc))
 
-%% Now perform the registration
+%% Perform the registration
 if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
     %Initial registration by translation on whole downsampled stack
     fprintf('Performing intial registration \n')
@@ -356,7 +359,7 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
                 continue
             elseif j ~= 1
                 pause(1)
-            end
+           end
             % Take initial transform of whole stack and save it as an
             % elastix parameters file
             init_tform{j}.TransformParameters{1}.Size(3) = size(mask_chunk,3);
@@ -407,11 +410,11 @@ if ~warp_images
 end
 
 %% This is where intensity adjustment should happen
-if isequal(config.adjust_intensity, "true")
+if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity))
     I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx);
 end
 
-%% Now apply transformations to original
+%% Apply transformations to adjusted images
 % Subset chunks that we're interested in aligning
 out = out(align_chunks,:);
 I_raw = apply_transformations(I_raw,out,total_images,ncols,nrows,markers,c_idx);
@@ -563,7 +566,7 @@ end
 
 
 function I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx)
-
+% Specific to elastix channel alignment
 % Apply intensity adjustments prior to aligning images
 
 adj_params = config.adj_params;
@@ -572,43 +575,28 @@ adj_params = config.adj_params;
 for i = 1:length(markers)
    if c_idx(i) == 0
         continue
+   else
+      fprintf(strcat(char(datetime('now')),'\t Applying intensity adjustments for marker: %s\n'),markers(i));
    end
     adj_params.y_adj{i} = crop_to_ref(adj_params.y_adj{1},adj_params.y_adj{i});
     adj_params.flatfield{i} = crop_to_ref(adj_params.flatfield{1},adj_params.flatfield{i});
     adj_params.darkfield{i} = crop_to_ref(adj_params.darkfield{1},adj_params.darkfield{i});
-end
 
-% Adjust intensities
-if isequal(config.shading_correction,'true')
-    flatfield = adj_params.flatfield;
-    darkfield = adj_params.darkfield;
-    for i = 1:length(markers)
-       if c_idx(i) == 0
-            continue
-        end
-       fprintf(strcat(char(datetime('now')),'\t Applying intensity adjustments for marker: %s\n'),markers(i));
-       for j = 1:size(I_raw{i},3)
-           if sum(I_raw{i}(:,:,j) == 0)
-               continue
-           end
-           I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),'flatfield', flatfield{i},...
-               'darkfield',darkfield{i});
+    % Adjust intensities
+    for j = 1:size(I_raw{i},3)
+       if sum(I_raw{i}(:,:,j) == 0)
+           continue
        end
-    end
-elseif isequal(config.adjust_ls_width,'true')
-    y_adj = adj_params.y_adj;
-    for i = 1:length(markers)
-        if c_idx(i) == 0
-            continue
-        end
-       fprintf(strcat(char(datetime('now')),'\t Applying intensity adjustments for marker: %s\n'),markers(i));
-       for j = 1:size(I_raw{i},3)
-            if sum(I_raw{i}(:,:,j) == 0)
-               continue
-            end
-           I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),'y_adj', y_adj{i});
+       if isequal(config.adjust_tile_shading(c_idx(i)),'basic')
+           I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),...
+               'flatfield', adj_params.flatfield{i},...
+               'darkfield', adj_params.darkfield{i});
+       elseif isequal(config.adjust_tile_shading(c_idx(i)),'manual')
+          I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),...
+              'y_adj',adj_params.y_adj{i});
        end
     end
 end
 
+    
 end

@@ -5,7 +5,7 @@ function I = apply_intensity_adjustment(I,varargin)
 %--------------------------------------------------------------------------
 
 % Default darkfield value
-dark_val = 100;
+dark_val = 101;
 
 % Parse inputs
 p = inputParser;
