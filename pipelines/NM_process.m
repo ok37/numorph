@@ -328,8 +328,7 @@ switch config.channel_alignment
         % steps load these images
         if isequal(config.save_aligned_images,"true")
             config.img_directory = fullfile(config.output_directory,"aligned");
-            location = "aligned";
-            path_table = path_to_table(config,location);
+            path_table = path_to_table(config,"aligned");
         end
     case 'elastix'
         fprintf("%s\t Aligning channels using B-splines \n",datetime('now'));
@@ -383,9 +382,6 @@ switch config.channel_alignment
             % Save samples
             if isequal(config.save_samples,"true")
                 fprintf('%s\t Saving samples \n',datetime('now'));
-                path_align = path_to_table(config,"aligned");
-                path_align = 
-                
                 save_samples(config,'alignment',path_align)
             end
         end
@@ -393,8 +389,7 @@ switch config.channel_alignment
         % Change image directory to aligned directory so that subsequent
         % steps load these images
         config.img_directory = fullfile(config.output_directory,'aligned');
-        location = "aligned";
-        path_table = path_to_table(config,location);
+        path_table = path_to_table(config,"aligned");
         
         % Update tile intensity adjustments using newly aligned images.
         % Also, set light sheet width adjustments + flatfield adjustments

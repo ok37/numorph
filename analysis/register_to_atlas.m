@@ -1,4 +1,4 @@
-function reg_params = register_to_atlas(configm, mov_img_path, num_points, mov_mask, atlas_mask)
+function reg_params = register_to_atlas(config, mov_img_path, num_points, mov_mask, atlas_mask)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
 % reg_params variable. While it is simpler to just register the atlas to

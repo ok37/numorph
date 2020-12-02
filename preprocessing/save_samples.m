@@ -3,11 +3,14 @@ function save_samples(config, process, path_table)
 % Save samples results during image processing steps.
 %--------------------------------------------------------------------------
 
+% Defaults
+spacing = [5,5,10]; % Downsampling for alignment check
+
 % Read image filename information if not provided
 if nargin<3
     path_table = path_to_table(config);
 end
-
+        
 % Create samples directory
 samples_directory = fullfile(config.output_directory,'samples');
 if exist(samples_directory,'dir') ~= 7
@@ -104,15 +107,15 @@ switch process
             end
         end
     case 'alignment'
-        % Save aligned images
-        if nargin == 3 && ~isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
-            % If provided table from 
-            
-        end
-        
-        
-        
-        
+        % Run alignment check for each tile position present
+        x = unique(path_table.x);
+        y = unique(path_table.y);
+
+        for i = 1:length(x)
+            for j = 1:length(y)
+                check_alignment(config, {y(i), x(i)}, [], spacing);
+            end
+        end 
 end
 
 end
