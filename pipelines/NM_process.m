@@ -34,7 +34,7 @@ if ~isequal(config.use_processed_images,"false")
         error("Could not locate processed image directory %s\n",config.img_directory)
     end
     if isequal(config.use_processed_images,"aligned")
-        warning("%s\t Images already aligned. Skipping channel alignment \n",datetime('now'))
+        warning("Images already aligned. Skipping channel alignment")
         config.channel_alignment = "false";
     end
 end
@@ -118,11 +118,13 @@ if any(config.adjust_intensity == "true")
     if any(config.adjust_intensity == "load")
         config.update_intensity_channels = find(config.adjust_intensity == "true");
     end
-elseif all(config.adjust_intensity == "load")
+elseif any(config.adjust_intensity == "load")
     stage = 'load';
 elseif any(config.adjust_intensity ~= "false")
     error("%s\t Unrecognized selection for adjust_intensity. "+...
     "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
+else
+    stage = 'false';
 end
 
 % Calculate intensity adjustments
@@ -216,6 +218,11 @@ switch stage
         fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
         load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
         [adj_params, config] = check_adj_parameters(adj_params,config);
+        
+        % Attach to config structure
+        config.adj_params = adj_params;
+        config.adjust_intensity(config.adjust_intensity == "load") = "true";
+        
         % Additional checks on number of tiles
         for i = 1:length(adj_params)
             if ~isempty(adj_params.t_adj{i})
@@ -225,9 +232,10 @@ switch stage
                    "in the tile adjustment matrix for marker %s",config.markers(i))
             end
         end
-        config.adj_params = adj_params;
-        config.adjust_intensity(config.adjust_intensity == "load") = "true";
-
+        
+        % Additional checks on shading
+        
+        
         % Update which adjustment to apply based on current configs
         config.adj_params.adjust_tile_shading = config.adjust_tile_shading;
         config.adj_params.adjust_tile_position = config.adjust_tile_position;
@@ -334,7 +342,7 @@ switch config.channel_alignment
         fprintf("%s\t Aligning channels using B-splines \n",datetime('now'));
         
         % Create variable
-        alignment_params = cell(ncols,nrows);
+        alignment_params = cell(nrows,ncols);
         save_path = fullfile(config.output_directory,'variables','alignment_params.mat');
         if ~exist(save_path,'file') || isequal(config.load_alignment_params,"false")
             save(save_path,'alignment_params','-v7.3')

@@ -87,7 +87,7 @@ end
 
 %% Check if previous registration parameters exist
 if isequal(config.load_alignment_params,"true") || isequal(config.load_alignment_params,"update")
-   fprintf("%s\t Loading previous registration parameters \n",datetime('now'))
+   fprintf("%s\t Loading previous alignment parameters \n",datetime('now'))
    varDir = fullfile(output_directory,'variables','alignment_params.mat');   
    m = matfile(varDir);
     if isempty(m.alignment_params(x,y))
@@ -95,6 +95,7 @@ if isequal(config.load_alignment_params,"true") || isequal(config.load_alignment
         using_loaded_parameters = 'false';
     else
         out = m.alignment_params(x,y);
+        out = out{1};
         using_loaded_parameters = 'true';
     end
 else

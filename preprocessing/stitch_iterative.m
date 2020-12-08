@@ -98,12 +98,15 @@ if isequal(config.use_middle,'false')
         [~,start_z] = min(abs(nb_sections/2-sig_pos));
         start_z = sig_pos(start_z);
     end
+elseif isnumeric(config.use_middle)
+    % Start from specified z position
+    start_z = config.use_middle;
 else
-    %Otherwise start from the middle
+    % Otherwise start from the middle
     start_z = round(size(img_name_grid,4)/2);
 end 
 
-%Start parallel pool
+% Start parallel pool
 try
     p = gcp('nocreate');
 catch
@@ -120,7 +123,7 @@ end
 %(i.e. images are moving more than expected) the previous translation is
 %used as the current section is lacking enough features (likely because
 %it's at the edge of the sample
-for idx2 = 1:2
+parfor idx2 = 1:2
     m = matfile(stitch_file,'Writable',true);
     if ~isempty(config.stitch_sub_stack)
        h_tform = m.h_stitch_tforms(:,start_z+1);
@@ -172,9 +175,11 @@ end
 end
 
 function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tform,config,z_idx,usfac,peaks)
-
 % Worker for stitching_iterative function
-adj_params = config.adj_params;
+
+% Defaults
+border_pad = config.border_pad; % Border cropping along edges
+min_overlap = 300;    % Minimum overlapping region in pixels
 
 %Image grid info
 [nrows,ncols,nchannels] = size(img_grid);
@@ -226,27 +231,32 @@ for k = 1:nchannels
     end
 end
 
-%Convert images to single
+% Convert images to single
 A = cellfun(@(s) single(s),A,'UniformOutput',false);
 
-%Calculate overlaps in pixels
-v_overlap = round(img_height*config.overlap);
-overlap_v_min = 1:v_overlap;
+% Calculate overlaps in pixels
 h_overlap = round(img_width*config.overlap);
-overlap_h_min = 1:h_overlap;
+v_overlap = round(img_height*config.overlap);
+x0 = round(h_overlap/2);
+y0 = round(v_overlap/2);
 
-%Sizes of optimal, fully stitched image
+% Calculate extended overlap if presumed overlap is small
+if h_overlap < min_overlap
+    ext_adj_h = min([min_overlap, img_width]) - h_overlap;
+else
+    ext_adj_h = 0;
+end
+if v_overlap < min_overlap
+    ext_adj_v = min([min_overlap, img_height]) - v_overlap;
+else
+    ext_adj_v = 0;
+end
+overlap_h_min = 1:h_overlap + ext_adj_h;
+overlap_v_min = 1:v_overlap + ext_adj_v;
+
+% Sizes of optimal, fully stitched image
 full_width = img_width*ncols-h_overlap*(ncols-1);
 full_height = img_height*nrows-v_overlap*(nrows-1);
-
-%Generate pixel merge weights using sigmoid function
-%Horizontal
-w_h = linspace(-config.sd,config.sd,h_overlap);
-w_h = 1./(1 + exp(-(w_h)));
-
-%Vertical
-w_v = linspace(-config.sd,config.sd,v_overlap);
-w_v = 1./(1 + exp(-(w_v)))';
 
 %Check for previous translations and set limits
 if ~iscell(pre_h_tform)
@@ -261,18 +271,18 @@ end
 %Save first column before horizontal stitching
 B = A(:,1,:);
 
-%Calculate Horizontal Translations
+% Calculate horizontal translations
 if ncols > 1
     for i = 1:nrows 
     for j = 1:ncols-1
-        %Update overlap region of the left image 
-        overlap_h_max = size(B{i,1},2)-h_overlap+1:size(B{i,1},2);
+        % Update overlap region of the left image 
+        overlap_h_max = size(B{i,1},2)-length(overlap_h_min)+1:size(B{i,1},2);
 
-        %Load overlapped regions
+        % Load overlapped regions
         ref_img = B{i,:,1}(:,overlap_h_max);
         mov_img = A{i,j+1,1}(:,overlap_h_min);
 
-        %Check number of bright pixels
+        % Check number of bright pixels
         signal = sum(ref_img(:)>config.lowerThresh(1))/numel(mov_img);
 
         if signal <0.005
@@ -284,7 +294,7 @@ if ncols > 1
                 end
             end
         else
-            % Perform phase correlation and refine with SIFT
+            % Perform phase correlation
             [pc_img,ref_img,tformPC] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
 
             % Warn user if large translation
@@ -296,7 +306,7 @@ if ncols > 1
 
             % Refine using SIFT
             if isequal(config.sift_refinement,'true')
-                tformSIFT = sift_refinement_worker(pc_img,ref_img,single(w_h));
+                tformSIFT = sift_refinement_worker(pc_img,ref_img);
                 final_tform = affine2d(tformPC.T*tformSIFT.T);
             else
                 final_tform = tformPC;
@@ -311,19 +321,42 @@ if ncols > 1
         % Adjust horizontally overlapped pixels based on translations
         ref_fixed2 = imref2d([img_height img_width+ceil(final_tform.T(3))]);
 
-        %Transform and merge images (faster to for loop on each channel)
+        % If overlap is extended, resize to to expected overlapping region
+        if ext_adj_h > 0
+            final_tform.T(3) = final_tform.T(3) - ext_adj_h;
+            overlap_h_min1 = overlap_h_min(1:h_overlap);
+        else
+            overlap_h_min1 = overlap_h_min;
+        end
+        
+        % Create adjusted blending weights
+        x1 = x0 - final_tform.T(3);
+        if any(arrayfun(@(s) isequal(s,"sigmoid"),config.blending_method))
+            w_h_adj = 1-1./(1 + exp(config.sd*(overlap_h_min1-x1)));
+        else
+            w_h_adj = overlap_h_min1/h_overlap;
+        end
+        
+        % Clip ends based on horizontal translation where image intensity
+        % is 0
+        if final_tform.T(3) > 0
+            adj_left = max(border_pad,ceil(final_tform.T(3)));
+            w_h_adj(1:adj_left) = 0;
+        else
+            adj_right = max(border_pad,ceil(abs(final_tform.T(3))));
+            w_h_adj(end-adj_right+1:end) = 0;
+        end
+        
+        % Transform and merge images (faster to for loop on each channel)
         for k = 1:nchannels
             reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
-            B{i,k} = blend_images(reg_img,B{i,k},w_h,overlap_h_min,overlap_h_max,...
-                config.blending_method(k),'horizontal');  
+            B{i,k} = blend_images(reg_img,B{i,k},w_h_adj,config.blending_method(k));  
         end
 
         % Save translation
         pre_h_tform{i,j} = [final_tform.T(3), final_tform.T(6)];
     end
-    end
-else
-        
+    end  
 end
 
 % Crop horizontally stitched images to minimum width
@@ -344,7 +377,7 @@ end
 % Do blended row tiles
 for i = 1:length(B)-1
     % Update overlap region of the top image 
-    overlap_v_max = size(I{1},1)-v_overlap+1:size(I{1},1);
+    overlap_v_max = size(I{1},1)-length(overlap_v_min)+1:size(I{1},1);
     
     % Load overlapped regions
     ref_img = I{1}(overlap_v_max,1:min_width);
@@ -367,7 +400,7 @@ for i = 1:length(B)-1
         
         %Refine using SIFT
         if isequal('sift_refinement','true')
-            [tformSIFT] = sift_refinement_worker(pc_img,ref_img,w_v);
+            [tformSIFT] = sift_refinement_worker(pc_img,ref_img);
             final_tform = affine2d(tformPC.T*tformSIFT.T);
         else
             final_tform = tformPC;
@@ -382,17 +415,40 @@ for i = 1:length(B)-1
     %Adjust horizontally overlapped pixels based on translations
     ref_fixed2 = imref2d([img_height+ceil(final_tform.T(6)) size(I{1},2)]);
         
-    %Transform image
+    % If overlap is extended, resize to to expected overlapping region
+    if ext_adj_v > 0
+        final_tform.T(6) = final_tform.T(6) - ext_adj_v;
+        overlap_v_min1 = overlap_v_min(1:v_overlap);
+    else
+        overlap_v_min1 = overlap_v_min;
+    end
+    
     for k = 1:nchannels
-        reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
+        % Create adjusted blending weights
+        y1 = y0 - final_tform.T(6);
+        if isequal(config.blending_method(k),"sigmoid")
+            w_v_adj = 1-1./(1 + exp(config.sd*(overlap_v_min1-y1)))';
+        else
+            w_v_adj = (overlap_v_min1/v_overlap)';
+        end
+
+        % Clip ends based on horizontal translation where image intensity
+        % is 0
+        if final_tform.T(6) > 0
+            adj_top = max(border_pad,ceil(final_tform.T(6)));
+            w_v_adj(1:adj_top) = 0;
+        else
+            adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
+            w_v_adj(ceil(end-adj_bottom+1):end) = 0;
+        end
         
+        %Transform image
+        reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
         %Adjust intensity again?
         %adj_factor = median(I{k}(overlap_v_max,:),'all')/median(reg_img(overlap_v_min,:),'all');
         %adj_factor = prctile(I{k}(overlap_v_max,:),75)/prctile(reg_img(overlap_v_min,:),75);
         %reg_img = reg_img * adj_factor;
-        
-        I{k} = blend_images(reg_img,I{k},w_v,overlap_v_min,overlap_v_max,...
-            config.blending_method(k),'vertical'); 
+        I{k} = blend_images(reg_img,I{k},w_v_adj,config.blending_method(k)); 
     end
     
     %Save translation
@@ -417,31 +473,57 @@ end
 
 end
 
-function tform = sift_refinement_worker(mov_img,ref_img,weight)
-%Detect SIFT features
+function tform = sift_refinement_worker(mov_img,ref_img)
+
+% Defaults
+min_distance = 10;
+
+% Crop to overlapping region
+if size(ref_img,1)>size(ref_img,2)
+    % Horizontal
+    idx = find(any(mov_img,1));
+    mov_img = mov_img(:,min(idx):max(idx));
+    ref_img = ref_img(:,min(idx):max(idx));
+    ncols = size(mov_img,2);
+    x = -floor(ncols/2):floor(ncols/2);
+    weight = -x.^2+1;
+    weight = (weight - min(weight))./(max(weight) - min(weight));
+else
+    % Vertical
+    idx = find(any(mov_img,2));
+    mov_img = mov_img(min(idx):max(idx),:);
+    ref_img = ref_img(min(idx):max(idx),:);
+    nrows = size(mov_img,1);
+    x = -floor(nrows/2):floor(nrows/2);
+    weight = (-x.^2+1)';
+    weight = (weight - min(weight))./(max(weight) - min(weight));
+end
+
+% Detect SIFT features
 [f1, d1] = vl_sift(ref_img,'PeakThresh',10,'EdgeThresh',2);
 [f2, d2] = vl_sift(mov_img,'PeakThresh',10,'EdgeThresh',2);
 
-%Match SIFT features
-[matches] = vl_ubcmatch(d1, d2);
+% Match SIFT features
+matches = vl_ubcmatch(d1, d2);
 
-%Take x,y positions of matched points
+% Take x,y positions of matched points
 x1 = f1(1:2,matches(1,:));
 x2 = f2(1:2,matches(2,:));
 
-%Calculate distance between matches
+% Calculate distance between matches
 x3  = sqrt(sum((x1 - x2).^2));
 
-%Remove point far away from each other
-matches(:,abs(x3)>10)=[];
+% Remove point far away from each other
+matches(:,abs(x3)>min_distance)=[];
 
-%Display number of matches
+% Display number of matches
 numMatches = size(matches,2);
 
 X1 = f1(1:2,matches(1,:)); X1(3,:) = 1;
 X2 = f2(1:2,matches(2,:)); X2(3,:) = 1;
 
-%Add non-linear blend weight
+% Add non-linear blend weight to weigh matches in the middle of the images,
+% (where the blending seams occur) more strongly
 w = 1+weight.*((1-weight)/0.25);
 
 if size(ref_img,1)>size(ref_img,2)
@@ -486,68 +568,3 @@ else
     tform = affine2d([1 0 0; 0 1 0; 0 0 1]);
 end
 end
-
-function ref_img = blend_images(mov_img,ref_img,w,overlap_min,overlap_max,...
-    blending_method,direction)
-
-switch blending_method
-    case 'sigmoid'
-        if isequal(direction,'horizontal')
-            %Perform non-linear weight
-            w(sum(mov_img(:,overlap_min))==0)=0;
-            inv_w = 1-w;
-            ref_img(:,overlap_max) = ref_img(:,overlap_max).*inv_w +...
-                mov_img(:,overlap_min).*w;
-            mov_img(:,overlap_min) = [];
-
-            %Concatanate images
-            ref_img = horzcat(ref_img,mov_img);
-        else
-            %Perform non-linear weight
-            w(sum(mov_img(overlap_min),2)==0)=0;
-            inv_w = 1-w;            
-            ref_img(overlap_max,:) = ref_img(overlap_max,:).*inv_w +...
-                mov_img(overlap_min,:).*w;
-            mov_img(overlap_min,:) = [];
-        
-            %Concatanate images
-            ref_img = vertcat(ref_img,mov_img);
-        end
-    case 'max'
-        if isequal(direction,'horizontal')
-            %Take max in the overlapping region
-            ref_img(:,overlap_max) = max(ref_img(:,overlap_max),mov_img(:,overlap_min));
-            mov_img(:,overlap_min) = [];
-            
-            %Concatanate images
-            ref_img = horzcat(ref_img,mov_img);
-            
-        else
-            %Take max in the overlapping region
-            ref_img(overlap_max,:) = max(ref_img(overlap_max,:),mov_img(overlap_min,:));
-            mov_img(overlap_min,:) = [];
-                     
-            %Concatanate images
-            ref_img = vertcat(ref_img,mov_img);
-        end
-    case 'mean'
-        if isequal(direction,'horizontal')
-            %Take max in the overlapping region
-            ref_img(:,overlap_max) = (ref_img(:,overlap_max)+mov_img(:,overlap_min))/2;
-            mov_img(:,overlap_min) = [];
-            
-            %Concatanate images
-            ref_img = horzcat(ref_img,mov_img);
-            
-        else
-            %Take max in the overlapping region
-            ref_img(overlap_max,:) = max(ref_img(overlap_max,:),mov_img(overlap_min,:));
-            mov_img(overlap_min,:) = [];
-                     
-            %Concatanate images
-            ref_img = vertcat(ref_img,mov_img);
-        end
-end
-
-end
-

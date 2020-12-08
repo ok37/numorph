@@ -224,43 +224,19 @@ for i = 1:length(B)-1
     b = b+2;
 end
 
-% Apply background subtraction
+% Postprocess the image with various filters, background subtraction, etc.
 for i = 1:nchannels
     c_idx = config.stitch_sub_channel(i);
-    if isequal(config.subtract_background(c_idx),"true")
-        se = strel('disk', config.nuc_radius*2);
-        I{i} = I{i} - imopen(I{i},se);
-    end
+    I{c_idx} = postprocess_image(config, I{c_idx}, c_idx);
 end
 
-% Apply filters
-% DoG
-if ~isempty(config.dog)
-for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    if config.dog(c_idx)>0
-        I{i} = dog_adjust(I{i},config.nuc_radius,config.dog(c_idx));                
-    end
-end
-end
-
-% Diffusion
-for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    if isequal(config.filter(c_idx),"true")
-        I{i} = apply_guided_filter(I{i});                
-    end
-end
-
-% Crop or pad images based on ideal size
+%Crop or pad images based on ideal size
 I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',false);
 
 %Save images as individual channels (will be large)
 for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    img_name = sprintf('%s_%s_C%d_%s_stitched.tif',config.sample_name,...
-        num2str(z_idx,'%04.f'),c_idx,config.markers(c_idx));
-    img_path = fullfile(config.output_directory,'stitched',img_name);
+    img_name = sprintf('%s_%s_C%d_%s_stitched.tif',config.sample_name,num2str(z_idx,'%04.f'),i,config.markers(i));
+    img_path = fullfile(char(config.output_directory),'stitched',img_name);
     imwrite(uint16(I{i}),img_path)
 end
 

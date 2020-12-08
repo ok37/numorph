@@ -20,7 +20,7 @@ end
 % Elastix paths
 % Uncomment and specify your path to elastix bin and library
  elastix_path_bin = '/Users/Oleh/Programs/elastix-5.0.0-mac/bin';
- elastix_path_lib = '/Users/Oleh/Programs/elastix-5.0.0-mac/lib';
+ elastix_path_lib = '/Users/Oleh/Programs/elastix-5.0.0-mac/lib'; 
 
 % Make sure path is set
 addpath(genpath('.'))
@@ -103,6 +103,14 @@ try
 catch
     warning("Could not load Parallel Computing Toolbox. It's recommended "+...
         "that this toolbox be installed to speed up analysis.")
+end
+
+% Try setting up vl_feat if not permanently installed
+if ~(exist('vl_version','file') == 3)
+    try 
+        vl_setup
+    catch
+    end
 end
 
 % Reload config

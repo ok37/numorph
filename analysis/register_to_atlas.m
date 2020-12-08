@@ -108,12 +108,10 @@ for i = 1:length(registration_method)
     switch reg_type
         case 'a'
             fprintf('%s\t Performing affine registration\n',datetime('now'));
-            
             parameter_path{i} = fullfile(home_path,'elastix_parameter_files',...
                 'atlas_registration','ElastixParameterAffine.txt');
         case 'b'
             fprintf('%s\t Performing b-spline registration\n',datetime('now')); 
-            
             parameter_path{i} = fullfile(home_path,'elastix_parameter_files',...
                 'atlas_registration','ElastixParameterBSpline.txt');
 
@@ -272,19 +270,4 @@ pts = pts(:,3:end);
 %moving x,y,z then atlas x,y,z
 mov_points = pts(:,1:3);
 atlas_points = pts(:,4:6);
-end
-
-
-function save_points_to_bdv(mov_points,ref_points,output_directory)
-% Function to save updated points that can be loaded into FIJI's Big Data
-% Viewer
-
-pts_filename = fullfile(output_directory,'variables','native_points_bdv.csv');
-
-n_points = 1:size(mov_points,1);
-pts_name =  arrayfun(@(s) sprintf('Pt-%d',s),n_points,'UniformOutput',false)';
-pts_active = repmat('TRUE',size(mov_points,1),1);
-
-pts_table = table(pts_name,pts_active,mov_points,ref_points);
-writetable(pts_table,pts_filename,'WriteVariableNames',0)
 end

@@ -27,7 +27,7 @@ elseif isnumeric(markers)
 end
 
 if nargin<4 || isempty(spacing)
-    spacing = [5,5,10];
+    spacing = [4,4,20];
 end
 
 fprintf("Loading image information \n")

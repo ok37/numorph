@@ -28,9 +28,9 @@ end
 % Apply permutations
 if isfield(config,"flip_axis")
     if isequal(config.flip_axis,"horizontal")
-        I = flip(I,2);
-    elseif isequal(config.flip_axis,"vertical")
         I = flip(I,1);
+    elseif isequal(config.flip_axis,"vertical")
+        I = flip(I,2);
     elseif isequal(config.flip_axis,"both")
         I = flip(I,1);
         I = flip(I,2);

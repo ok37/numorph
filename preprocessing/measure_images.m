@@ -31,7 +31,7 @@ end
 
 % Calculate shading correction using BaSiC
 if isequal(config.adjust_tile_shading(channel_idx),"basic")
-    %[flatfield, darkfield] = estimate_flatfield(config, stack);
+    [flatfield, darkfield] = estimate_flatfield(config, stack);
     flatfield = single(flatfield);
     darkfield = single(darkfield);
 else

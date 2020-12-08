@@ -57,8 +57,8 @@ hist_match = [];                        % 1xn_channels-1 interger; Match histogr
 stitch_sub_stack = [];                              % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                            % channel index; If only stitching certain channels
 overlap = 0.15;                                     % [0,1]; overlap between tiles as fraction
-blending_method = "sigmoid";                        % sigmoid, max. Recommended: sigmoid. Tile blending method
-sd = 3;                                             % numeric >= 1; Steepness of sigmoid-based blending (closer to 1 gives more linear while high values (>50) is closer to block-face)
+blending_method = "sigmoid";                        % sigmoid, linear, max
+sd = 0.05;                                          % numeric >= 0; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
 border_pad = 50;                                    % numeric >= 0; Crops borders during stitching. Increase if images shift significantly during alignment to prevent zeros values from entering stitched image
 sift_refinement = "false";                          % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
 use_middle = "true";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
