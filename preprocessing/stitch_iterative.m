@@ -179,7 +179,7 @@ function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tf
 
 % Defaults
 border_pad = config.border_pad; % Border cropping along edges
-min_overlap = 300;    % Minimum overlapping region in pixels
+min_overlap = 400;    % Minimum overlapping region in pixels
 
 %Image grid info
 [nrows,ncols,nchannels] = size(img_grid);
@@ -298,7 +298,7 @@ if ncols > 1
             [pc_img,ref_img,tformPC] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
 
             % Warn user if large translation
-            if isempty(tformPC) || abs(tformPC.T(3)-pre_h_tform{i,j}(1))>limit_x || abs(tformPC.T(6)-pre_h_tform{i,j}(2))>limit_y
+            if isempty(tformPC) || abs(tformPC.T(3)-pre_h_tform{i,j}(1))>limit_x+ext_adj_h || abs(tformPC.T(6)-pre_h_tform{i,j}(2))>limit_y
                 fprintf(strcat(char(datetime('now')),'\t Warning: large horizontal displacement at %d x %d \n'),i,j);
                 tformPC = affine2d([1 0 0; 0 1 0; pre_h_tform{i,j}(1) pre_h_tform{i,j}(2) 1]);
                 pc_img = imtranslate(mov_img, [pre_h_tform{i,j}(1) pre_h_tform{i,j}(2)]);
@@ -313,7 +313,7 @@ if ncols > 1
             end
 
             % If not able to calculate transform, use previous transform
-            if abs(final_tform.T(3)-pre_h_tform{i,j}(1))>limit_x || abs(final_tform.T(6)-pre_h_tform{i,j}(2))>limit_y
+            if abs(final_tform.T(3)-pre_h_tform{i,j}(1))>limit_x+ext_adj_h || abs(final_tform.T(6)-pre_h_tform{i,j}(2))>limit_y
                 final_tform = affine2d([1 0 0; 0 1 0; pre_h_tform{i,j}(1) pre_h_tform{i,j}(2) 1]);
             end
         end
@@ -349,8 +349,8 @@ if ncols > 1
         
         % Transform and merge images (faster to for loop on each channel)
         for k = 1:nchannels
-            reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
-            B{i,k} = blend_images(reg_img,B{i,k},w_h_adj,config.blending_method(k));  
+            reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
+            B{i,k} = blend_images(reg_img,B{i,k},false,config.blending_method(k),w_h_adj);  
         end
 
         % Save translation
@@ -358,6 +358,9 @@ if ncols > 1
     end
     end  
 end
+
+%disp(final_tform.T)
+%figure; imshow(imadjust(uint16(B{1,1}))*2)
 
 % Crop horizontally stitched images to minimum width
 min_width = min(cellfun(@(s) size(s,2),B(:,1)));
@@ -392,7 +395,7 @@ for i = 1:length(B)-1
         %Perform phase correlation and refine with SIFT
         [pc_img,ref_img,tformPC] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
         
-        if isempty(tformPC) || abs(tformPC.T(3)-pre_v_tform{i}(1))>limit_x || abs(tformPC.T(6)-pre_v_tform{i}(2))>limit_y
+        if isempty(tformPC) || abs(tformPC.T(3)-pre_v_tform{i}(1))>limit_x || abs(tformPC.T(6)-pre_v_tform{i}(2))>limit_y+ext_adj_v
             fprintf(strcat(char(datetime('now')),'\t Warning: large vertical displacement at %d\n'),i);
             tformPC = affine2d([1 0 0; 0 1 0; pre_v_tform{i}(1) pre_v_tform{i}(2) 1]);
             pc_img = imtranslate(mov_img,[pre_v_tform{i}(1) pre_v_tform{i}(2)]);
@@ -407,7 +410,7 @@ for i = 1:length(B)-1
         end
 
         %If not able to calculate transform, use previous transform
-        if abs(final_tform.T(3)-pre_v_tform{i}(1))>limit_x || abs(final_tform.T(6)-pre_v_tform{i}(2))>limit_y
+        if abs(final_tform.T(3)-pre_v_tform{i}(1))>limit_x || abs(final_tform.T(6)-pre_v_tform{i}(2))>limit_y+ext_adj_v
             final_tform = affine2d([1 0 0; 0 1 0; pre_v_tform{i}(1) pre_v_tform{i}(2) 1]);
         end
     end
@@ -448,7 +451,7 @@ for i = 1:length(B)-1
         %adj_factor = median(I{k}(overlap_v_max,:),'all')/median(reg_img(overlap_v_min,:),'all');
         %adj_factor = prctile(I{k}(overlap_v_max,:),75)/prctile(reg_img(overlap_v_min,:),75);
         %reg_img = reg_img * adj_factor;
-        I{k} = blend_images(reg_img,I{k},w_v_adj,config.blending_method(k)); 
+        I{k} = blend_images(reg_img,I{k},false,config.blending_method(k),w_v_adj); 
     end
     
     %Save translation
@@ -471,6 +474,7 @@ for i = 1:nchannels
     imwrite(uint16(I{i}),img_path)
 end
 
+%imshow(imadjust(uint16(I{1}))*2)
 end
 
 function tform = sift_refinement_worker(mov_img,ref_img)

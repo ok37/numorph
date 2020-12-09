@@ -1,18 +1,22 @@
-function comp_img = blend_images(mov_img,ref_img,w,blending_method,overlay)
+function comp_img = blend_images(mov_img,ref_img,overlay,blending_method,w)
 %--------------------------------------------------------------------------
 % Blend multi-tile images during stitching.
 %--------------------------------------------------------------------------
 
 % Option to create pseudocolored overlay
-if nargin<5
-    overlay = false;
+if nargin<3
+    overlay = true;
+end
+
+if ~overlay && nargin<5
+    error("Please provide blending method and weight vector")
 end
 
 % Calculate direction and overlapping regions by length and orientation of
 % weight vector
 [nrows, ncols] = size(ref_img);
 if size(w,1) > size(w,2)
-    direction = 'veritcal';
+    direction = 'vertical';
     overlap_max = nrows-length(w)+1:nrows;
 else
     direction = 'horizontal';
