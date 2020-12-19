@@ -1,7 +1,7 @@
 %% Template to run Tissue Clearing Processing Pipeline
 % These are the key parameters
 % Set flags to indicate how/whether to run process
-adjust_intensity = ["load","load"];               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
+adjust_intensity = "load";               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 adjust_tile_shading = "manual";          % basic, manual, false; Can be 1xn_channels. Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
 adjust_tile_position = "true";           % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
 

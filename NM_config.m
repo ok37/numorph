@@ -27,12 +27,15 @@ addpath(genpath('.'))
 
 % Load variables
 switch stage
-    case 'process'
+    case {'process','stitch','align','intensity'}
         NMp_template
+        main_stage = 'process';
     case 'analyze'
         NMa_template
+        main_stage = 'analyze';
     case 'evaluate'
         NMe_template
+        main_stage = 'evaluate';
     otherwise
         error("Invalid stage input")
 end
@@ -43,9 +46,9 @@ cd(home_path)
 save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
-if nargin > 1 && ~isequal(stage,'evaluate')
+if nargin > 1 && ~isequal(main_stage,'evaluate')
     [img_directory, output_directory] = NM_samples(sample, true);
-elseif nargin > 1 && isequal(stage,'evaluate')
+elseif nargin > 1 && isequal(main_stage,'evaluate')
     fid = fopen('./templates/NM_samples.m');
     c = textscan(fid,'%s');
     sample_idx = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
@@ -71,7 +74,7 @@ if ~isequal(use_processed_images,"false")
 end
 
 % Check variable lengths for some variables
-check_variable_lengths(stage)
+check_variable_lengths(main_stage)
 
 % Add elastix paths if present
 if exist('elastix_path_bin','var')
@@ -142,6 +145,12 @@ if run
             NM_analyze(var_directory)
         case 'evaluate'
             NM_evaluate(var_directory)
+        case 'stitch'
+            NM_process(var_directory,'stitch',true)
+        case 'align'
+           NM_process(var_directory,'align',true)
+        case 'intensity'
+           NM_process(var_directory,'intensity',true)
     end
 elseif nargout == 2
     path_table = path_to_table(config);

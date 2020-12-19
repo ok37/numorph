@@ -1,7 +1,19 @@
-function [config, path_table] = NM_process(config)
+function [config, path_table] = NM_process(config, step, use_adjustments)
 %--------------------------------------------------------------------------
-% NuMorph processing pipeline designed to perform channel alignment,
-% intensity adjustment, and stitching on multi-channel light-sheet images.
+% NM_process NuMorph processing pipeline designed to perform channel 
+% alignment, intensity adjustment, and stitching on multi-channel 
+% light-sheet images.
+%
+% Syntax:  [config, path_table] = NM_process(config, step, use_adjustments)
+% 
+% Inputs:
+%   config - config structure for processing
+%   step - 'stitch', 'align', 'intensity'. Perform only one of the 3 steps
+%   use_adjustments - apply intensity adjustments if performing 1 step
+%
+% Output:
+%   config - config structure after processing
+%   path_table - table of filenames used and additional image information
 %--------------------------------------------------------------------------
 
 % Load configuration from .mat file, if not provided
@@ -12,7 +24,13 @@ elseif isstring(config)
 elseif ~isstruct(config)
     error("Invalid configuartion input")
 end
-config.var_directory = fullfile(config.output_directory,'variables');
+
+% Applying (not calculating) intensity adjustments
+if nargin<3
+    use_adjustments = true;
+elseif use_adjustments
+    %config.adjust_intensity = strrep(config.adjust_intensity,"true", "load");
+end
 
 % Make an output directory
 if exist(config.output_directory,'dir') ~= 7
@@ -20,6 +38,7 @@ if exist(config.output_directory,'dir') ~= 7
 end
 
 % Make a variables directory
+config.var_directory = fullfile(config.output_directory,'variables');
 if exist(config.var_directory,'dir') ~= 7
     mkdir(config.var_directory);
 end
@@ -53,15 +72,33 @@ for i = 1:nchannels
     nrows(i) = length(unique(path_sub.y));
 end
 
+% Check if all resolutions are equal
+equal_res = all(cellfun(@(s) config.resolution{1}(3) == s(1,3),config.resolution));
+
 %% Intensity Adjustment
 % Configure intensity adjustments
-[config, path_table] = intensity_adjustment(config, path_table, nrows, ncols);
+if use_adjustments || isequal(step,'intensity')
+    [config, path_table] = intensity_adjustment(config, path_table, nrows, ncols);
+end
 
+%% Run single step and return if specified
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Note no specific checks on tiles/markers included
+if nargin>1 && isequal(step,'stitch')    
+    [config, path_table] = perform_stitching(config, path_table);
+    return
+elseif nargin>1 && isequal(step,'align')
+    [config, path_table] = align_channels(config, path_table, equal_res);
+    return
+elseif nargin>1 && isequal(step,'intensity')
+    return
+end
+
+%% Run multiple steps
 % If equal numbers of column and row tiles, perform alignment on each tile,
 % then do stitching on aligned images. This assumes the same resolution for
 % each channel. If the channels are imaged at different resolutions, stitch
 % each channel if multi-tile. Then run alignment
-equal_res = all(cellfun(@(s) config.resolution{1}(3) == s(1,3),config.resolution));
 if all(ncols == max(ncols)) && all(nrows == max(nrows))
     % Equal number of tiles
     % Channel Alignment
@@ -111,6 +148,7 @@ end
 
 
 function [config, path_table] = intensity_adjustment(config, path_table, nrows, ncols)
+% Intensity adjustments
 
 % Check for different selections between channels
 if any(config.adjust_intensity == "true")
@@ -164,7 +202,7 @@ switch stage
             stack = path_table(path_table.markers == config.markers(k),:);
 
             % Take measurements
-            [t_adj, lowerThresh_measured(k), upperThresh_measured(k), y_adj, flatfield{k}, darkfield{k}] = ...
+            [lowerThresh_measured(k), upperThresh_measured(k), t_adj, y_adj, flatfield{k}, darkfield{k}] = ...
                 measure_images(config, stack, k);
 
             % Save new adjustments parameters structure
@@ -256,11 +294,11 @@ switch stage
             config.upperThresh = adj_params.upperThresh;
         end
 end
-
 end
 
 function [config, path_table] = align_channels(config,path_table,equal_res)
 % Channel Alignment
+
 % Count number of x,y tiles
 ncols = length(unique(path_table.x));
 nrows = length(unique(path_table.y));
@@ -276,6 +314,7 @@ end
 switch config.channel_alignment
     case 'translation'
         fprintf("%s\t Aligning channels by translation \n",datetime('now'));
+        
         % Determine z displacement from reference channel
         % Check first if .mat file exists in output directory
         if exist(fullfile(config.output_directory,'variables','z_displacement_align.mat'),'file') == 2 && ...
@@ -366,16 +405,8 @@ switch config.channel_alignment
         if isequal(config.load_alignment_params,"false") && isempty(config.lowerThresh) || isempty(config.upperThresh)
             fprintf("%s\t Lower and upper intensity thresholds are unspecified but are required "+...
                 "for accurate alignment. Measuring these now... \n",datetime('now'));
-            for k = 1:length(config.markers)            
-                fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(k));
-                stack = path_table(path_table.markers == config.markers(k),:);
-                adj_params = [];
-                [lowerThresh(k), upperThresh(k)] = get_thresholds(stack,config);
-                fprintf("%s\t Calculated lower threshold: %.2f \n",datetime('now'),lowerThresh(k));
-                fprintf("%s\t Calculated upper threshold: %.2f \n",datetime('now'),upperThresh(k));
-            end
-            config.lowerThresh = lowerThresh/65535;
-            config.upperThresh = upperThresh/65535;            
+            [config.lowerThresh, config.upperThresh] = measure_images(config,path_table,1:length(config.markers),true);
+            adj_params = [];        
         end
 
         % Perform alignment
@@ -411,7 +442,7 @@ switch config.channel_alignment
                 fprintf("%s\t Updating intensity measurements for marker %s using "+...
                     "newly aligned images \n",datetime('now'),config.markers(k));
                 stack = path_table(path_table.markers == config.markers(k),:);
-                t_adj = measure_images(config, stack, k);
+                [~,~,t_adj] = measure_images(config, stack, k);
                 adj_params.t_adj{k} = t_adj;
             end
         end
@@ -442,6 +473,13 @@ if isequal(config.stitch_img,"true") || isequal(config.stitch_img, "load")
     elseif isequal(config.load_alignment_params,"true")
         fprintf("%s\t Loading channel alignment translations \n",datetime('now'));
         load(fullfile(config.output_directory,'variables','alignment_table.mat'),'alignment_table')
+    end
+    
+    % Check for lowerThresh
+    if isempty(config.lowerThresh)
+        fprintf("%s\t Lower and upper intensity thresholds are unspecified but are required "+...
+                "for stitching. Measuring these now... \n",datetime('now'));
+        [config.lowerThresh, config.upperThresh] = measure_images(config,path_table, 1,true);
     end
 
     % Trim markers to only the ones specified

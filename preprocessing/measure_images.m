@@ -1,4 +1,4 @@
-function [t_adj, lowerThresh, upperThresh, y_adj, flatfield, darkfield] = measure_images(config, stack, channel_idx)
+function [lowerThresh, upperThresh, t_adj, y_adj, flatfield, darkfield] = measure_images(config, stack, channel_idx, get_thresholds)
 %--------------------------------------------------------------------------
 % Calculate various intensity adjustments including tile differences,
 % light-sheet width correction, flatfield + darkfield shading correction
@@ -19,6 +19,19 @@ y_tiles = length(unique(stack.y));
 % Read image size
 tempI = imread(stack.file{1});
 [nrows, ncols] = size(tempI);
+
+% If just getting thresholds, measure those and return
+if nargin > 3 && get_thresholds
+    lowerThresh = zeros(1,length(channel_idx)); upperThresh = lowerThresh;
+    for i = 1:length(channel_idx)
+        fprintf("%s\t Measuring Intensity for %s \n",datetime('now'),config.markers(i));
+        stack = stack(stack.channel_num == channel_idx(i),:);
+        [lowerThresh(i), upperThresh(i)] = measure_thresholds(stack,config);
+        fprintf("%s\t Calculated lower threshold: %.2f \n",datetime('now'),lowerThresh(i));
+        fprintf("%s\t Calculated upper threshold: %.2f \n",datetime('now'),upperThresh(i));
+    end
+    return
+end
 
 % Calculate and adjust for laser width
 if isequal(config.adjust_tile_shading,"manual")

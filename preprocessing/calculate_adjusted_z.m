@@ -27,6 +27,7 @@ for i = 1:nrows
         fprintf('%s\t Aligning tiles 0%dx0%d \n',datetime('now'),i,j)
         path_ref = path_table_ref(path_table_ref.x==tiles_x(j-1) & path_table_ref.y==tiles_y(i),:);
         path_mov = path_table_ref(path_table_ref.x==tiles_x(j) & path_table_ref.y==tiles_y(i),:);
+        
         [z_displacement, q, low_flag] = z_align_stitch(path_mov,path_ref,overlap,z_positions,z_window,direction,lowerThresh(1));
 
         %Store results

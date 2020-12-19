@@ -68,37 +68,43 @@ if ~exist(stitch_file,'file')
     save(stitch_file,'h_stitch_tforms','v_stitch_tforms','-v7.3');    
 end
 
-%Determine order of images being stitched based on which Z position has the
-%most signal from all tiles. If use_middle == 1, start from the middle
-if isequal(config.use_middle,'false')
+% Determine order of images being stitched based on which z position has
+% the most bright features in the tile with lowest signal. Otherwise start
+% from middle or from other specified z 
+if ~isequal(config.use_middle,'true')
     fprintf("%s\t Calculating stitching start position \n",datetime('now'))
-    %Check 20% of tiles
-    pos = max(1,floor(linspace(1,nb_sections,ceil(nb_sections/100)))); 
+    % Check 10% of tiles
+    pos = max(1,floor(linspace(1,nb_sections,round(nb_sections*0.1)))); 
     signal = zeros(length(pos),numel(img_name_grid(:,:,1)));
     for i = 1:length(pos)
-        img_grid = img_name_grid(:,:,:,pos(i));
+        img_grid = img_name_grid(:,:,1,pos(i));
         for j = 1:numel(img_grid)
             tempI = imread(img_grid{j});
             if size(tempI,3)>1
                 tempI = tempI(:,:,1);
             end
-            signal(i,j) = sum(tempI(:)>config.lowerThresh(1))/numel(tempI);
+            signal(i,j) = sum(tempI(:)>config.lowerThresh(1)*65535)/numel(tempI);
         end
     end
-    %Find which tiles have some kind of signal
-    sig_tiles = sum(signal>0.05,2);
-    sig_pos = pos(sig_tiles == max(sig_tiles));
-    %Choose closest to the middle from these positions
-    if sig_tiles< nb_img_tiles
-        small_signal = signal(:,~any(signal>0.10));
-        [~,z_idx] = max(small_signal);
-        z_idx = round(mean(z_idx));
-        start_z = pos(z_idx);
-    else
-        [~,start_z] = min(abs(nb_sections/2-sig_pos));
-        start_z = sig_pos(start_z);
-    end
-elseif isnumeric(config.use_middle)
+    % Find which tile has the lowest mean signal 
+    signal_ave = mean(signal,1);
+    [~,z_idx] = max(signal(:,signal_ave == min(signal_ave)));
+    start_z = pos(z_idx);    
+    
+    % Find which tiles have some kind of signal
+    %sig_tiles = sum(signal>0.05,2);
+    %sig_pos = pos(sig_tiles == max(sig_tiles));
+    % Choose closest to the middle from these positions
+    %if sig_tiles < nb_img_tiles
+    %    small_signal = signal(:,~any(signal>0.10));
+    %    [~,z_idx] = max(small_signal);
+    %    z_idx = round(mean(z_idx));
+    %    start_z = pos(z_idx);
+    %else
+    %    [~,start_z] = min(abs(nb_sections/2-sig_pos));
+    %    start_z = sig_pos(start_z);
+    %end
+elseif isnumeric(config.use_middle) && isempty(config.stitch_sub_stack)
     % Start from specified z position
     start_z = config.use_middle;
 else
@@ -107,9 +113,13 @@ else
 end 
 
 % Start parallel pool
+if nb_sections > 20
 try
     p = gcp('nocreate');
 catch
+    p = 1;
+end
+else
     p = 1;
 end
 
@@ -123,16 +133,18 @@ end
 %(i.e. images are moving more than expected) the previous translation is
 %used as the current section is lacking enough features (likely because
 %it's at the edge of the sample
-parfor idx2 = 1:2
+for idx2 = 1:2
     m = matfile(stitch_file,'Writable',true);
     if ~isempty(config.stitch_sub_stack)
-       h_tform = m.h_stitch_tforms(:,start_z+1);
+        %%%%%%%Wrong
+       h_tform = m.h_stitch_tforms(:,start_z);
        h_tform = {reshape(h_tform, 2, length(h_tform)/2)};
-       v_tform = m.v_stitch_tforms(:,start_z+1)';
+       v_tform = m.v_stitch_tforms(:,start_z)';
        v_tform = {reshape(v_tform, 2, length(v_tform)/2)};
     else
         h_tform = []; v_tform = [];
     end
+    h_tform = []; v_tform = [];
     
     if idx2 == 1
         %From middle to top
@@ -179,7 +191,7 @@ function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tf
 
 % Defaults
 border_pad = config.border_pad; % Border cropping along edges
-min_overlap = 400;    % Minimum overlapping region in pixels
+min_overlap = 50;    % Minimum overlapping region in pixels
 
 %Image grid info
 [nrows,ncols,nchannels] = size(img_grid);
@@ -277,9 +289,11 @@ if ncols > 1
     for j = 1:ncols-1
         % Update overlap region of the left image 
         overlap_h_max = size(B{i,1},2)-length(overlap_h_min)+1:size(B{i,1},2);
+        %overlap_h_max = img_width - length(overlap_h_min)+1:img_width;
 
         % Load overlapped regions
         ref_img = B{i,:,1}(:,overlap_h_max);
+        %ref_img = A{i,j,1}(:,overlap_h_max);
         mov_img = A{i,j+1,1}(:,overlap_h_min);
 
         % Check number of bright pixels
@@ -319,8 +333,9 @@ if ncols > 1
         end
 
         % Adjust horizontally overlapped pixels based on translations
-        ref_fixed2 = imref2d([img_height img_width+ceil(final_tform.T(3))]);
-
+        %ref_fixed2 = imref2d([img_height img_width+ceil(final_tform.T(3))]);
+        %ref_fixed2 = imref2d([img_height img_width]);
+        
         % If overlap is extended, resize to to expected overlapping region
         if ext_adj_h > 0
             final_tform.T(3) = final_tform.T(3) - ext_adj_h;
@@ -344,17 +359,27 @@ if ncols > 1
             w_h_adj(1:adj_left) = 0;
         else
             adj_right = max(border_pad,ceil(abs(final_tform.T(3))));
-            w_h_adj(end-adj_right+1:end) = 0;
+            w_h_adj(1:adj_right) = 0;
         end
+        
+        % Save translation
+        pre_h_tform{i,j} = [final_tform.T(3), final_tform.T(6)];
+        %final_tform.T(3) = final_tform.T(3) + pre_tform(1);
+        %final_tform.T(6) = final_tform.T(6) + pre_tform(2);
+
+        %pre_tform(1) = final_tform.T(3);
+        %pre_tform(2) = final_tform.T(6);
+        ref_fixed2 = imref2d([img_height img_width+floor(final_tform.T(3))]);
         
         % Transform and merge images (faster to for loop on each channel)
         for k = 1:nchannels
             reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
             B{i,k} = blend_images(reg_img,B{i,k},false,config.blending_method(k),w_h_adj);  
         end
-
+        
         % Save translation
         pre_h_tform{i,j} = [final_tform.T(3), final_tform.T(6)];
+
     end
     end  
 end
@@ -381,18 +406,20 @@ end
 for i = 1:length(B)-1
     % Update overlap region of the top image 
     overlap_v_max = size(I{1},1)-length(overlap_v_min)+1:size(I{1},1);
+    %overlap_v_max = img_height - length(overlap_v_min)+1:img_height;
     
     % Load overlapped regions
     ref_img = I{1}(overlap_v_max,1:min_width);
+    %ref_img = B{i,1}(overlap_v_max,1:min_width);
     mov_img = B{i+1,1}(overlap_v_min,1:min_width);
 
     signal = sum(ref_img(:)>config.lowerThresh(1))/numel(mov_img);
     
-    %When there is no intensity, use previous translation
+    % When there is no intensity, use previous translation
     if signal <0.02
         final_tform = affine2d([1 0 0; 0 1 0; pre_v_tform{i}(1) pre_v_tform{i}(2) 1]);
     else
-        %Perform phase correlation and refine with SIFT
+        % Perform phase correlation and refine with SIFT
         [pc_img,ref_img,tformPC] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
         
         if isempty(tformPC) || abs(tformPC.T(3)-pre_v_tform{i}(1))>limit_x || abs(tformPC.T(6)-pre_v_tform{i}(2))>limit_y+ext_adj_v
@@ -415,9 +442,10 @@ for i = 1:length(B)-1
         end
     end
     
-    %Adjust horizontally overlapped pixels based on translations
-    ref_fixed2 = imref2d([img_height+ceil(final_tform.T(6)) size(I{1},2)]);
-        
+    % Adjust horizontally overlapped pixels based on translations
+    %ref_fixed2 = imref2d([img_height+ceil(final_tform.T(6)) size(I{1},2)]);
+    %ref_fixed2 = imref2d([img_height size(I{1},2)]);
+    
     % If overlap is extended, resize to to expected overlapping region
     if ext_adj_v > 0
         final_tform.T(6) = final_tform.T(6) - ext_adj_v;
@@ -426,26 +454,30 @@ for i = 1:length(B)-1
         overlap_v_min1 = overlap_v_min;
     end
     
-    for k = 1:nchannels
-        % Create adjusted blending weights
-        y1 = y0 - final_tform.T(6);
-        if isequal(config.blending_method(k),"sigmoid")
-            w_v_adj = 1-1./(1 + exp(config.sd*(overlap_v_min1-y1)))';
-        else
-            w_v_adj = (overlap_v_min1/v_overlap)';
-        end
+    % Create adjusted blending weights
+    y1 = y0 - final_tform.T(6);
+    if isequal(config.blending_method(k),"sigmoid")
+        w_v_adj = 1-1./(1 + exp(config.sd*(overlap_v_min1-y1)))';
+    else
+        w_v_adj = (overlap_v_min1/v_overlap)';
+    end
 
-        % Clip ends based on horizontal translation where image intensity
-        % is 0
-        if final_tform.T(6) > 0
-            adj_top = max(border_pad,ceil(final_tform.T(6)));
-            w_v_adj(1:adj_top) = 0;
-        else
-            adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
-            w_v_adj(ceil(end-adj_bottom+1):end) = 0;
-        end
+    % Clip ends based on vertical translation where image intensity
+    % is 0
+    if final_tform.T(6) > 0
+        disp(final_tform.T(6))
+        adj_top = max(border_pad,ceil(final_tform.T(6)));
+        w_v_adj(1:adj_top) = 0;
+    else
+        disp(final_tform.T(6))
+        adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
+        w_v_adj(1:adj_bottom) = 0;
+    end
         
-        %Transform image
+    %Transform images
+    ref_fixed2 = imref2d([img_height+floor(final_tform.T(6)) size(I{1},2)]);
+    
+    for k = 1:nchannels
         reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
         %Adjust intensity again?
         %adj_factor = median(I{k}(overlap_v_max,:),'all')/median(reg_img(overlap_v_min,:),'all');
@@ -456,6 +488,11 @@ for i = 1:length(B)-1
     
     %Save translation
     pre_v_tform{i} = [final_tform.T(3), final_tform.T(6)];
+end
+
+% Return if only calculating parameters
+if isequal(config.save_aligned_images,'false')
+    return
 end
 
 % Postprocess the image with various filters, background subtraction, etc.
