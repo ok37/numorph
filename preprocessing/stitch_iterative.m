@@ -491,7 +491,7 @@ for i = 1:length(B)-1
 end
 
 % Return if only calculating parameters
-if isequal(config.save_aligned_images,'false')
+if isequal(config.save_images,'false')
     return
 end
 

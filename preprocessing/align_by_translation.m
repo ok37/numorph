@@ -24,7 +24,7 @@ optimizer.RelaxationFactor = 0.5;
 output_directory = config.output_directory;
 lowerThresh = config.lowerThresh;
 align_stepsize = config.align_stepsize;
-save_aligned_images = config.save_aligned_images;
+save_images = config.save_images;
 
 % Get relevant tile information
 channel_num = unique(path_table.channel_num);
@@ -299,7 +299,7 @@ for i = fliplr(1:length(markers))
 end
 
 % Save images if needed
-if isequal(save_aligned_images,"true")   
+if isequal(save_images,"true")   
    fprintf("%s\t Writing aligned images \n", datetime('now'));
    
     % Create directory to store images

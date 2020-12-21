@@ -160,7 +160,7 @@ elseif any(config.adjust_intensity == "load")
     stage = 'load';
 elseif any(config.adjust_intensity ~= "false")
     error("%s\t Unrecognized selection for adjust_intensity. "+...
-    "Please select ""true"", ""update"",""load"", or ""false"".\n",string(datetime('now')))
+    "Please select ""true"", ""load"", or ""false"".\n",string(datetime('now')))
 else
     stage = 'false';
 end
@@ -282,17 +282,17 @@ switch stage
         % No intensity adjustments
         fprintf("%s\t No intensity adjustments selected \n",datetime('now'));
         config.adj_params = [];
-
-        if ~isempty(config.lowerThresh) && ~isempty(config.upperThresh)
-            config.lowerThresh = config.lowerThresh/65535;
-            config.upperThresh = config.upperThresh/65535;
-        elseif exist(fullfile(config.output_directory,'variables','adj_params.mat'),'file') == 2
-            fprintf("%s\t Values for lower and upper thresholds must be defined. "+...
-                "Loading these from adjustment parameters that already exist. \n",datetime('now'));
-            load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-            config.lowerThresh = adj_params.lowerThresh;
-            config.upperThresh = adj_params.upperThresh;
+        
+        if ~isempty(config.lowerThresh) && any(config.lowerThresh>1)
+            idx = config.lowerThresh>1;
+            config.lowerThresh(idx) = config.lowerThresh(idx)/65535;
         end
+            
+        if ~isempty(config.upperThresh) && any(config.upperThresh>1)
+            idx = config.upperThresh>1;
+            config.upperThresh(idx) = config.upperThresh(idx)/65535;
+        end
+            
 end
 end
 
@@ -373,7 +373,7 @@ switch config.channel_alignment
         
         % Change image directory to aligned directory so that subsequent
         % steps load these images
-        if isequal(config.save_aligned_images,"true")
+        if isequal(config.save_images,"true")
             config.img_directory = fullfile(config.output_directory,"aligned");
             path_table = path_to_table(config,"aligned");
         end

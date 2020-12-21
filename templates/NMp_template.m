@@ -11,6 +11,7 @@ load_alignment_params = "false";          % true, update, false; True: apply pre
 stitch_img = "false";                    % true, load, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Direct pipeline to load previously processed images in output directory
+save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
 save_samples = "true";                  % true, false; Save sample results for each major step
 
 %% Intensity Adjustment Parameters
@@ -41,7 +42,6 @@ align_slices = {};                       % Option to align only certain slice ra
 
 % Specific to translation method
 align_stepsize = 10;                     % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
-save_aligned_images = "true";           % true or false. Save aligned images. If using elastix or aligning different resolutions, images will automatically be saved
 
 % Specific to elastix method
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks

@@ -10,7 +10,13 @@ function paths_table_main = path_to_table(config,location)
 
 % Check file location if not provided
 if nargin<2
-    if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
+    if isstring(config)
+        % Directory location and not config structure
+        fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
+        a = config; clear config;
+        config.img_directory = a;
+        location = "raw";
+    elseif isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
         % Start from after multi-channel alignment    
         fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
         location = "aligned";
