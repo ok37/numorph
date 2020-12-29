@@ -1,10 +1,35 @@
-function coreg_table = align_by_translation(config,path_table,z_displacement_align)
+function coreg_table = align_by_translation(config,path_table,z_displacement_align,only_pc)
 %--------------------------------------------------------------------------
 % Align image channels by translating 2D slices. Requires a z_displacement
 % structure to pre-align slices along z. Phase correlation is used to get a
-% rough alignment and actual registration is performed  using MATLAB's 
+% rough alignment and actual registration is performed using MATLAB's 
 % imregister function (Image Processing Toolbox).
 %--------------------------------------------------------------------------
+% Inputs:
+% config - config structure from NM_process.
+%
+% path_table - path table containing only 1 tile position that will be
+% aligned.
+%
+% z_displacement_align - (optional) structure containing z displacement
+% matrix for markers to align. Otherwise z displacement is assumed to be 0
+% for all markers.
+%
+% only_pc - (optional) use only phase correlation for alignment without
+% perfmorming registration.
+%--------------------------------------------------------------------------
+
+% Unpack important variables from config structure
+output_directory = config.output_directory;
+lowerThresh = config.lowerThresh;
+align_stepsize = config.align_stepsize;
+save_images = config.save_images;
+
+% Get relevant tile information
+channel_num = unique(path_table.channel_num);
+markers = config.markers(channel_num);
+col = unique(path_table.x);
+row = unique(path_table.y);
 
 % Define intensity-based registration settings
 % Use optimizer and metric setting
@@ -20,21 +45,19 @@ optimizer.MaximumStepLength = 1.00000e-01;
 optimizer.MaximumIterations = 50;
 optimizer.RelaxationFactor = 0.5;
 
-% Unpack important variables from config structure
-output_directory = config.output_directory;
-lowerThresh = config.lowerThresh;
-align_stepsize = config.align_stepsize;
-save_images = config.save_images;
+% z displacement for each marker
+if nargin<3
+    z_displacement_align = zeros(1,length(markers)-1);
+end
 
-% Get relevant tile information
-channel_num = unique(path_table.channel_num);
-markers = config.markers(channel_num);
-col = unique(path_table.x);
-row = unique(path_table.y);
+% Use only phase correlation
+if nargin<4
+    only_pc = false;
+end
 
 % Default displacement threshold for comparing to previous translation in
 % pixels.
-distance_threshold = 5;
+shift_threshold = 5;
 max_shift = 100;
 
 % Make sure there's only 1 tile
@@ -156,7 +179,7 @@ for i = 1:size(order_m,1)
                tform = affine2d([1 0 0; 0 1 0; 0 0 1]);
                tform.T(3) = m_subset(nearest_idx,idx+1);
                tform.T(6) = m_subset(nearest_idx,idx+2);
-               order_m(i,idx) = 1; % indicates poor initial phase correlation    
+               order_m(i,idx) = 1; % Note poor pc result   
            end
 
            % Check for big translations in phase correlation. It's very important to use
@@ -171,25 +194,25 @@ for i = 1:size(order_m,1)
 
                % If translation is too far from the median, take nearest
                % translation
-               if d > distance_threshold
+               if d > shift_threshold
                    m_subset = order_m(order_m(:,idx)~=0,:);
                    [~,nearest_idx] = min(abs(m_subset(:,1)-z_idx));
                    tform.T(3) = m_subset(nearest_idx,idx+1);
                    tform.T(6) = m_subset(nearest_idx,idx+2);
-                   order_m(i,idx)=1; %note poor initial phase correlation          
+                   order_m(i,idx)=1; % Note poor pc result  
                end
            end
 
-           % Use MATLAB's intensity-based registration to refine registration
-           % Calculate transform
-           tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
-               'PyramidLevels',2,'InitialTransformation',tform);
-
+           if ~only_pc
+               % Use MATLAB's intensity-based registration to refine registration
+               % Calculate transform
+               tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
+                   'PyramidLevels',2,'InitialTransformation',tform);
+               order_m(i,idx)=order_m(i,idx)+1; % Save translation method
+           end
+           
            % Apply the transform
            reg_img{j-1} = imwarp(mov_img,tform,'OutputView',imref2d(size(ref_img)));
-
-           % Save registration details via index
-           order_m(i,idx)=order_m(i,idx)+1;
 
            % Save x,y translations
            order_m(i,idx+1)=tform.T(3);
@@ -203,7 +226,7 @@ for i = 1:size(order_m,1)
     end
     
    % Update status
-   fprintf("%s\t %d out %d images completed\n", datetime('now'),i,size(order_m,1));
+   fprintf("%s\t %d out of %d images completed\n", datetime('now'),i,size(order_m,1));
 end
 
 % If stepsize > 1, interpolate values to get missing translations
@@ -231,19 +254,18 @@ for j = 2:length(markers)
     % Replace outlier values in order_m
     order_m(reg_idx,idx:idx+2) = subset1;
     
-    % Use nearest translation for non-registered images
+    % Use nearest translation for images where registration failed
     nonreg_z = order_m(nonreg_idx,1);
     reg_z = order_m(reg_idx,1);
     for k = 1:length(nonreg_z)
         [~,nearest_idx] = min(reg_z-nonreg_z(k));
-        order_m(order_m(:,1) == nonreg_z(k),idx) = 3;
+        order_m(order_m(:,1) == nonreg_z(k),idx) = 3; % Save translation method
         order_m(order_m(:,1) == nonreg_z(k),idx+1) = order_m(order_m(:,1) == reg_z(nearest_idx),idx+1);
         order_m(order_m(:,1) == nonreg_z(k),idx+2) = order_m(order_m(:,1) == reg_z(nearest_idx),idx+2);
     end
 end
 
-% If not every image was registered, interpolate translations for images in
-% between 
+% Interpolate translations for images in the stack that were not tested
 if align_stepsize >1
    z_range = min_z:max_z;
    z_interp = setdiff(z_range,z);
@@ -253,8 +275,7 @@ if align_stepsize >1
    for j = 2:length(markers)
        % Index within order matrix
        idx = 2+length(markers)+4*(j-2);
-       
-       order_m(length(z)+1:end,idx) = 4;
+       order_m(length(z)+1:end,idx) = 4; % Save translation method
        order_m(length(z)+1:end,idx+1) = interp1(z,order_m(1:length(z),idx+1),z_interp,'linear','extrap');
        order_m(length(z)+1:end,idx+2) = interp1(z,order_m(1:length(z),idx+2),z_interp,'linear','extrap');
    end
@@ -283,13 +304,13 @@ end
 coreg_table = array2table(order_m,'VariableNames',vars);
 
 % Replace transform type index with specified registration procedure
-ttvars = {'Registered','PC_Outlier','Low_Signal','Interpolated'};
+tvars = {'Registered','PC_Outlier','Low_Signal','Interpolated'}';
 idxs = 1 + length(markers) + 4*((2:length(markers))-2);
 
 % Add transform type to coreg_table
-tt_table = cell2table(ttvars(order_m(:,idxs))','VariableNames',coreg_table(:,idxs).Properties.VariableNames);
+t_table = cell2table(tvars(order_m(:,idxs)),'VariableNames',coreg_table(:,idxs).Properties.VariableNames);
 coreg_table(:,idxs) = [];
-coreg_table = [coreg_table tt_table];
+coreg_table = [coreg_table t_table];
 
 % Add image filenames
 for i = fliplr(1:length(markers))
@@ -313,6 +334,7 @@ if isequal(save_images,"true")
         t_idx(i) = find(contains(coreg_table.Properties.VariableNames,'X') & contains(coreg_table.Properties.VariableNames,markers(i)));
     end
     
+    % For each image in table
     for i = 1:height(coreg_table)
         path_sub = coreg_table(coreg_table.Reference_Z == i,:);        
         for j = 1:length(markers)

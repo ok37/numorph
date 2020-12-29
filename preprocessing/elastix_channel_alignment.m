@@ -22,7 +22,6 @@ end
 % Parameters not found in NMp_template. Defaults
 img_gamma_adj = [1,1,1]; % Apply gamma during intensity adjustment. Decrease for channels with low background
 smooth_blobs = "false"; % Smooth blobs using gaussian filter
-%suppress_bright = "false"; % Remove bright spots from mask during registration
 
 % Unpack image information variables
 sample_name = config.sample_name;
@@ -36,16 +35,22 @@ mask_int_threshold = config.mask_int_threshold;
 s = config.resample_s;
 histogram_bins = config.hist_match; % Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave at 0. This can be useful for low contrast images
 
+if isequal(config.pre_align,"true") && isfield(config,'alignment_table')
+    alignment_table = config.alignment_table;
+else
+    alignment_table = [];
+end
+
 % Unpack intensity adjustment variables
 lowerThresh = config.lowerThresh;
 upperThresh = config.upperThresh;
 
 % Check if equal resolution
 equal_res = cellfun(@(s) all(config.resolution{1}(1:2) == s(1:2)),config.resolution);
-if ~any(equal_res)
+if ~all(equal_res)
     res_adj = cellfun(@(s) config.resolution{1}(1:2)./s(1:2),config.resolution,'UniformOutput',false);
 else
-    res_adj = ones(1,length(markers));
+    res_adj = repmat({ones(1,2)},1,length(markers));
 end
     
 % Get x,y tile positions from path_table
@@ -61,16 +66,21 @@ for i = 1:length(markers)-1
     parameter_dir = dir(parameter_path);
     idx = find({parameter_dir.name} == config.param_folder(i), 1);
     if ~isempty(idx)
+        % Detect which transform is in the parameter file
         parameterSub = dir(fullfile(parameter_path,config.param_folder(i)));
-            
-        idx = arrayfun(@(s) contains(s.name,'Translation'),parameterSub);
-        transform_path{i,1} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
-        idx = arrayfun(@(s) contains(s.name,'Rigid'),parameterSub);
-        transform_path{i,2} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
-        idx = arrayfun(@(s) contains(s.name,'BSpline'),parameterSub);
-        transform_path{i,3} = char(fullfile(parameter_path,config.param_folder(i),parameterSub(idx).name));
-
-        assert(~any(cellfun(@(s) isempty(s),transform_path(i,:))),"Missing or mislabeled elastix transform parameter file")
+        parameterSub = parameterSub(arrayfun(@(s) endsWith(s.name,'.txt'),parameterSub));
+        for j = 1:length(parameterSub)
+            file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
+            text = textread(file_path,'%s','delimiter','\n');
+            n = find(cellfun(@(s) contains(s,'(Transform '),text));
+            if contains(text(n),'Translation')
+                transform_path{i,1} = file_path;
+            elseif contains(text(n),'Affine') || contains(text(n),'Euler')
+                transform_path{i,2} = file_path;
+            elseif contains(text(n),'BSpline')
+                transform_path{i,3} = file_path;
+            end
+        end
     else
         error("Could not locate elastix parameter folder %s "+...
             "in %s",config.param_folder(i),parameter_path)
@@ -170,6 +180,7 @@ z_range_adj = z_min_adj:z_max_adj;
 tempI = imread(path_table.file{1});
 [nrows, ncols] = size(tempI);
 cropping_flag =  [0 0 0]; % Flag for cropping images to reference channel
+dim_adj = round([nrows ncols total_images]./s); % Resampled image dimensions
 
 % Check if channels have the same sized images
 for i = [1,align_channels]
@@ -194,88 +205,85 @@ if isempty(p)
     parpool(length(config.markers))
 end
 
-% Resampled image dimensions
-dim_adj = round([nrows ncols total_images]./s);
-
 %% Read the images
-if isequal(using_loaded_parameters,'true') && ~isequal(config.load_alignment_params,"update")
-    for i = 1:length(markers)
-        % If just applying pre-computed transformations, just read imgaes
-        % without any other adjustments other than cropping
-        if i > 1 && c_idx(i) == 0
-            continue
-        else
-            fprintf('Reading images and pre-processing marker %s \n', markers(i))
+for i = 1:length(markers)
+    % Read image slices for only the channels that will be aligned
+    if i > 1 && c_idx(i) == 0
+        continue
+    end
+    fprintf('Reading images and pre-processing marker %s \n', markers(i))
+    
+    % If using pre-aligned, account for a shift in z by reading images from
+    % alignment table
+    if ~isempty(alignment_table) && i>1
+        path_sub = cell(total_images,1);
+        path_sub(alignment_table.Reference_Z) = alignment_table{:,"file_" + num2str(i)};
+    else
+        path_sub = path_table(path_table.markers == markers(i),:).file;
+    end
+    
+    for j = 1:length(z_range_adj)
+        if ~isempty(path_sub{z_range_adj(j)})
+            I_raw{i}(:,:,z_range_adj(j)) = read_slice(path_sub{z_range_adj(j)},...
+                res_adj{i},cropping_flag(i));
         end
+    end
+end
+
+% Apply intensity adjustments for each tile
+if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity))
+    I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx);
+end
+
+% Apply pre-alignments if necessary
+if ~isempty(alignment_table)
+    for i = 2:length(markers)
+        fprintf('Pre-aligning marker %s \n', markers(i))
         path_sub = path_table(path_table.markers == markers(i),:);
+        
+        % Get respective translations for marker
+        if ~isempty(alignment_table)
+            files = alignment_table{:,"file_" + num2str(i)};
+            x_shift = alignment_table{:,"X_Shift_" + markers(i)};
+            y_shift = alignment_table{:,"Y_Shift_" + markers(i)};
+        end
         for j = 1:length(z_range_adj)
-            img = imread(path_sub.file{j});
-            
-            % Resample image to image reference image if different
-            % resolutions
-            if ~any(equal_res)
-                img = imresize(img,round(size(img)./res_adj{j}),'Method','bicubic');
-            end
-            
-            % Crop or pad image if it is not the same size as reference image
-            if cropping_flag(i) == 1
-                I_raw{i}(:,:,z_range_adj(j)) = crop_to_ref(tempI,img);
-            else
-                I_raw{i}(:,:,z_range_adj(j)) = img;
+            % Find the correct image
+            idx = find(arrayfun(@(s) isequal(s,path_sub.file(z_range_adj(j))),files),1);
+            if ~isempty(idx)
+                % Apply translation
+                I_raw{i}(:,:,z_range_adj(j)) = imtranslate(I_raw{i}(:,:,z_range_adj(j)),...
+                    [x_shift(idx) y_shift(idx)]);
             end
         end
     end
-else
-    I = I_raw;
-    %if isequal(surpress_bright,"true")
-    %    upperLimit = upperThresh*65535;
-    %    mask2 = zeros(size(I_raw{1}));
-    %end
+end
+
+
+if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
+    I = cell(1,length(I_raw));
     for i = 1:length(markers)
-        % Here we're going to perform registration so create a copy of
-        % images and perform adjustments on these to make the registration
-        % more accurate
         if i > 1 && c_idx(i) == 0
+            I{i} = [];
             continue
+        else
+            I{i} = I_raw{i};
         end
-        fprintf('Reading images and pre-processing marker %s \n', markers(i))
-        path_sub = path_table(path_table.markers == markers(i),:);
+        
+        % Smooth blobs using Guassian filter to reduce effects of
+        % noise. Not a big impact if resampling
         for j = 1:length(z_range_adj)
-            img = imread(path_sub.file{j});
-            
-            % Resample image to image reference image if different
-            % resolutions
-            if ~any(equal_res)
-                img = imresize(img,round(size(img)./res_adj{j}),'Method','bicubic');
-            end
-            
-            % Crop or pad image if it is not the same size as reference image
-            if cropping_flag(i) == 1
-                img = crop_to_ref(tempI,img);
-            end
-            I_raw{i}(:,:,z_range_adj(j)) = img;
-            
-            % Detect bright feature and remove in image mask to ignore
-            % these regions during registration. OK idea but does not do
-            % much in practice
-            %if isequal(suppress_bright,"true") && i == 1
-            %    idx = img>upperLimit(i);
-            %    mask2(idx) = 1;
-            %end
-            
-            % Smooth blobs using Guassian filter to reduce effects of
-            % noise. Not a big impact if resampling
             if isequal(smooth_blobs,"true")
-                img = imgaussfilt(img,1);
+                I{i}(:,:,j) = imgaussfilt(I{i}(:,:,j),1);
             end
-            I{i}(:,:,z_range_adj(j)) = img;
         end
+        
         % Adjust intensity and convert to int16 to run in elastix
         I{i} = im2int16(imadjustn(I{i},[0 upperThresh(i)],[],img_gamma_adj(i)));
         % Resample image
         I{i} = imresize3(I{i},dim_adj);
     end
-
+    
     % Histogram matching
     for i = align_channels
         if ~isempty(histogram_bins) && histogram_bins(i) > 0 && c_idx(i-1) > 0
@@ -294,12 +302,6 @@ else
         fprintf('Using masked ROI for slices \n')
     end
     
-    % Remove bright regions from mask
-    %if isequal(suppress_bright,"true")
-    %    mask2 = imresize3(mask2,size(mask),'Method','nearest');
-    %    mask(mask2==1) = 0;
-    %end
-    
     % Determine chunk positions
     if isempty(config.align_chunks) && isempty(config.align_slices)
         % If total number of images is less than the max chunk size, adjust
@@ -317,9 +319,10 @@ fprintf('Images loaded and pre-processed in %d seconds\n', round(toc))
 if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
     %Initial registration by translation on whole downsampled stack
     fprintf('Performing intial registration \n')
-    fprintf('Using %d chunks\n', length(align_chunks))
     parfor i = 1:length(markers)-1
-       if c_idx(i+1) == 0 || ~isempty(config.align_slices)
+       if c_idx(i+1) == 0 || isempty(transform_path{i,1}) || ~isempty(config.align_slices) 
+            fprintf("Skipping intial whole stack registration for channel %d\n", c_idx(i+1))
+            init_tform{i} = [];
             continue
         elseif i ~= 1
             pause(1)
@@ -336,7 +339,10 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
         out = cell(length(align_chunks),length(markers)-1);
     end
     
+    fprintf('Performing chunk-wise registration \n')
     for i = align_chunks
+        fprintf('Aligning chunk %d out of %d\n', i, length(align_chunks))
+
         % Take the mask for the respective chunk to align
         mask_chunk = mask(:,:,chunk_start_adj(i):chunk_end_adj(i));
         
@@ -349,11 +355,13 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
         
         % Save chunk start and end location with and without accounting for
         % padding
-        chunk_start1 = chunk_start_adj(i);
-        chunk_end1 = chunk_end_adj(i);
-        chunk_start2 = chunk_start(i);
-        chunk_end2 = chunk_end(i);
-
+        chunk_start1 = chunk_start_adj(i); chunk_end1 = chunk_end_adj(i);
+        chunk_start2 = chunk_start(i); chunk_end2 = chunk_end(i);
+        
+        % Chain transform parameters
+        transforms = [transform_path(:,2), transform_path(:,3)];
+        transforms = transforms(cellfun(@(s) ~isempty(s),transforms));
+        
         tic
         parfor j = 1:length(markers)-1
            if c_idx(j+1) == 0
@@ -361,27 +369,33 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
             elseif j ~= 1
                 pause(1)
            end
-            % Take initial transform of whole stack and save it as an
-            % elastix parameters file
-            init_tform{j}.TransformParameters{1}.Size(3) = size(mask_chunk,3);
-            init_tform_path = sprintf('%s/init_transform_C%d_%d_%d_%d_%s.txt',outputDir{j},j,y,x,i,config.sample_name);
-            elastix_paramStruct2txt(init_tform_path,init_tform{j}.TransformParameters{1})
+           
+            if ~isempty(init_tform{j})
+                % Take initial transform of whole stack and save it as an
+                % elastix parameters file
+                init_tform{j}.TransformParameters{1}.Size(3) = size(mask_chunk,3);
+                init_tform_path = sprintf('%s/init_transform_C%d_%d_%d_%d_%s.txt',outputDir{j},j,y,x,i,config.sample_name);
+                elastix_paramStruct2txt(init_tform_path,init_tform{j}.TransformParameters{1})
 
-            % Perform registration on the chunk for this channel
-            [out{i,j},~] = elastix(I{j+1}(:,:,chunk_start1:chunk_end1),I_ref,...
-                outputDir{j},[transform_path(j,2), transform_path(j,3)],'fMask', mask_chunk,...
-                't0',init_tform_path,'s',s,'threads',[]);
-        
-            % Save chunk information and initial transform filename into out
-            % structure
-            out{i,j}.TransformParameters = horzcat(init_tform{j}.TransformParameters,...
-                out{i,j}.TransformParameters);
+                % Perform registration on the chunk for this channel
+                [out{i,j},~] = elastix(I{j+1}(:,:,chunk_start1:chunk_end1),I_ref,...
+                    outputDir{j},transforms(j,:),'fMask', mask_chunk,...
+                    't0',init_tform_path,'s',s,'threads',[]);
+
+                % Save initial transform filename into structure
+                out{i,j}.TransformParameters = horzcat(init_tform{j}.TransformParameters,...
+                    out{i,j}.TransformParameters);
+            else
+                % Perform registration on the chunk for this channel
+                [out{i,j},~] = elastix(I{j+1}(:,:,chunk_start1:chunk_end1),I_ref,...
+                    outputDir{j},transforms(j,:),'fMask', mask_chunk,'s',s,'threads',[]);
+            end
             
+            % Save chunk positions
             out{i,j}.chunk_start_adj = chunk_start1;
             out{i,j}.chunk_end_adj = chunk_end1;
             out{i,j}.chunk_start = chunk_start2;
             out{i,j}.chunk_end = chunk_end2;
-            
             out{i,j}.x = x;
             out{i,j}.y = y;
 
@@ -406,24 +420,20 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
 end
 
 % Return if not aplying transformations
-if ~warp_images
+if ~warp_images || isequal(config.save_images,'false')
     return
-end
-
-%% This is where intensity adjustment should happen
-if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity))
-    I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx);
 end
 
 %% Apply transformations to adjusted images
 % Subset chunks that we're interested in aligning
 out = out(align_chunks,:);
+
 I_raw = apply_transformations(I_raw,out,total_images,ncols,nrows,markers,c_idx);
 
 %% Save the images
 % Create directory to store images
-if exist(fullfile(char(output_directory),'aligned'),'dir') ~= 7
-    mkdir(fullfile(char(output_directory),'aligned'));
+if exist(fullfile(output_directory,'aligned'),'dir') ~= 7
+    mkdir(fullfile(output_directory,'aligned'));
 end
 
 if ~isempty(config.align_slices)
@@ -447,6 +457,24 @@ for j = 1:length(markers)
         %fprintf("%s\t Writing aligned image %s\n",datetime('now'),img_name)
         imwrite(I_raw{j}(:,:,z_range_save(i)),img_path)
     end
+end
+
+end
+
+
+function img = read_slice(file, res_adj, cropping_flag)
+% Read image and apply adjustments
+img = imread(file);
+
+% Resample image to image reference image if different
+% resolutions
+if isequal(res_adj,ones(1,2))
+    img = imresize(img,round(size(img)./res_adj),'Method','bicubic');
+end
+
+% Crop or pad image if it is not the same size as reference image
+if cropping_flag == 1
+    img= crop_to_ref(tempI,img);
 end
 
 end
@@ -529,6 +557,52 @@ end
 end
 
 
+function mask = generate_sampling_mask(I,mask_int_threshold,lowerThresh,upperThresh)
+
+% Generate intensity threshold if not provided
+%if isempty(mask_int_threshold)
+%    mask_int_threshold(1) = (lowerThresh(1)+upperThresh(1))/2;
+%    mask_int_threshold(2) = otsuthresh(im2uint16(mask(:)))*0.9;
+%    mask_int_threshold(3) = mask_int_threshold1+mask_int_threshold2/2;
+%end
+
+%mask_int_threshold = 0.05;
+    
+% Generate mask
+% Downsample to 20% resolution
+I2 = imresize3(im2uint16(I),0.20,'linear'); 
+
+% Calculate mask intensity threshold
+% These are empirically determined based on adjusted otsu thresholding and
+% lowerThresh determined from examining all images
+if isempty(mask_int_threshold)
+    mask_int_threshold = min(graythresh(I2)*0.75,(lowerThresh(1)/upperThresh(1))*1.25);
+end
+
+% Binarize mask and fill holes
+mask = imbinarize(I2,mask_int_threshold);
+mask = imfill(mask,26,'holes');
+    
+% Keep only largest compnent. Disconnected components will give errors
+labels = bwconncomp(mask);
+sizes = cellfun(@(s) length(s), labels.PixelIdxList);
+[~, idx] = max(sizes);
+for i = 1:length(sizes)
+    if i ~= idx
+        mask(labels.PixelIdxList{i}) = 0;
+    end
+end
+    
+% Resize back to original size
+mask = imresize3(double(mask), size(I),'method', 'nearest');
+signal = sum(mask(:))/numel(mask);
+
+fprintf('\n Using a mask intensity threshold of %.4f \n', mask_int_threshold)
+fprintf('\n Using %.4f percent of pixels \n', signal*100)
+
+end
+
+
 function [chunk_start, chunk_end, chunk_start_adj, chunk_end_adj] = get_chunk_positions(mask, num_images, max_chunk_size, chunk_pad)
 % Get chunk position from binary mask
 
@@ -577,7 +651,7 @@ for i = 1:length(markers)
    if c_idx(i) == 0
         continue
    else
-      fprintf(strcat(char(datetime('now')),'\t Applying intensity adjustments for marker: %s\n'),markers(i));
+      fprintf('Applying intensity adjustments for marker %s\n',markers(i));
    end
     adj_params.y_adj{i} = crop_to_ref(adj_params.y_adj{1},adj_params.y_adj{i});
     adj_params.flatfield{i} = crop_to_ref(adj_params.flatfield{1},adj_params.flatfield{i});
@@ -599,5 +673,4 @@ for i = 1:length(markers)
     end
 end
 
-    
 end

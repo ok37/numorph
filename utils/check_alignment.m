@@ -1,6 +1,6 @@
 function img = check_alignment(config, ranges, markers, spacing)
 %--------------------------------------------------------------------------
-% Check image alignment of channels
+% Check image alignment of channels and save to samples directory.
 %--------------------------------------------------------------------------
 % Inputs:
 % config - config structure from NM_process.
@@ -39,12 +39,20 @@ if exist(save_directory,'dir') ~= 7
 end
 
 % Load images from aligned directory
-path_table = path_to_table(config,'aligned');
+path_table = path_to_table(config,'aligned',false,false);
 
 % Subset x,y positions
 path_table = path_table(ismember(path_table.markers,markers),:);
+if isempty(path_table)
+    warning("No specified markers could not be found")
+    return
+end
 path_table = path_table(path_table.y == ranges{1} & ...
     path_table.x == ranges{2},:);
+if isempty(path_table)
+    warning("Tile position specified could not be found")
+    return
+end
 total_z = height(path_table)/(length(markers));
 
 % Get z ranges
@@ -82,7 +90,7 @@ for i = 1:length(markers)
     fname = fullfile(save_directory,sprintf('%s_%d_%d.tif',markers(i),ranges{1},ranges{2}));
     options.overwrite = true;
     options.message = false;
-    saveastiff(squeeze(img(:,:,:,i)),char(fname),options)
+    saveastiff(squeeze(img(:,:,:,i)),char(fname),options);
 end
 
 end

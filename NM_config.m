@@ -205,8 +205,10 @@ switch stage
                 darkfield_intensity = repmat(darkfield_intensity,1,length(markers));
             elseif exist('update_intensity_channels','var') == 1 && isempty(update_intensity_channels) && i == 15
                 %update_intensity_channels = 1:length(markers);
-            elseif exist('resolution','var') == 1 && ~iscell(resolution) && i == 16
-                resolution = {resolution};
+            elseif exist('resolution','var') == 1 && i == 16
+                if ~iscell(resolution)
+                    resolution = {resolution};
+                end
                 resolution = repmat(resolution,1,length(markers));
             elseif exist('adjust_intensity','var') == 1 && length(adjust_intensity) == 1 && i == 17
                 adjust_intensity = repmat(adjust_intensity,1,length(markers));

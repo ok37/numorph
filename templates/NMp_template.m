@@ -11,7 +11,7 @@ load_alignment_params = "false";          % true, update, false; True: apply pre
 stitch_img = "false";                    % true, load, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Direct pipeline to load previously processed images in output directory
-save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
+save_images = "false";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
 save_samples = "true";                  % true, false; Save sample results for each major step
 
 %% Intensity Adjustment Parameters
@@ -31,7 +31,7 @@ shading_smoothness = 5;                 % numeric; Factor for adjusting smoothne
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
 update_z_adjustment = "false";           % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
-z_positions = 2;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
+z_positions = 3;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
 z_window = 3;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
 z_initial = [0 0 0];                    % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
@@ -44,10 +44,11 @@ align_slices = {};                       % Option to align only certain slice ra
 align_stepsize = 10;                     % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
 
 % Specific to elastix method
+pre_align = "true";                    % (Experimental) Option to pre-align using translation method prior to non-linear registration
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
 max_chunk_size = 300;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
 chunk_pad = 30;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
-param_folder = "32_bins";               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
+param_folder = "32_prealign";               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
 hist_match = [];                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images

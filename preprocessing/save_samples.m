@@ -8,7 +8,7 @@ spacing = [5,5,10]; % Downsampling for alignment check
 
 % Read image filename information if not provided
 if nargin<3
-    path_table = path_to_table(config);
+    path_table = path_to_table(config, [], false);
 end
         
 % Create samples directory

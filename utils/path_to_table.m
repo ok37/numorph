@@ -1,4 +1,4 @@
-function paths_table_main = path_to_table(config,location)
+function paths_table_main = path_to_table(config,location,quick_load,save_table)
 %--------------------------------------------------------------------------
 % Convert a structure of image directories, identifies tile positions and 
 % marker names by regular expressions, and outputs a final table organized 
@@ -37,9 +37,22 @@ elseif ~isequal(location,"raw")
     config.img_directory = fullfile(config.output_directory,location);
 end
 
+% Quick load from saved path_table variable
+if nargin<3
+    quick_load = true;
+end
+
+% Overwrite saved path_table variable
+if nargin<4 && ~quick_load
+    save_table = true;
+else
+    save_table = false;
+end
+
 % Load table if variable exists
-if isfield(config,'var_directory') && exist(fullfile(config.var_directory,'path_table.mat'),'file') == 2
-    load(fullfile(config.var_directory,'path_table.mat'),'path_table')
+var_location = fullfile(config.output_directory,'variables','path_table.mat');
+if exist(var_location,'file') == 2
+    load(var_location,'path_table')
 else
     path_table = [];
 end
@@ -55,36 +68,37 @@ if ~isequal(location,"csv")
     end
 end
 
-% Get munged paths
-% Read filename information from previously done processing steps
+% Munge paths or read filename information from previously saved variable
 switch location
     case 'aligned'
-        if ~isempty(path_table) && isfield(path_table,'aligned')
+        if ~isempty(path_table) && isfield(path_table,'aligned') && quick_load
             paths_table_main = path_table.aligned;
             return            
         end
         paths_new = munge_aligned(paths);
     case 'stitched'
-        if ~isempty(path_table) && isfield(path_table,'stitched')
+        if ~isempty(path_table) && isfield(path_table,'stitched') && quick_load
             paths_table_main = path_table.stitched;
             return
         end
         paths_new = munge_stitched(paths);
     case 'resampled'
-        if ~isempty(path_table) && isfield(path_table,'resampled')
+        if ~isempty(path_table) && isfield(path_table,'resampled') && quick_load
             paths_table_main = path_table.resampled;
             return
         end
         paths_new = munge_resampled(paths);
     case 'raw'
-        if ~isempty(path_table) && isfield(path_table,'raw')
+        if ~isempty(path_table) && isfield(path_table,'raw') && quick_load
             paths_table_main = path_table.raw;
             return
         end        
         paths_new = munge_raw(config,paths);
     case 'csv'
-        % Read directly from csv
-        fprintf("%s\t Reading image filename information from csv file \n",datetime('now'))
+        if ~isempty(path_table) && isfield(path_table,'raw') && quick_load
+            paths_table_main = path_table.raw;
+            return
+        end   
         paths_table_main = readtable(config.img_directory);
         paths_new = [];
 end
@@ -139,10 +153,10 @@ if length(imfinfo(paths_table_main.file{1})) > 1
 end
 
 % Save path_table for quicker loading next time
-if isfield(config,'var_directory')
+if save_table
     fprintf("%s\t Saving path table \n",datetime('now'))
     path_table.(location) = paths_table_main;
-    save(fullfile(config.var_directory,'path_table.mat'),'path_table')
+    save(var_location,'path_table')
 end
 
 end

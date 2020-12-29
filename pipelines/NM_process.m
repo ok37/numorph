@@ -157,7 +157,14 @@ if any(config.adjust_intensity == "true")
         config.update_intensity_channels = find(config.adjust_intensity == "true");
     end
 elseif any(config.adjust_intensity == "load")
-    stage = 'load';
+    % Check for calculated parameters
+    if exist(fullfile(config.var_directory,'adj_params.mat'),'file') == 2    
+        stage = 'load';
+    else
+        fprintf("%s\t No adjustment parameters present. Recalculating "+...
+            "from scratch \n",datetime('now'));
+        stage = 'true';
+    end
 elseif any(config.adjust_intensity ~= "false")
     error("%s\t Unrecognized selection for adjust_intensity. "+...
     "Please select ""true"", ""load"", or ""false"".\n",string(datetime('now')))
@@ -336,7 +343,7 @@ switch config.channel_alignment
                     fprintf("%s\t Predicted z displacement of %d for tile %d x %d \n",...
                         datetime('now'),z_tile(idx),y,x);
                 end
-                z_matrix = reshape(z_tile,[nrows, ncols])';
+                z_matrix = reshape(z_tile,[ncols, nrows])';
                 z_displacement_align.(config.markers(k)) = z_matrix;
             end
             % Save displacement variable to output directory
@@ -380,6 +387,14 @@ switch config.channel_alignment
     case 'elastix'
         fprintf("%s\t Aligning channels using B-splines \n",datetime('now'));
         
+        % Warn user if save_images flag is off. Can't apply params during
+        % stitching
+        if isequal(config.save_images,"false") && isequal(config.load_alignment_params,"false")
+            warning("save_image flag is set to ""false"". Images need to be saved "+...
+                "for downstream processing after elastix alignment.")
+            pause(5)            
+        end
+        
         % Create variable
         alignment_params = cell(nrows,ncols);
         save_path = fullfile(config.output_directory,'variables','alignment_params.mat');
@@ -408,11 +423,24 @@ switch config.channel_alignment
             [config.lowerThresh, config.upperThresh] = measure_images(config,path_table,1:length(config.markers),true);
             adj_params = [];        
         end
+        
+        % If pre-aligning, check for and load calculated translation parameters
+        if isequal(config.pre_align,"true")
+            if exist(fullfile(config.var_directory,'alignment_table.mat'),'file') == 2
+                load(fullfile(config.var_directory,'alignment_table.mat'),'alignment_table')
+            else
+                fprintf("%s\t Could not locate alignment table for pre-alignment \n",datetime('now'));
+                alignment_table = [];
+            end
+        end
 
         % Perform alignment
         for i = tiles_to_align
             [y,x] = find(position_mat==i);
             path_align = path_table(path_table.x==x & path_table.y==y,:);
+            if ~isempty(alignment_table)
+                config.alignment_table = alignment_table{y,x};
+            end
             fprintf("%s\t Aligning channels to %s for tile 0%dx0%d \n",...
                 datetime('now'),config.markers{1},y,x);
             alignment_params{y,x} = elastix_channel_alignment(config,path_align,true);
@@ -428,8 +456,8 @@ switch config.channel_alignment
         % Change image directory to aligned directory so that subsequent
         % steps load these images
         config.img_directory = fullfile(config.output_directory,'aligned');
-        path_table = path_to_table(config,"aligned");
-        
+        path_table = path_to_table(config,"aligned",false,true);
+                
         % Update tile intensity adjustments using newly aligned images.
         % Also, set light sheet width adjustments + flatfield adjustments
         % to false as these were applied during the alignment step
@@ -452,6 +480,13 @@ switch config.channel_alignment
     otherwise
         error("%s\t Unrecognized selection for channel_alignment. "+...
             "Please select ""translation"", ""elastix"", or ""false"".\n",string(datetime('now')))
+end
+
+% Check number of loaded tiles
+ncols = length(unique(path_table.x));
+nrows = length(unique(path_table.y));
+if nb_tiles ~= ncols*nrows
+    warning("Number of aligned tiles and raw image tiles are not equal")
 end
 
 end

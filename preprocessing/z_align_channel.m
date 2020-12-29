@@ -1,4 +1,4 @@
-function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,channel_idx)
+function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,channel_idx,verbose)
 %--------------------------------------------------------------------------
 % Align .tif series from 2 channels along z dimension.
 %--------------------------------------------------------------------------
@@ -7,7 +7,10 @@ function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,c
 peaks = 3;
 usfac = 1;
 max_shift = 0.1;
-verbose = false;
+
+if nargin<5
+    verbose = false;
+end
 
 % Unpack variables
 z_positions = config.z_positions;
