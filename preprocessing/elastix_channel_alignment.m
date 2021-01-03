@@ -19,21 +19,24 @@ else
     chunk_pad = config.chunk_pad;
 end
 
-% Parameters not found in NMp_template. Defaults
-img_gamma_adj = [1,1,1]; % Apply gamma during intensity adjustment. Decrease for channels with low background
-smooth_blobs = "false"; % Smooth blobs using gaussian filter
-
 % Unpack image information variables
 sample_name = config.sample_name;
 markers = config.markers;
 output_directory = config.output_directory;
 home_path = config.home_path;
 
+% Parameters not found in NMp_template. Defaults
+img_gamma_adj = repmat(0.8,1,length(markers)); % Apply gamma during intensity adjustment. Decrease for channels with low background
+smooth_blobs = "false"; % Smooth blobs using gaussian filter
+
 % Registration-specific parameters
 max_chunk_size = config.max_chunk_size; 
 mask_int_threshold = config.mask_int_threshold;
 s = config.resample_s;
 histogram_bins = config.hist_match; % Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave at 0. This can be useful for low contrast images
+if length(histogram_bins) == 1
+    histogram_bins = repmat(histogram_bins,1,length(markers)-1);
+end
 
 if isequal(config.pre_align,"true") && isfield(config,'alignment_table')
     alignment_table = config.alignment_table;
@@ -122,7 +125,7 @@ else
 end    
 
 total_images = height(path_table)/length(markers);
-if ~isempty(config.align_slices) && isequal(using_loaded_parameters,'true')
+if ~isempty(config.align_slices)
     % Subset by slice range   
     for i = 1:length(config.align_slices)
         chunk_start(i) = min(config.align_slices{i});
@@ -132,19 +135,26 @@ if ~isempty(config.align_slices) && isequal(using_loaded_parameters,'true')
         fprintf('Aligning slices %d to %d\n', chunk_start(i), chunk_end(i))
     end
     
-    init_tform = cell(1,length(markers)-1);
-    for i = 1:length(markers)-1
-        if c_idx(i+1) == 0 
-            continue 
+    % Load initial transform if present
+    if isequal(using_loaded_parameters,'true')
+        init_tform = cell(1,length(markers)-1);
+        for i = 1:length(markers)-1
+            if c_idx(i+1) == 0 
+                continue 
+            end
+            init_tform{i} = out{1,i};
+            init_tform{i}.TransformParameters = init_tform{i}.TransformParameters(1);
         end
-        init_tform{i} = out{1,i};
-        init_tform{i}.TransformParameters = init_tform{i}.TransformParameters(1);
     end
     
+    % Set n chunks to 1 and specify start and end positions
     align_chunks = 1:length(chunk_start);
     z_min_adj = min(chunk_start_adj);
     z_max_adj = max(chunk_end_adj);
-    path_table = path_table(ismember(path_table.z,z_min_adj:z_max_adj),:);
+    
+    %idx = path_table.markers == markers(1) & ~ismember(path_table.z,z_min_adj:z_max_adj);
+    %path_table = path_table(~idx,:);
+    
     z_range_save = unique([config.align_slices{:}]);
     
 elseif  ~isempty(config.align_chunks) && isequal(using_loaded_parameters,'true')
@@ -201,8 +211,11 @@ try
 catch
     p = 1;
 end
-if isempty(p)
-    parpool(length(config.markers))
+if isempty(p) || length(align_channels) == 1
+    %parpool(length(config.markers)-1)
+    max_workers = 0;
+else
+    max_workers = length(align_channels);
 end
 
 %% Read the images
@@ -214,99 +227,138 @@ for i = 1:length(markers)
     fprintf('Reading images and pre-processing marker %s \n', markers(i))
     
     % If using pre-aligned, account for a shift in z by reading images from
-    % alignment table
+    % alignment table and noting shifts
     if ~isempty(alignment_table) && i>1
-        path_sub = cell(total_images,1);
-        path_sub(alignment_table.Reference_Z) = alignment_table{:,"file_" + num2str(i)};
+        path_sub = path_table(path_table.markers == markers(1),:).file;
+        idx = arrayfun(@(s) find(string(s{1}) == string(alignment_table{:,1})),...
+            path_sub,'UniformOutput',false);
+        for j = 1:length(idx)
+            if isempty(idx{j})
+                pre_align_params.(markers(i)).file(j) = {''};
+                pre_align_params.(markers(i)).x(j) = NaN;
+                pre_align_params.(markers(i)).y(j) = NaN;
+            else
+                pre_align_params.(markers(i)).file(j) = alignment_table{idx{j},"file_" + num2str(i)};
+                pre_align_params.(markers(i)).x(j) = alignment_table{idx{j},"X_Shift_" + markers(i)};
+                pre_align_params.(markers(i)).y(j) = alignment_table{idx{j},"Y_Shift_" + markers(i)};
+            end
+        end
+        path_sub = pre_align_params.(markers(i)).file;
     else
         path_sub = path_table(path_table.markers == markers(i),:).file;
     end
     
+    tic
     for j = 1:length(z_range_adj)
         if ~isempty(path_sub{z_range_adj(j)})
             I_raw{i}(:,:,z_range_adj(j)) = read_slice(path_sub{z_range_adj(j)},...
                 res_adj{i},cropping_flag(i));
         end
     end
+    toc
 end
 
 % Apply intensity adjustments for each tile
-if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity))
-    I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx);
+if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity)) &&...
+   all(arrayfun(@(s) ~isequal(s,"false"),config.adjust_tile_shading))
+   adj_params = config.adj_params;
+    parfor (i = 1:length(markers),max_workers)
+        if c_idx(i) == 0
+            continue
+        else
+            fprintf('Applying intensity adjustments for marker %s\n',markers(i));
+        end
+        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, adj_params, i);
+    end
 end
 
 % Apply pre-alignments if necessary
 if ~isempty(alignment_table)
-    for i = 2:length(markers)
+    for i = align_channels
         fprintf('Pre-aligning marker %s \n', markers(i))
-        path_sub = path_table(path_table.markers == markers(i),:);
+        x_shift = pre_align_params.(markers(i)).x;
+        y_shift = pre_align_params.(markers(i)).y;
         
-        % Get respective translations for marker
-        if ~isempty(alignment_table)
-            files = alignment_table{:,"file_" + num2str(i)};
-            x_shift = alignment_table{:,"X_Shift_" + markers(i)};
-            y_shift = alignment_table{:,"Y_Shift_" + markers(i)};
-        end
+        x_shift(:) = mode(round(x_shift));
+        y_shift(:) = mode(round(y_shift));
+        
         for j = 1:length(z_range_adj)
-            % Find the correct image
-            idx = find(arrayfun(@(s) isequal(s,path_sub.file(z_range_adj(j))),files),1);
-            if ~isempty(idx)
+            if ~isnan(x_shift(j)) && ~isnan(y_shift(j))
                 % Apply translation
                 I_raw{i}(:,:,z_range_adj(j)) = imtranslate(I_raw{i}(:,:,z_range_adj(j)),...
-                    [x_shift(idx) y_shift(idx)]);
+                    [x_shift(j) y_shift(j)]);
             end
         end
     end
 end
 
-
+% Further adjustments to optimize images for registration
 if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
     I = cell(1,length(I_raw));
-    for i = 1:length(markers)
-        if i > 1 && c_idx(i) == 0
-            I{i} = [];
-            continue
-        else
-            I{i} = I_raw{i};
-        end
+    I{1} = I_raw{1};
         
+    % Generate sampling mask
+    mask = generate_sampling_mask(I{1},mask_int_threshold,lowerThresh(1));
+    
+    %if ~isempty(config.align_slices)
+    %    % If specific slices selected, use all the features in the slice
+    %    % objects
+    %    mask = zeros(size(I{1}));
+    %    mask(:,:,chunk_start_adj(1):chunk_end_adj(1)) = 1;
+    %    fprintf('Using masked ROI for slices \n')
+    %end
+    
+    for i = [1, align_channels]
+        I{i} = I_raw{i};
         % Smooth blobs using Guassian filter to reduce effects of
         % noise. Not a big impact if resampling
-        for j = 1:length(z_range_adj)
-            if isequal(smooth_blobs,"true")
-                I{i}(:,:,j) = imgaussfilt(I{i}(:,:,j),1);
+        if isequal(smooth_blobs,"true")
+            for j = 1:length(z_range_adj)
+                I{i}(:,:,z_range_adj(j)) = imgaussfilt(I{i}(:,:,z_range_adj(j)),1);
             end
         end
         
-        % Adjust intensity and convert to int16 to run in elastix
-        I{i} = im2int16(imadjustn(I{i},[0 upperThresh(i)],[],img_gamma_adj(i)));
+        % Set the mask to zero at border regions if pre-aligned
+        if ~isempty(alignment_table) && i>1
+            mask(I{i} == 0) = 0;                    
+        end
+        
+        % Adjust intensity 
+        I{i} = imadjustn(I{i},[0 upperThresh(i)],[],img_gamma_adj(i));
+        
         % Resample image
-        I{i} = imresize3(I{i},dim_adj);
-    end
+        I{i} = im2int16(imresize3(I{i},dim_adj));
     
-    % Histogram matching
-    for i = align_channels
-        if ~isempty(histogram_bins) && histogram_bins(i) > 0 && c_idx(i-1) > 0
-            I{i} = imhistmatch(I{i},I{1},histogram_bins(i));
+        % Histogram matching
+        if i>1 && ~isempty(histogram_bins) && histogram_bins(i-1) > 0
+            I{i}(:,:,z_range_adj) = imhistmatch(I{i}(:,:,z_range_adj),...
+                I{1}(:,:,z_range_adj),histogram_bins(i-1));
         end 
     end
     
-    % Generate mask using reference channel
-    if isempty(config.align_slices)
-        mask = generate_sampling_mask(I{1},mask_int_threshold,lowerThresh,upperThresh);
-    else
-        % If specific slices selected, use all the features in the slice
-        % objects
-        mask = zeros(size(I{1}));
-        mask(:,:,chunk_start_adj(1):chunk_end_adj(1)) = 1;
-        fprintf('Using masked ROI for slices \n')
-    end
+    % Resize the mask 
+    mask = imresize3(single(mask),dim_adj,'nearest');
     
+    % Optional: partition mask to focus samples on more difficult areas
+    %mean_mask_slice = median(mean(mask == 1,[1,2]));
+    %zs = z_min_adj:5:z_max_adj;
+    for i = 1:length(z_range_adj)
+    %    if mean(mask(:,:,z_range_adj(i)),'all') > mean_mask_slice && i/2 == round(i/2) &&...
+    %            ~ismember(z_range_adj(i),zs)
+    %        mask(:,:,z_range_adj(i)) = 0;
+            %slice = mask(:,:,i);
+            %p = find(slice);
+            %p_idx = randperm(length(p),round(0.5*length(p)));
+            %slice(p(p_idx)) = 0;
+            %mask(:,:,i) = slice;
+    %    end
+    end
+
     % Determine chunk positions
-    if isempty(config.align_chunks) && isempty(config.align_slices)
+    if isempty(config.align_chunks)
         % If total number of images is less than the max chunk size, adjust
         % padding
-        if max_chunk_size>total_images
+        if max_chunk_size>total_images || isempty(config.align_slices)
            chunk_pad = 0; 
         end
         [chunk_start, chunk_end, chunk_start_adj, chunk_end_adj] = get_chunk_positions(mask, n_images, max_chunk_size, chunk_pad);
@@ -319,16 +371,20 @@ fprintf('Images loaded and pre-processed in %d seconds\n', round(toc))
 if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_params,"update")
     %Initial registration by translation on whole downsampled stack
     fprintf('Performing intial registration \n')
-    parfor i = 1:length(markers)-1
+    init_tform = cell(1,length(markers)-1);
+    for i = 1:length(markers)-1%,max_workers)
        if c_idx(i+1) == 0 || isempty(transform_path{i,1}) || ~isempty(config.align_slices) 
-            fprintf("Skipping intial whole stack registration for channel %d\n", c_idx(i+1))
-            init_tform{i} = [];
+            if c_idx(i+1) == 1
+                fprintf("Skipping intial whole stack registration for marker %s\n", markers(i+1))
+            end
             continue
         elseif i ~= 1
             pause(1)
        end
        [init_tform{i},~] = elastix(I{i+1}(:,:,z_range_adj),I{1}(:,:,z_range_adj),...
             outputDir{i},transform_path(i,1),'s',s,'threads',[]);
+        
+        % Parameters are as -x,-y,-z
         fprintf("Intial transform parameters: %s\n",sprintf("%.3f\t",init_tform{i}.TransformParameters{1}.TransformParameters))
         % Preview registration
         % imshowpair((img(:,:,500)),(I{1}(:,:,500)))
@@ -363,7 +419,7 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
         transforms = transforms(cellfun(@(s) ~isempty(s),transforms));
         
         tic
-        parfor j = 1:length(markers)-1
+        parfor (j = 1:length(markers)-1,max_workers)
            if c_idx(j+1) == 0
                 continue
             elseif j ~= 1
@@ -398,7 +454,7 @@ if isequal(using_loaded_parameters,'false') || isequal(config.load_alignment_par
             out{i,j}.chunk_end = chunk_end2;
             out{i,j}.x = x;
             out{i,j}.y = y;
-
+            
             % Reset temporary directory
             rmdir(outputDir{j},'s')
             mkdir(outputDir{j})
@@ -427,7 +483,6 @@ end
 %% Apply transformations to adjusted images
 % Subset chunks that we're interested in aligning
 out = out(align_chunks,:);
-
 I_raw = apply_transformations(I_raw,out,total_images,ncols,nrows,markers,c_idx);
 
 %% Save the images
@@ -483,11 +538,14 @@ end
 function I_raw = apply_transformations(I_raw,out,n_images,ncols,nrows,markers,c_idx)
 % Apply elastix transform parameters
 
+% Create dummy var for empty transforms
+c_idx2 = logical(c_idx(2:end));
+out(:,~c_idx2) = out(:,find(c_idx2,1));
+
 % Get chunk sizes and locations in the stack with/without padding
 n_chunks = size(out,1);
 chunk_start_adj = cellfun(@(s) s.chunk_start_adj,out);
 chunk_end_adj = cellfun(@(s) s.chunk_end_adj,out);
-
 chunk_start = cellfun(@(s) s.chunk_start,out);
 chunk_end = cellfun(@(s) s.chunk_end,out);
 
@@ -499,13 +557,13 @@ for i = 1:n_chunks
         a = 1;
     end
     tic    
-    for j = 1:length(markers)-1
+    parfor j = 1:length(markers)-1
        if c_idx(j+1) == 0
             continue
         elseif j ~= 1
             pause(1)
-        end
-        
+       end
+
        % Get locations for current chunk
        chunk_start1 = chunk_start_adj(i,j);
        chunk_end1 = chunk_end_adj(i,j);
@@ -537,14 +595,12 @@ for i = 1:n_chunks
             out2.TransformParameters{k}.DefaultPixelValue = -32768;
             out2.TransformParameters{k}.InitialTransformParametersFileName = 'NoInitialTransform';
         end
-        out2.TransformParameters{end}.Transform = 'RecursiveBSplineTransform';        
-
         I_chunk = im2int16(I_raw{j+1}(:,:,chunk_start1:chunk_end1));
         
         % Apply transform
         I_chunk = transformix(I_chunk,out2,[1 1 1],[]);
         
-        %Trim ends
+        % Trim ends
         z_range = 1+top_trim:size(I_chunk,3)-bottom_trim;
         I_chunk = im2uint16(int16(I_chunk(:,:,z_range)));
         
@@ -557,48 +613,41 @@ end
 end
 
 
-function mask = generate_sampling_mask(I,mask_int_threshold,lowerThresh,upperThresh)
+function mask = generate_sampling_mask(I,mask_int_threshold,lowerThresh)
+%Generate mask
 
-% Generate intensity threshold if not provided
-%if isempty(mask_int_threshold)
-%    mask_int_threshold(1) = (lowerThresh(1)+upperThresh(1))/2;
-%    mask_int_threshold(2) = otsuthresh(im2uint16(mask(:)))*0.9;
-%    mask_int_threshold(3) = mask_int_threshold1+mask_int_threshold2/2;
-%end
-
-%mask_int_threshold = 0.05;
-    
-% Generate mask
-% Downsample to 20% resolution
-I2 = imresize3(im2uint16(I),0.20,'linear'); 
+% Downsample to 10% resolution
+I2 = imresize3(I,0.10,'linear'); 
 
 % Calculate mask intensity threshold
 % These are empirically determined based on adjusted otsu thresholding and
 % lowerThresh determined from examining all images
 if isempty(mask_int_threshold)
-    mask_int_threshold = min(graythresh(I2)*0.75,(lowerThresh(1)/upperThresh(1))*1.25);
+    lowerThresh_adj = lowerThresh(1)*1.5;
+    %mask_int_threshold = min(graythresh(I2)*0.75,lowerThresh_adj);
+    mask_int_threshold = lowerThresh_adj;
 end
 
 % Binarize mask and fill holes
 mask = imbinarize(I2,mask_int_threshold);
 mask = imfill(mask,26,'holes');
     
-% Keep only largest compnent. Disconnected components will give errors
-labels = bwconncomp(mask);
-sizes = cellfun(@(s) length(s), labels.PixelIdxList);
-[~, idx] = max(sizes);
-for i = 1:length(sizes)
-    if i ~= idx
-        mask(labels.PixelIdxList{i}) = 0;
-    end
-end
+% Keep only brightest compnent. Disconnected components will give errors
+%labels = bwconncomp(mask);
+%intensity = regionprops3(labels,I2,{'VoxelIdxList','MeanIntensity'});
+%idx = find(intensity.MeanIntensity == max(intensity.MeanIntensity));
+%for i = 1:height(intensity)
+%    if i ~= idx
+%        %mask(intensity.VoxelIdxList{i}) = 0;
+%    end
+%end
     
 % Resize back to original size
 mask = imresize3(double(mask), size(I),'method', 'nearest');
 signal = sum(mask(:))/numel(mask);
 
 fprintf('\n Using a mask intensity threshold of %.4f \n', mask_int_threshold)
-fprintf('\n Using %.4f percent of pixels \n', signal*100)
+fprintf('\n Using %.4f percent of voxels \n', signal*100)
 
 end
 
@@ -640,37 +689,27 @@ end
 end
 
 
-function I_raw = apply_intensity_adjustments_tile(I_raw, config, markers, c_idx)
-% Specific to elastix channel alignment
+function I_raw = apply_intensity_adjustments_tile(I_raw, adj_params, i)
 % Apply intensity adjustments prior to aligning images
 
-adj_params = config.adj_params;
-
 % Crop y_adj and flatfield to match reference 
-for i = 1:length(markers)
-   if c_idx(i) == 0
-        continue
-   else
-      fprintf('Applying intensity adjustments for marker %s\n',markers(i));
-   end
-    adj_params.y_adj{i} = crop_to_ref(adj_params.y_adj{1},adj_params.y_adj{i});
-    adj_params.flatfield{i} = crop_to_ref(adj_params.flatfield{1},adj_params.flatfield{i});
-    adj_params.darkfield{i} = crop_to_ref(adj_params.darkfield{1},adj_params.darkfield{i});
+adj_params.y_adj{i} = crop_to_ref(adj_params.y_adj{1},adj_params.y_adj{i});
+adj_params.flatfield{i} = crop_to_ref(adj_params.flatfield{1},adj_params.flatfield{i});
+adj_params.darkfield{i} = crop_to_ref(adj_params.darkfield{1},adj_params.darkfield{i});
 
-    % Adjust intensities
-    for j = 1:size(I_raw{i},3)
-       if sum(I_raw{i}(:,:,j) == 0)
-           continue
-       end
-       if isequal(config.adjust_tile_shading(c_idx(i)),'basic')
-           I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),...
-               'flatfield', adj_params.flatfield{i},...
-               'darkfield', adj_params.darkfield{i});
-       elseif isequal(config.adjust_tile_shading(c_idx(i)),'manual')
-          I_raw{i}(:,:,j) = apply_intensity_adjustment(I_raw{i}(:,:,j),...
-              'y_adj',adj_params.y_adj{i});
-       end
-    end
+% Adjust intensities
+for j = 1:size(I_raw,3)
+   if sum(I_raw(:,:,j) == 0)
+       continue
+   end
+   if isequal(adj_params.adjust_tile_shading(i),'basic')
+       I_raw(:,:,j) = apply_intensity_adjustment(I_raw(:,:,j),...
+           'flatfield', adj_params.flatfield{i},...
+           'darkfield', adj_params.darkfield{i});
+   elseif isequal(adj_params.adjust_tile_shading(i),'manual')
+      I_raw(:,:,j) = apply_intensity_adjustment(I_raw(:,:,j),...
+          'y_adj',adj_params.y_adj{i});
+   end
 end
 
 end

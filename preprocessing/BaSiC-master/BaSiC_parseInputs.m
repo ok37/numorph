@@ -18,8 +18,7 @@ options.lambda_darkfield        = [];   % defulat value estimated from input ima
 
 %%%%%%
 options.smooth                  = 1;    % default value = 1
-
-% options.basefluo              = [];
+%options.basefluo              = [];
 
 %% internal options, should not be reset by user without expert knowledge
 options.working_size            = 128;

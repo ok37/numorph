@@ -152,8 +152,15 @@ if run
         case 'intensity'
            NM_process(var_directory,'intensity',true)
     end
-elseif nargout == 2
-    path_table = path_to_table(config);
+elseif nargout >= 1
+    % Update img_directory if using processed images
+    if ~isequal(config.use_processed_images,"false")
+        config.img_directory = fullfile(config.output_directory,config.use_processed_images);
+    end
+end
+
+if nargout == 2
+    path_table = path_to_table(config,[],true);
 end
 
 end
@@ -169,7 +176,7 @@ switch stage
         variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
             'param_folder','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
             'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels','resolution',...
-            'adjust_intensity','adjust_tile_shading','adjust_tile_position'};
+            'adjust_intensity','adjust_tile_shading','adjust_tile_position','lowerThresh','upperThresh','signalThresh'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
 
         for i = 1:length(variable_names)
@@ -216,6 +223,28 @@ switch stage
                 adjust_tile_shading = repmat(adjust_tile_shading,1,length(markers));
             elseif exist('adjust_tile_position','var') == 1 && length(adjust_tile_position) == 1 && i == 19
                 adjust_tile_position = repmat(adjust_tile_position,1,length(markers));
+            elseif exist('lowerThresh','var') == 1 && ~isempty(lowerThresh) && i == 20
+                assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...
+                    "specified for all markers or left empty")
+                if isempty(lowerThresh) && ~isempty(upperThresh)
+                    upperThresh = zeros(0,1,length(markers));
+                end
+            elseif exist('upperThresh','var') == 1 && i == 21
+                if ~isempty(upperThresh)
+                    assert(length(upperThresh) == length(markers),"Upper threshold values need to be "+...
+                        "specified for all markers or left empty")
+                end
+                if isempty(upperThresh) && ~isempty(lowerThresh)
+                    upperThresh = repmat(65535,1,length(markers));
+                end
+            elseif exist('signalThresh','var') == 1 && i == 22
+                if ~isempty(signalThresh)
+                    assert(length(signalThresh) == length(markers),"Signal threshold values need to be "+...
+                        "specified for all markers or left empty")
+                elseif ~isempty(lowerThresh) || ~isempty(upperThresh)
+                    error("signalThresh must specified if lowerThresh and/or upperThresh "+...
+                        "is also specified")
+                end
             end
         end
     case 'analyze'

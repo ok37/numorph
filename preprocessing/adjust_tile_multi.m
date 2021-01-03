@@ -1,28 +1,44 @@
-function [adj_matrix1,adj_matrix2,lowerThresh,upperThresh] = adjust_tile_multi(config,stack,defaults)
+function [adj_matrix1, adj_matrix2] = adjust_tile_multi(config, path_table, defaults)
 %--------------------------------------------------------------------------
 % Calculate intensity adjustment for multi-tile layout by measuring
 % overlapping regions.
 %--------------------------------------------------------------------------
+%
+% Inputs:
+% config - config structure from NM_process.
+%
+% path_table - path table containing images to measure. Should only contain
+% a single channel.
+%
+% defaults - structure containing intensity percentiles, padding, and image
+% sampling. See measure_images.
+%
+% Outputs:
+% adj_matrix1 - adjustment matrix containing lower intensity thresholds.
+%
+% adj_matrix2 - adjustment matrix containing upper intensity thresholds. 
+%--------------------------------------------------------------------------
+
 
 % Load defaults
 low_prct = defaults.low_prct;   % Low percentile for sampling background pixels
 high_prct = defaults.high_prct; % High percentile for sampling bright pixels
-pads = defaults.pads;     % Crop this fraction of image from the sides of images
+pads = defaults.pads;           % Crop this fraction of image from the sides of images
 image_sampling = defaults.image_sampling;   % Fraction of all images to sample
 
 overlap = config.overlap;
 
 % Count number of images and measure image dimensions
-x_tiles = length(unique(stack.x));
-y_tiles = length(unique(stack.y));
-nb_images = height(stack)/(x_tiles*y_tiles);
+x_tiles = length(unique(path_table.x));
+y_tiles = length(unique(path_table.y));
+nb_slices = height(path_table)/(x_tiles*y_tiles);
 
 % Get image positions
-s = round(image_sampling*nb_images);
-img_range = round(linspace(1,nb_images,s));
+s = round(image_sampling*nb_slices);
+img_range = round(linspace(1,nb_slices,s));
 
 % Read image size and get padding
-tempI = imread(stack.file{1});
+tempI = imread(path_table.file{1});
 [nrows, ncols] = size(tempI);
 pad_h = round(pads*ncols*overlap);
 pad_v = round(pads*nrows*overlap);
@@ -45,11 +61,6 @@ fprintf('%s\t Measuring Between Tile Differences Horizontally \n',datetime('now'
 h_matrix1 = ones(y_tiles,x_tiles);
 h_matrix2 = ones(y_tiles,x_tiles);
 
-% Initialize measurement vectors
-p_low = zeros(1,y_tiles*(x_tiles-1)+(y_tiles-1)*x_tiles);
-p_high = zeros(1,y_tiles*(x_tiles-1)+(y_tiles-1)*x_tiles);
-
-idx = 1;
 for i = 1:y_tiles
     for j = 1:x_tiles-1
         I_left = zeros([nrows round(ncols*overlap)-pad_h length(img_range)],'uint16');
@@ -57,8 +68,8 @@ for i = 1:y_tiles
         
         for k = 1:length(img_range)
             % Read image regions where tiles should overlap
-            file_left = stack(stack.y == i & stack.x == j & stack.z == img_range(k),:);
-            file_right = stack(stack.y == i & stack.x == j+1 & stack.z == img_range(k),:);
+            file_left = path_table(path_table.y == i & path_table.x == j & path_table.z == img_range(k),:);
+            file_right = path_table(path_table.y == i & path_table.x == j+1 & path_table.z == img_range(k),:);
             
             I_left(:,:,k) = imread(file_left.file{1},'PixelRegion',overlap_max_h);
             I_right(:,:,k) = imread(file_right.file{1},'PixelRegion',overlap_min_h);
@@ -79,13 +90,8 @@ for i = 1:y_tiles
 
         % Difference in average intensity indicates between tile differences
         I_left1 = I_left*h_matrix2(i,j);
-        I_right1 = I_right*h_matrix2(i,j+1) * h_matrix1(i,j+1);
+        I_right1 = I_right*h_matrix2(i,j+1)*h_matrix1(i,j+1);
         h_matrix2(i,j+1) = prctile(I_left1,high_prct)/prctile(I_right1,high_prct);
-
-        % Measure upper and lower percentile of pixels for thresholds
-        p_low(idx) = mean([prctile(I_left,low_prct) prctile(I_right,low_prct)]);
-        p_high(idx) = mean([prctile(I_left,high_prct) prctile(I_right,high_prct)]);
-        idx = idx+1;
     end
 end
 h_matrix1 = h_matrix1/mean2(h_matrix1);
@@ -102,8 +108,8 @@ for i = 1:y_tiles-1
         I_bottom = zeros([round(nrows*overlap)-pad_v ncols length(img_range)],'uint16');
         for k = 1:length(img_range)
             % Read image regions where tiles should overlap
-            file_top = stack(stack.y == i & stack.x == j & stack.z == img_range(k),:);
-            file_bottom = stack(stack.y == i+1 & stack.x == j & stack.z == img_range(k),:);
+            file_top = path_table(path_table.y == i & path_table.x == j & path_table.z == img_range(k),:);
+            file_bottom = path_table(path_table.y == i+1 & path_table.x == j & path_table.z == img_range(k),:);
 
             I_top(:,:,k) = imread(file_top.file{1},'PixelRegion',overlap_max_v);
             I_bottom(:,:,k) = imread(file_bottom.file{1},'PixelRegion',overlap_min_v);  
@@ -125,11 +131,6 @@ for i = 1:y_tiles-1
         I_top1 = I_top*v_matrix2(i,j);
         I_bottom1 = I_bottom*v_matrix2(i+1,j)*v_matrix1(i+1,j);
         v_matrix2(i+1,j) = prctile(I_top1,high_prct)/prctile(I_bottom1,high_prct);
-
-        % Measure upper and lower percentile of pixels for thresholds
-        p_low(idx) = mean([prctile(I_top,low_prct) prctile(I_bottom,low_prct)]);
-        p_high(idx) = mean([prctile(I_top,high_prct) prctile(I_bottom,high_prct)]);
-        idx = idx+1;
     end
 end
 v_matrix1 = v_matrix1/mean2(v_matrix1);
@@ -160,9 +161,4 @@ fprintf('%s\t Final Tile Adjustment Matrices:\n',datetime('now'));
 disp(adj_matrix1)
 disp(adj_matrix2)
 
-% Calculate upper and lower thresholds
-lowerThresh = median(p_low);
-upperThresh = max(p_high);
-fprintf('%s\t Measured Lower and Upper Intensities:\t %.1f\t %.1f\n',datetime('now'),...
-    lowerThresh,upperThresh);  
 end

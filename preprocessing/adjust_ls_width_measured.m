@@ -1,4 +1,34 @@
 function y_adj = adjust_ls_width_measured(single_sheet,tempI,ls_width,res,laser_y_displacement)
+%--------------------------------------------------------------------------
+% Adjust for laser width using measured intensity profiles specifically for
+% the LaVision Ultramicroscope II. Measurements are based on intensity
+% profiles from fluorescent dyes across multiple magngifications. Note this
+% function requires Curve Fitting Toolbox.
+%--------------------------------------------------------------------------
+% 
+% Inputs:
+% single_sheet - ('true','false') whether to use profile from single or
+% multiple light-sheet(s).
+% 
+% tempI - example image for calculating image dimensions.
+%
+% ls_width - light-sheet width setting as percentage.
+%
+% res - vector for image resolution as (um/voxel).
+%
+% laser_y_displacement - (default = 0) a value between -0.5 and 0.5
+% specifying a known shift in laser position along the y axis. 
+%
+% Outputs:
+% y_adj - vector containing adjusted image intensity profile.
+%--------------------------------------------------------------------------
+
+% Set laser displacement
+if nargin<5
+    laser_y_displacement = 0;
+end
+
+fprintf('%s\t Adjusting For Laser Width \n',datetime('now'));    
 
 if isequal(single_sheet,'true')
     %Measured intensities for single sheet acquisition 
@@ -59,4 +89,5 @@ left = height-right;
 gg_right = w(1:right);
 gg_left = w(1:left);
 y_adj = horzcat(fliplr(gg_left),gg_right);
+
 end

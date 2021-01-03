@@ -4,7 +4,7 @@ function save_samples(config, process, path_table)
 %--------------------------------------------------------------------------
 
 % Defaults
-spacing = [5,5,10]; % Downsampling for alignment check
+spacing = [3,3,10]; % Downsampling for alignment check
 
 % Read image filename information if not provided
 if nargin<3

@@ -33,8 +33,10 @@ if nargin<2
         fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
         location = "raw";
     end
-elseif ~isequal(location,"raw")
-    config.img_directory = fullfile(config.output_directory,location);
+elseif isempty(location)
+    %Start from raw image directory by default
+    fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
+    location = "raw";
 end
 
 % Quick load from saved path_table variable
@@ -43,7 +45,7 @@ if nargin<3
 end
 
 % Overwrite saved path_table variable
-if nargin<4 && ~quick_load
+if nargin<4 || quick_load
     save_table = true;
 else
     save_table = false;
@@ -101,6 +103,8 @@ switch location
         end   
         paths_table_main = readtable(config.img_directory);
         paths_new = [];
+    otherwise
+        error("Unrecognized location selected")
 end
 
 % Convert to table
@@ -233,6 +237,7 @@ paths_sub = rmfield(paths_sub,fields_to_remove);
 components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
 components = vertcat(components{:});
 
+assert(size(components,1) > 0, "Could not recognize any aligned files by filename structure")
 assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image path")
 %assert(length(unique(components(:,4))) == length(config.markers), "Number of markers detected" +...
 %    " does not match number of markers specified for this sample")

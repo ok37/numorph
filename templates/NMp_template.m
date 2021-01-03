@@ -1,17 +1,17 @@
 %% Template to run Tissue Clearing Processing Pipeline
 % These are the key parameters
 % Set flags to indicate how/whether to run process
-adjust_intensity = "load";               % true, load, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
+adjust_intensity = "update";               % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 adjust_tile_shading = "manual";          % basic, manual, false; Can be 1xn_channels. Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
 adjust_tile_position = "true";           % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
 
 channel_alignment = "elastix";          % elastix, translation, false; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
-load_alignment_params = "false";          % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
+load_alignment_params = "false";        % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
 
 stitch_img = "false";                    % true, load, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Direct pipeline to load previously processed images in output directory
-save_images = "false";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
+save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
 save_samples = "true";                  % true, false; Save sample results for each major step
 
 %% Intensity Adjustment Parameters
@@ -25,13 +25,13 @@ laser_y_displacement = 0;               % [-0.5,0.5]; Displacement of light-shee
 
 % Parameters for BaSIC shading_correction (i.e. adjust_tile_shading = "basic") 
 sampling_frequency = 0.2;               % [0,1]; Fraction of images to read and sample from. Setting to 1 means use all images
-shading_correction_tiles = 1:4;         % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
+shading_correction_tiles = [];         % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
 shading_smoothness = 5;                 % numeric; Factor for adjusting smoothness of shading correction. Set >1 for smoother flatfield image
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
 update_z_adjustment = "false";           % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
-z_positions = 3;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
+z_positions = 40;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
 z_window = 3;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
 z_initial = [0 0 0];                    % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
@@ -46,31 +46,32 @@ align_stepsize = 10;                     % interger; Only for alignment by trans
 % Specific to elastix method
 pre_align = "true";                    % (Experimental) Option to pre-align using translation method prior to non-linear registration
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
-max_chunk_size = 300;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
-chunk_pad = 30;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
-param_folder = "32_prealign";               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
+max_chunk_size = 1400;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
+chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
+param_folder = ["32_prealign", "16_prealign"];               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
-hist_match = [];                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
+hist_match = [0, 64];                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
 
 %% Stitching Parameters
 % Parameters for running iterative 2D stiching
 stitch_sub_stack = [];                              % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                            % channel index; If only stitching certain channels
-overlap = 0.15;                                     % [0,1]; overlap between tiles as fraction
+overlap = 0.10;                                     % [0,1]; overlap between tiles as fraction
 blending_method = "sigmoid";                        % sigmoid, linear, max
 sd = 0.05;                                          % numeric >= 0; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
-border_pad = 50;                                    % numeric >= 0; Crops borders during stitching. Increase if images shift significantly during alignment to prevent zeros values from entering stitched image
-sift_refinement = "false";                          % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-use_middle = "true";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
+border_pad = 25;                                    % numeric >= 0; Crops borders during stitching. Increase if images shift significantly during alignment to prevent zeros values from entering stitched image
+sift_refinement = "true";                          % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
+use_middle = "false";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
 
 %% Additional Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image
 % has been merged.
 % Parameters for rescale_intensities
-rescale_intensities = "false";           % true, false; Rescaling intensities and applying gamma
-lowerThresh = [100 100];                % 1xn_channels numeric; Intensity values of dimmest feature of interest. If left empty, pipeline will automatically calculate this for each channel as it is required for elastix alignment and stitching
-upperThresh = [1000 2000];              % 1xn_channels numeric; Max intensity of brightest features.If left empty, pipeline will automatically calculate this for each channel as it is required for elastix channel alignment
+rescale_intensities = "false";          % true, false; Rescaling intensities and applying gamma
+lowerThresh = [];                       % 1xn_channels numeric; Lower intensity for rescaling
+signalThresh = [];                      % 1xn_channels numeric; Rough estimate for minimal intensity for features of interest
+upperThresh = [];                       % 1xn_channels numeric; Upper intensity for rescaling
 Gamma = [];                             % 1xn_channels numeric; Gamma intensity adjustment
 
 % Background subtraction
@@ -87,5 +88,5 @@ DoG_minmax = [0.8,2];                       % 1x2 numeric; Min/max sigma values 
 DoG_factor = 1;                             % [0,1]; Factor controlling amount of adjustment to apply. Set to 1 for absolute DoG
 
 % Permute image
-flip_axis = "none";               % "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
+flip_axis = "none";                     % "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
 rotate_axis = 0;                        % 90 or -90; Rotate image

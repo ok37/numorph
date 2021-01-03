@@ -1,7 +1,10 @@
-function img = check_alignment(config, ranges, markers, spacing)
+function img_out = check_alignment(config, ranges, markers, spacing)
 %--------------------------------------------------------------------------
 % Check image alignment of channels and save to samples directory.
 %--------------------------------------------------------------------------
+% Usage:
+% img_out = check_alignment(config, ranges, markers, spacing)
+%
 % Inputs:
 % config - config structure from NM_process.
 %
@@ -13,6 +16,9 @@ function img = check_alignment(config, ranges, markers, spacing)
 %
 % spacing - (optional) 1x3 double for the amount of downsampling for each
 % dimension.
+%
+% Outputs:
+% img_out - 4D aligned image stacks
 %--------------------------------------------------------------------------
 
 if ~iscell(ranges)
@@ -27,7 +33,7 @@ elseif isnumeric(markers)
 end
 
 if nargin<4 || isempty(spacing)
-    spacing = [4,4,20];
+    spacing = [2,2,20];
 end
 
 fprintf("Loading image information \n")
@@ -39,6 +45,7 @@ if exist(save_directory,'dir') ~= 7
 end
 
 % Load images from aligned directory
+config.img_directory = fullfile(config.output_directory,'aligned');
 path_table = path_to_table(config,'aligned',false,false);
 
 % Subset x,y positions
@@ -91,6 +98,12 @@ for i = 1:length(markers)
     options.overwrite = true;
     options.message = false;
     saveastiff(squeeze(img(:,:,:,i)),char(fname),options);
+end
+
+if nargout==0
+    return
+else
+    img_out = img;
 end
 
 end

@@ -1,98 +1,86 @@
-function [lowerThresh, upperThresh] = measure_thresholds(stack,config,defaults)
+function [lowerThresh, upperThresh, signalThresh] = measure_thresholds(stack,defaults)
 %--------------------------------------------------------------------------
-% Get intensity thresholds without additional adjustments. 
+% Get only intensity thresholds without additional adjustments. 
+%--------------------------------------------------------------------------
+%
+% Inputs:
+% stack - table of images to measure. Should contain only 1 channel.
+%
+% defaults - structure containing settings for image intensity measurement.
+% Should contain lower/upper percentiles + image sampling proportion.
+%
+% Outputs:
+% lowerThresh, upperThresh, signalThresh - unit-normalized lower and upper 
+% thresholds as well as a rough global threshold for image signal
 %--------------------------------------------------------------------------
 
+% Load defaults
 low_prct = defaults.low_prct;   % Low percentile for sampling background pixels
 high_prct = defaults.high_prct; % High percentile for sampling bright pixels
-image_sampling = defaults.img_sampling;   % Fraction of all images to sample
+image_sampling = defaults.image_sampling;   % Fraction of all images to sample    
 
-% Get upper and lower intensity thresholds from a small subset of images in
-% a stack
-overlap = config.overlap;
-
+% Count number of images and measure image dimensions
 x_tiles = length(unique(stack.x));
 y_tiles = length(unique(stack.y));
-
-%Count number of images and measure image dimensions
-nb_images = height(stack)/(x_tiles*y_tiles);
+n_channels = length(unique(stack.markers));
+nb_slices = length(unique(stack.z));
 
 % Get image positions
-s = round(image_sampling*nb_images);
-img_range = round(linspace(1,nb_images,s));
+s = round(image_sampling*nb_slices);
+img_range = round(linspace(1,nb_slices,s));
 if isempty(img_range)
-    img_range = round(nb_images/2);
+    img_range = round(nb_slices/2);
 end 
-overlaps = length(img_range)*((x_tiles-1)*(y_tiles)+(y_tiles-1)*(x_tiles));
 
-%Read image size
+% Read image size and get padding
 tempI = imread(stack.file{1});
-[nrows, ncols] = size(tempI); 
-
-%Determine overlap region
-%Horizontal image overlap regions
-overlap_min_h = {[1,nrows],[1,round(ncols*overlap)]};
-overlap_max_h = {[1,nrows],[ncols-overlap_min_h{2}(2)+1,ncols]};
-
-%Vertical image overlap regions
-overlap_min_v = {[1,round(nrows*overlap)],[1,ncols]};
-overlap_max_v = {[nrows-overlap_min_v{1}(2)+1,nrows],[1,ncols]};
-
-%Initialize measurement vectors
-p_low = zeros(1,overlaps);
-p_high = zeros(1,overlaps);
-stdev = zeros(1,overlaps);
-img_idx = 1;
-
-%Measure pairwise horizontal intensity differences
-fprintf(strcat(char(datetime('now')),'\t Measuring Between Tile Differences Horizontally\n'));
-for i = 1:y_tiles
-for j = 1:x_tiles-1
-    for k = img_range
-        %Read image regions where tiles should overlap
-        file_left = stack(stack.y == i & stack.x == j & stack.z == k,:);
-        file_right = stack(stack.y == i & stack.x == j+1 & stack.z == k,:);
-        
-        I_left = double(imread(file_left.file{1},'PixelRegion',overlap_max_h));
-        I_right = double(imread(file_right.file{1},'PixelRegion',overlap_min_h));     
-        
-        % Measure 1 percentile of all pixels. This gives rough background
-        % and upper intensity
-        p_low(img_idx) = mean([prctile(I_left(:),low_prct) prctile(I_right(:),low_prct)]);
-        p_high(img_idx) = mean([prctile(I_left(:),high_prct) prctile(I_right(:),high_prct)]);
-        stdev(img_idx) = std2([I_left I_right]);
-        
-        % Update vector indices
-        img_idx = img_idx+1;
-    end
+[nrows, ncols] = size(tempI);
+if isfield(defaults,'pads')
+    pads = defaults.pads;
+else
+    pads = 0;
 end
-end
+range_v = [round(pads*nrows)+1, nrows - round(pads*nrows)];
+range_h = [round(pads*ncols)+1, ncols - round(pads*ncols)];
+    
+% Initialize measurement vectors
+p_low = zeros(1,length(img_range));
+p_high = zeros(1,length(img_range));
+p_mad = zeros(1,length(img_range));
 
-%Measure pairwise vertical intensity differences
-fprintf(strcat(char(datetime('now')),'\t Measuring Between Tile Differences Vertically\n'));
-for i = 1:y_tiles-1
-    for k = img_range
-        % Read image regions where tiles should overlap
-        file_top = stack(stack.y == i & stack.z == k,:);
-        file_bottom = stack(stack.y == i+1 & stack.z == k,:);
+sub_low = zeros(1,x_tiles*y_tiles*n_channels); 
+sub_high = zeros(1,x_tiles*y_tiles*n_channels);
+sub_mad = zeros(1,x_tiles*y_tiles*n_channels);
+
+% Take measurements
+fprintf("%s\t Measuring thresholds... \n",datetime('now'))
+for i = 1:length(img_range)
+    % Read image regions where tiles should overlap
+    files = stack(stack.z == img_range(i),:).file;
+    for j = 1:length(files)
+        img = single(imread(files{j},'PixelRegion',{range_v, range_h}));
         
-        for kk = 1:height(file_top)
-            I_top = double(imread(file_top.file{kk},'PixelRegion',overlap_max_v));
-            I_bottom = double(imread(file_bottom.file{kk},'PixelRegion',overlap_min_v));
-
-            % Measure 1 percentile of all pixels. This gives rough background
-            p_low(img_idx) = mean([prctile(I_top(:),low_prct) prctile(I_bottom(:),low_prct)]);
-            p_high(img_idx) = mean([prctile(I_top(:),high_prct) prctile(I_bottom(:),high_prct)]);
-            stdev(img_idx) = std2([I_top I_bottom]);
-
-            % Update vector indices
-            img_idx = img_idx+1;
-        end
-    end
+        % Remove any zero values from shifting image
+        img= img(img>0);
+        
+        % Measure percentiles of tiles
+        sub_low(j) = prctile(img,low_prct,'all');
+        sub_high(j) = prctile(img,high_prct,'all');
+        sub_mad(j) = mad(img,1,'all');
+    end 
+    
+    % Measure percentiles of all tiles
+    p_low(i) = median(sub_low);
+    p_high(i) = max(sub_high);
+    p_mad(i) = mean(sub_mad);
 end
 
-% Calculate lower threshold
-lowerThresh = round(median(p_low)+1*median(stdev))/65535;
-upperThresh = min(prctile(p_high,90),65535)/65535;
+% Calculate thresholds
+lowerThresh = median(p_low)/65535;
+upperThresh = max(p_high)/65535;
+signalThresh = lowerThresh + mean(p_mad)/65535;
+
+fprintf('%s\t Measured Lower, Signal, Upper Intensities:\t %.1f\t %.1f\t %.1f\t\n',...
+    datetime('now'),round(lowerThresh*65535),round(signalThresh*65535),round(upperThresh*65535));  
 
 end

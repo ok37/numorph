@@ -61,9 +61,9 @@ end
 if isempty(options.darkfield)
     options.darkfield = 'false';
 end
-% if isempty(options.basefluo)
-%     options.basefluo = 'false';
-% end
+ %if isempty(options.basefluo)
+ %    options.basefluo = 'false';
+ %end
 
 nrows = options.working_size; ncols = options.working_size; 
 D = double(imresize(IF,[nrows ncols],'bilinear'));

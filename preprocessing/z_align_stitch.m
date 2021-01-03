@@ -10,7 +10,7 @@ function [z_displacement,q,low_flag] = z_align_stitch(path_mov,path_ref,overlap,
 % Defaults
 peaks = 3;
 usfac = 1;
-min_overlap = 200;
+min_overlap = 50;
 
 % Check file lengths
 nfiles_mov = height(path_mov);    
@@ -28,6 +28,9 @@ path_ref = path_ref(z,:);
 if path_ref.z(1) - path_mov.z(1) < range
     error('Z range is too large for image dataset. Decrease z_positions and/or z_window')
 end
+
+% Adjust lowerThresh
+lowerThresh = lowerThresh*1.5;
 
 % Determine overlap region
 ref_img = imread(path_ref.file{1});
