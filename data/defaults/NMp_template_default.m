@@ -3,7 +3,9 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-image_stitching = "true";                   % true, update, false; 2D iterative stitching
+stitch_img = "true";                   % true, update, false; 2D iterative stitching
+
+load_alignment_params = "false";        % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
 save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
@@ -11,7 +13,7 @@ save_samples = "true";                  % true, false; Save sample results for e
 
 %% Intensity Adjustment Parameters
 adjust_tile_shading = "basic";          % basic, manual, false; Can be 1xn_channels. Perform shading correction using BaSIC algorithm or using manual measurements from UMII microscope
-adjust_tile_position = "true";          % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
+adjust_tile_position = "true";           % true, false; Can be 1xn_channels. Normalize tile intensities by position using overlapping regions
 darkfield_intensity = 101;              % 1xn_channels; Constant darkfield intensity value (i.e. average intensity of image with nothing present)
 update_intensity_channels = [];         % integers; Update intensity adjustments only to certain channels 
 
@@ -28,26 +30,25 @@ shading_smoothness = 5;                 % numeric; Factor for adjusting smoothne
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
 update_z_adjustment = "false";           % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
-z_positions = 0.1;                        % integer or numeric; Sampling positions along adjacent image stacks to determine z displacement. If <1, uses fraction of all images. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
-z_window = 3;                            % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
-z_initial = 0;                           % 1xn_channels-1 interger; Predicted initial z displacement between reference and remaining channels
+z_positions = 40;                        % integer; Sampling positions along adjacent image stacks to determine z displacement. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
+z_window = 3;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
+z_initial = [0 0 0];                    % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
-align_method = "elastix";                % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+align_method = "elastix";               % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
 align_tiles = [];                        % Option to align only certain stacks and not all stacks. Row-major order
 align_channels = [];                     % Option to align only certain channels (set to >1)
 align_slices = {};                       % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
 
 % Specific to translation method
 align_stepsize = 10;                     % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
-only_pc = "false";                       % true, false; Use only phase correlation for registration. This gives only a quick estimate for channel alignment. 
 
 % Specific to elastix method
+pre_align = "true";                    % (Experimental) Option to pre-align using translation method prior to non-linear registration
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
-elastix_params = ["32_prealign", "16_prealign"];               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
-pre_align = "true";                    % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
 max_chunk_size = 1400;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
 chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
+param_folder = ["32_prealign", "16_prealign"];               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
 hist_match = [0, 64];                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
@@ -56,13 +57,12 @@ hist_match = [0, 64];                        % 1xn_channels-1 interger; Match hi
 % Parameters for running iterative 2D stiching
 stitch_sub_stack = [];                              % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                            % channel index; If only stitching certain channels
-stitch_start_slice = [];                            % numeric; Start stitching from specific slice. Leave empty for optimized position.
 overlap = 0.10;                                     % 0:1; overlap between tiles as fraction
 blending_method = "sigmoid";                        % sigmoid, linear, max
 sd = 0.05;                                          % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
 border_pad = 25;                                    % integer >= 0; Crops borders during stitching. Increase if images shift significantly between channels to prevent zeros values from entering stitched image
 sift_refinement = "true";                           % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-load_alignment_params = "false";                    % true, false; Load translation alignment parameters to apply during stitching. Set to "false" if starting from images already aligned.
+use_middle = "false";                               % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
 
 %% Additional Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image

@@ -119,6 +119,7 @@ end
 % Reload config
 if nargout > 0
     config = load(fullfile('templates','NM_variables.mat'));
+    config = orderfields(config);
 end
 
 % Run
@@ -160,7 +161,7 @@ elseif nargout >= 1
 end
 
 if nargout == 2
-    path_table = path_to_table(config,[],true);
+    path_table = path_to_table(config);
 end
 
 end
@@ -174,77 +175,83 @@ switch stage
     case 'process'
         % Variables to check
         variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
-            'param_folder','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
-            'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'update_intensity_channels','resolution',...
-            'adjust_intensity','adjust_tile_shading','adjust_tile_position','lowerThresh','upperThresh','signalThresh'};
+            'elastix_params','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
+            'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'resolution','z_initial',...
+            'adjust_tile_shading','adjust_tile_position','lowerThresh','upperThresh','signalThresh'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
-
-        for i = 1:length(variable_names)
-            if exist('single_sheet','var') == 1 && length(single_sheet) == 1 && i == 1
-                single_sheet = repmat(single_sheet,1,length(markers));
-            elseif exist('ls_width','var') == 1 && length(ls_width) == 1 && i == 2
-                ls_width = repmat(ls_width,1,length(markers));
-            elseif exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1 && i == 3
-                laser_y_displacement = repmat(laser_y_displacement,1,length(markers));
-            elseif exist('blending_method','var') == 1 && length(blending_method) == 1 && i == 4
-                blending_method = repmat(blending_method,1,length(markers));
-            elseif exist('param_folder','var') == 1 && length(param_folder) == 1 && i == 5
-                param_folder = repmat(param_folder,1,length(markers)-1);
-            elseif exist('rescale_intensities','var') == 1 && length(rescale_intensities) == 1 && i == 6
-                rescale_intensities = repmat(rescale_intensities,1,length(markers));
-            elseif exist('subtract_background','var') == 1 && length(subtract_background) == 1 && i == 7
-                subtract_background = repmat(subtract_background,1,length(markers));
-            elseif exist('Gamma','var') == 1 && length(Gamma) == 1 || isempty(Gamma) && i == 8
-                Gamma = ones(1,length(markers));
-            elseif exist('smooth_img','var') == 1 && length(smooth_img) == 1 && i == 9
-                smooth_img = repmat(smooth_img,1,length(markers));
-            elseif exist('smooth_sigma','var') == 1 && isempty(smooth_sigma) && i == 10
-                smooth_sigma = ones(1,length(markers));
-            elseif exist('smooth_sigma','var') == 1 && length(smooth_sigma) == 1 && i == 10
-                smooth_sigma = repmat(smooth_sigma,1,length(markers));
-            elseif exist('DoG_img','var') == 1 && length(DoG_img) == 1 && i == 11
-                DoG_img = repmat(DoG_img,1,length(markers));
-            elseif exist('DoG_minmax','var') == 1 && isempty(DoG_minmax) == 1 && i == 12
-                DoG_minmax = [0.8,1.5];
-            elseif exist('DoG_factor','var') == 1 && length(DoG_factor) == 1 && i == 13
-                DoG_factor = repmat(DoG_factor,1,length(markers));
-            elseif exist('darkfield_intensity','var') == 1 && length(darkfield_intensity) == 1 && i == 14
-                darkfield_intensity = repmat(darkfield_intensity,1,length(markers));
-            elseif exist('update_intensity_channels','var') == 1 && isempty(update_intensity_channels) && i == 15
-                %update_intensity_channels = 1:length(markers);
-            elseif exist('resolution','var') == 1 && i == 16
-                if ~iscell(resolution)
-                    resolution = {resolution};
-                end
-                resolution = repmat(resolution,1,length(markers));
-            elseif exist('adjust_intensity','var') == 1 && length(adjust_intensity) == 1 && i == 17
-                adjust_intensity = repmat(adjust_intensity,1,length(markers));
-            elseif exist('adjust_tile_shading','var') == 1 && length(adjust_tile_shading) == 1 && i == 18
-                adjust_tile_shading = repmat(adjust_tile_shading,1,length(markers));
-            elseif exist('adjust_tile_position','var') == 1 && length(adjust_tile_position) == 1 && i == 19
-                adjust_tile_position = repmat(adjust_tile_position,1,length(markers));
-            elseif exist('lowerThresh','var') == 1 && ~isempty(lowerThresh) && i == 20
-                assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...
+        
+        if exist('markers') ~= 1  || isempty(markers)
+            error("Must provide marker names for channel");end
+        if exist('single_sheet','var') == 1 && length(single_sheet) == 1
+            single_sheet = repmat(single_sheet,1,length(markers));end
+        if exist('ls_width','var') == 1 && length(ls_width) == 1
+            ls_width = repmat(ls_width,1,length(markers));end
+        if exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1
+            laser_y_displacement = repmat(laser_y_displacement,1,length(markers));end
+        if exist('blending_method','var') == 1 && length(blending_method) == 1
+            blending_method = repmat(blending_method,1,length(markers));end
+        if exist('elastix_params','var') == 1 && length(elastix_params) == 1
+            elastix_params = repmat(elastix_params,1,length(markers)-1);end
+        if exist('rescale_intensities','var') == 1 && length(rescale_intensities) == 1
+            rescale_intensities = repmat(rescale_intensities,1,length(markers));end
+        if exist('subtract_background','var') == 1 && length(subtract_background) == 1
+            subtract_background = repmat(subtract_background,1,length(markers));end
+        if exist('Gamma','var') == 1 && length(Gamma) == 1 || isempty(Gamma)
+            Gamma = ones(1,length(markers));end
+        if exist('smooth_img','var') == 1 && length(smooth_img) == 1
+            smooth_img = repmat(smooth_img,1,length(markers));end
+        if exist('smooth_sigma','var') == 1 && isempty(smooth_sigma)
+            smooth_sigma = ones(1,length(markers));end
+        if exist('smooth_sigma','var') == 1 && length(smooth_sigma) == 1
+            smooth_sigma = repmat(smooth_sigma,1,length(markers));end
+        if exist('DoG_img','var') == 1 && length(DoG_img) == 1
+            DoG_img = repmat(DoG_img,1,length(markers));end
+        if exist('DoG_minmax','var') == 1 && isempty(DoG_minmax) == 1
+            DoG_minmax = [0.8,1.5];end
+        if exist('DoG_factor','var') == 1 && length(DoG_factor) == 1
+            DoG_factor = repmat(DoG_factor,1,length(markers));end
+        if exist('darkfield_intensity','var') == 1 && length(darkfield_intensity) == 1
+            darkfield_intensity = repmat(darkfield_intensity,1,length(markers));end
+        if exist('resolution','var') == 1
+            if ~iscell(resolution)
+                resolution = {resolution};
+            end
+            resolution = repmat(resolution,1,length(markers));
+        end
+        if exist('z_initial','var') == 1 
+            if isempty(z_initial) 
+                z_intial = zeros(1,length(markers));
+            elseif length(z_initial) == 1
+                z_initial = [0,repmat(z_initial,1,length(markers)-1)];
+            end
+        end
+        if exist('adjust_tile_shading','var') == 1 && length(adjust_tile_shading) == 1
+            adjust_tile_shading = repmat(adjust_tile_shading,1,length(markers));end
+        if exist('adjust_tile_position','var') == 1 && length(adjust_tile_position) == 1
+            adjust_tile_position = repmat(adjust_tile_position,1,length(markers));end
+        if exist('lowerThresh','var') == 1 && ~isempty(lowerThresh)
+            assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...
+                "specified for all markers or left empty")
+            if isempty(lowerThresh) && ~isempty(upperThresh)
+                upperThresh = zeros(0,1,length(markers));
+            end
+        end
+        if exist('upperThresh','var') == 1
+            if ~isempty(upperThresh)
+                assert(length(upperThresh) == length(markers),"Upper threshold values need to be "+...
                     "specified for all markers or left empty")
-                if isempty(lowerThresh) && ~isempty(upperThresh)
-                    upperThresh = zeros(0,1,length(markers));
-                end
-            elseif exist('upperThresh','var') == 1 && i == 21
-                if ~isempty(upperThresh)
-                    assert(length(upperThresh) == length(markers),"Upper threshold values need to be "+...
-                        "specified for all markers or left empty")
-                end
-                if isempty(upperThresh) && ~isempty(lowerThresh)
-                    upperThresh = repmat(65535,1,length(markers));
-                end
-            elseif exist('signalThresh','var') == 1 && i == 22
-                if ~isempty(signalThresh)
-                    assert(length(signalThresh) == length(markers),"Signal threshold values need to be "+...
-                        "specified for all markers or left empty")
-                elseif ~isempty(lowerThresh) || ~isempty(upperThresh)
-                    error("signalThresh must specified if lowerThresh and/or upperThresh "+...
-                        "is also specified")
-                end
+            end
+            if isempty(upperThresh) && ~isempty(lowerThresh)
+                upperThresh = repmat(65535,1,length(markers));
+            end
+        end
+        if exist('signalThresh','var') == 1
+            if ~isempty(signalThresh)
+                assert(length(signalThresh) == length(markers),"Signal threshold values need to be "+...
+                    "specified for all markers or left empty")
+            elseif ~isempty(lowerThresh) || ~isempty(upperThresh)
+                error("signalThresh must specified if lowerThresh and/or upperThresh "+...
+                    "is also specified")
             end
         end
     case 'analyze'
