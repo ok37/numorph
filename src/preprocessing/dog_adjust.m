@@ -2,6 +2,28 @@ function I_adj = dog_adjust(I,nuc_radius,minmax,weight)
 %--------------------------------------------------------------------------
 % Enhacen blob objects using Difference of Gaussian filter
 %--------------------------------------------------------------------------
+%
+% Usage:
+% I_adj = dog_adjust(I,nuc_radius,minmax,weight)
+%
+% Inputs:
+% I - input 2D image of any type.
+%
+% nuc_radius - average pixel radius of blobs.
+%
+% minmax - (default: [0.75,4]) 2 element vector specify separation between
+% small and large gaussians. Keep around 1.
+%
+% weight - (default: 1) weight od DoG image. For example, if 0.5, takes
+% average of DoG and original images.
+%
+% Outputs:
+% I_adj - DoG adjusted image.
+%--------------------------------------------------------------------------
+
+if nargin <3
+    minmax = [0.75,4];
+end
 
 if nargin < 4
     weight = 1;
@@ -25,7 +47,7 @@ I2 = imgaussfilt(I,s(1),'FilterSize',filter_size);
 I3 = imgaussfilt(I,s(2),'FilterSize',filter_size);
 dog = I2-I3;
 
-% Adjusted image is mean of original image and DoG image scaled by some
+% Adjusted image the mean of original image and DoG image scaled by some
 % weight
 I_adj = I*(1-weight) + dog*weight;
 scale = (max(I(:))-min(I(:)))/(max(I_adj(:))-min(I_adj(:)));

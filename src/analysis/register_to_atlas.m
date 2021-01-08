@@ -5,10 +5,13 @@ function reg_params = register_to_atlas(config, mov_img_path, num_points, mov_ma
 % the image, you may, in some cases, get better accuracy by registering the
 % image to the atlas and calculating the inverse parameters. 
 
+% Defaults
+high_prct = 99;
+Gamma = 0.9;
+
 % Unpack config variables
-resample_res = config.resample_res;
+resample_res = config.resample_resolution;
 registration_method = config.registration_method;
-home_path = config.home_path;
 hemisphere = config.hemisphere;
 orientation = config.orientation;
 output_directory = config.output_directory;
@@ -25,49 +28,63 @@ if nargin == 2
     num_points = 'all';
 end
 
+% Convert to cell
+if ~iscell(mov_img_path)
+    mov_img_path = {mov_img_path};
+end
+
+% Mung atlas file
+if isfile(atlas_file)
+    atlas_path = {atlas_file};
+else
+    atlas_path = fullfile(config.home_path,'data','atlas',atlas_file); 
+    if ~isfile(atlas_path)
+        error("Could not locate Allen Reference Atlas .nii file specified")
+    end
+end
+
 % Load atlas + moving image 
 fprintf('%s\t Reading resampled and atlas images\n',datetime('now')); 
 
 % MATLAB will usually rotate and flip axis dimensions based on the data
 % type in the niftifile
-mov_img = niftiread(mov_img_path);
-if isequal(class(mov_img),'double')
-    mov_img = imrotate(mov_img,90);
-    mov_img = flip(mov_img,1);
-else
-   mov_img = double(mov_img); 
+mov_img_final = cell(1,length(mov_img_path));
+for i = 1:length(mov_img_path)
+    mov_img = niftiread(mov_img_path{i});
+    if isequal(class(mov_img),'double')
+        mov_img = imrotate(mov_img,90);
+        mov_img = flip(mov_img,1);
+    else
+       mov_img = double(mov_img); 
+    end
+    mov_img_final{i} = mov_img;
 end
 
 % Load ARA
-if isfile(atlas_file)
-    atlas_path = atlas_file;
-else
-    atlas_path = fullfile(home_path,'supplementary_data',atlas_file); 
-    if ~isfile(atlas_path)
-        error("Could not locate Allen Reference Atlas .nii file specified")
+atlas_img_final = cell(1,length(atlas_path));
+for i = 1:length(atlas_path)
+    atlas_img = niftiread(atlas_path{i});
+    % Transform atlas_img based on which sample is being imaged
+    if isequal(hemisphere, "right")
+        perm(1) = 1;
+        atlas_img = flip(atlas_img,1);
+    elseif isequal(hemisphere,"whole")
+        perm(1) = 2;
+        atlas_img2 = flip(atlas_img,3);
+        atlas_img = cat(3,atlas_img,atlas_img2);
+        if isequal(orientation,"lateral")
+            warning('%s\t Using lateral orientation on whole brain image\n',datetime('now'));
+        end
     end
-end
-atlas_img = niftiread(atlas_path);
-    
-% Transform atlas_img based on which sample is being imaged
-if isequal(hemisphere, "right")
-    perm(1) = 1;
-    atlas_img = flip(atlas_img,1);
-elseif isequal(hemisphere,"whole")
-    perm(1) = 2;
-    atlas_img2 = flip(atlas_img,3);
-    atlas_img = cat(3,atlas_img,atlas_img2);
-    if isequal(orientation,"lateral")
-        warning('%s\t Using lateral orientation on whole brain image\n',datetime('now'));
+    if isequal(orientation,"dorsal")
+        perm(2) = 1;
+        atlas_img = permute(atlas_img,[1,3,2]);
+        atlas_img = flip(atlas_img,3);
+    elseif isequal(orientation,"ventral")
+        perm(2) = 2;
+        atlas_img = permute(atlas_img,[1,3,2]);
     end
-end
-if isequal(orientation,"dorsal")
-    perm(2) = 1;
-    atlas_img = permute(atlas_img,[1,3,2]);
-    atlas_img = flip(atlas_img,3);
-elseif isequal(orientation,"ventral")
-    perm(2) = 2;
-    atlas_img = permute(atlas_img,[1,3,2]);
+    atlas_img_final{i} = atlas_img;
 end
 
 % Resize
@@ -76,20 +93,16 @@ atlas_res = repmat(str2double(regexp(atlas_file,'\d*','Match')),1,3);
 res_adj = atlas_res./resample_res;
 if res_adj(1) > 1
     % Atlas is at a lower resolution. Downsample image
-    new_img_size = res_adj.*size(mov_img);
-    mov_img = imresize3(mov_img,new_img_size);
+    mov_img_final = cellfun(@(s) imresize3(s,res_adj.*size(s)),mov_img_final);
 elseif res_adj(1) < 1
     % Image is at a lower resolution. Downsample atlas
-    new_atlas_size = res_adj.*size(atlas_img);
-    atlas_img = imresize3(atlas_img,new_atlas_size);
+    atlas_img_final = cellfun(@(s) imresize3(s,res_adj.*size(s)),atlas_img_final);
 end
 
 % Rescale intensities
-upperThresh = double(prctile(mov_img(:),99))/65535;
-mov_img = double(imadjustn(uint16(mov_img),[0 upperThresh],[],0.9));
-
-mov_img = double(imresize3(mov_img,0.4));
-atlas_img = double(imresize3(atlas_img,0.4));
+mov_img_final = cellfun(@(s) double(imadjustn(uint16(s),...
+    [0,prctile(s(:),high_prct)/65535],[],Gamma)), mov_img_final,...
+    'UniformOutput', false);
 
 % Add mask if coordinates are specified
 mask = [];
@@ -101,19 +114,18 @@ end
 % Chain registration parameters. Parameter files are found in
 % ./elastix_parameter_files/atlas_registration. Update specific parameters
 % by editting these files.
-parameter_path = cell(1,length(registration_method));
-use_points = 'false';
+parameter_location = fullfile(config.home_path,'elastix_parameter_files','atlas_registration');
+parameter_paths = cell(1,length(registration_method));
+use_points = false;
 for i = 1:length(registration_method)
     reg_type = registration_method(i);
     switch reg_type
         case 'a'
             fprintf('%s\t Performing affine registration\n',datetime('now'));
-            parameter_path{i} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration','ElastixParameterAffine.txt');
+            parameter_paths{i} = fullfile(parameter_location,'ElastixParameterAffine.txt');
         case 'b'
             fprintf('%s\t Performing b-spline registration\n',datetime('now')); 
-            parameter_path{i} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration','ElastixParameterBSpline.txt');
+            parameter_paths{i} = fullfile(parameter_location,'ElastixParameterBSpline.txt');
 
         case 'p'
             fprintf('%s\t Performing points registration\n',datetime('now'));
@@ -127,20 +139,16 @@ for i = 1:length(registration_method)
             end
             mov_points = mov_points(1:num_points,:);
             atlas_points = atlas_points(1:num_points,:);
-            use_points = 'true';                        
+            use_points = true;                        
             
-            parameter_path{1} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration','ElastixParameterAffinePoints.txt');
-            
-            parameter_path{2} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration','ElastixParameterPoints.txt');
+            parameter_paths{1} = fullfile(parameter_location,'ElastixParameterAffinePoints.txt');
+            parameter_paths{2} = fullfile(parameter_location,'ElastixParameterPoints.txt');
             break
     end
 end
 
 % Create temporary directory for saving images
-outputDir = fullfile(home_path,'elastix_parameter_files',...
-    sprintf('%d_%d',yyyymmdd(datetime),randi(1E6,1)));
+outputDir = fullfile(config.output_directory,sprintf('tmp_reg_%d',randi(1E4)));
 if ~exist(outputDir,'dir')
     mkdir(outputDir)
 end
@@ -148,54 +156,52 @@ end
 reg_params = struct('img_to_atlas',[],'atlas_to_img',[]);
 
 % Perform registration
-if isequal(direction,'atlas_to_img')
+if isequal(direction,'atlas_to_image')
     if isempty(mask)
         % Register atlas to image with or without corresponding points
-        if isequal(use_points,'false')
+        if ~use_points
             [reg_params.atlas_to_img,reg_img]=elastix(atlas_img,mov_img,...
-                outputDir,parameter_path,'threads',[]);
+                outputDir,parameter_paths,'threads',[]);
         else
             [reg_params.atlas_to_img,reg_img]=elastix(atlas_img,mov_img,...
-                outputDir,parameter_path,'fp',mov_points,'mp',atlas_points,'threads',[]);
+                outputDir,parameter_paths,'fp',mov_points,'mp',atlas_points,'threads',[]);
         end
     else
         % Register atlas to image with or without corresponding points +
         % with a mask
-        if isequal(use_points,'false')
+        if ~use_points
             [reg_params.atlas_to_img,reg_img]=elastix(atlas_img,mov_img,...
-                outputDir,parameter_path,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
+                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
         else
             [reg_params.atlas_to_img,reg_img]=elastix(atlas_img,mov_img,...
-                outputDir,parameter_path,'fp',mov_points,'mp',atlas_points,...
+                outputDir,parameter_paths,'fp',mov_points,'mp',atlas_points,...
                 'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
         end
         % Remove transformed image from structure
         reg_params.atlas_to_img.transformedImages = [];
     end
-elseif isequal(direction,'img_to_atlas')
+else
     if isempty(mask)
         % Register image to atlas with or without corresponding points
-        if isequal(use_points,'false')
+        if ~use_points
             [reg_params.img_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_path,'threads',[]);
+                outputDir,parameter_paths,'threads',[]);
         else
             [reg_params.img_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_path,'fp',atlas_points,'mp',mov_points,'threads',[]);
+                outputDir,parameter_paths,'fp',atlas_points,'mp',mov_points,'threads',[]);
         end
     else
         % Register image to atlas with or without corresponding points +
         % with a mask
-        if isequal(use_points,'false')
+        if ~use_points
             [reg_params.img_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_path,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
+                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
         else
             [reg_params.img_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_path,'mMask',mov_mask,'fMask',atlas_mask,...
+                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,...
                 'fp',atlas_points,'mp',mov_points,'threads',[]);
         end
     end
-else
-    error('%s\t Incorrect direction specified \n',string(datetime('now')))
 end
 
 % Image sizes
@@ -270,4 +276,5 @@ pts = pts(:,3:end);
 %moving x,y,z then atlas x,y,z
 mov_points = pts(:,1:3);
 atlas_points = pts(:,4:6);
+
 end

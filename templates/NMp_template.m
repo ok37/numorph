@@ -3,9 +3,12 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-image_stitching = "true";                   % true, update, false; 2D iterative stitching
+stitch_img = "true";                    % true, update, false; 2D iterative stitching
+
+load_alignment_params = "false";        % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
+ignore_markers = "";                % completely ignore marker from processing steps. 
 save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
 save_samples = "true";                  % true, false; Save sample results for each major step
 
@@ -17,54 +20,53 @@ update_intensity_channels = [];         % integers; Update intensity adjustments
 
 % Parameters for manual shading corretion (i.e. adjust_tile_shading = "manual")
 single_sheet = "true";                  % true, false; Whether a single sheet was used for acquisition
-ls_width = [50 50 50];                  % 1xn_channels interger; Light sheet width setting for UltraMicroscope II as percentage
+ls_width = 50;                          % 1xn_channels interger; Light sheet width setting for UltraMicroscope II as percentage
 laser_y_displacement = 0;               % [-0.5,0.5]; Displacement of light-sheet along y axis. Value of 0.5 means light-sheet center is positioned at the top of the image
 
 % Parameters for BaSIC shading_correction (i.e. adjust_tile_shading = "basic") 
 sampling_frequency = 0.2;               % [0,1]; Fraction of images to read and sample from. Setting to 1 means use all images
 shading_correction_tiles = [];          % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
-shading_smoothness = 5;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
+shading_smoothness = 2;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
-update_z_adjustment = "false";           % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
-z_positions = 0.1;                        % integer or numeric; Sampling positions along adjacent image stacks to determine z displacement. If <1, uses fraction of all images. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
-z_window = 3;                            % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
-z_initial = 0;                           % 1xn_channels-1 interger; Predicted initial z displacement between reference and remaining channels
+update_z_adjustment = "false";          % true, false; Update z adjusment steps with new parameters. Otherwise pipeline will search for previously calculated parameters
+z_positions = 0.01;                     % integer or numeric; Sampling positions along adjacent image stacks to determine z displacement. If <1, uses fraction of all images. Set to 0 for no adjustment, only if you're confident tiles are aligned along z dimension
+z_window = 5;                           % integer; Search window for finding corresponding tiles (i.e. +/-n z positions)
+z_initial = 0;                          % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
-align_method = "elastix";                % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
-align_tiles = [];                        % Option to align only certain stacks and not all stacks. Row-major order
-align_channels = [];                     % Option to align only certain channels (set to >1)
-align_slices = {};                       % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
+align_method = "elastix";               % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+align_tiles = [];                       % Option to align only certain stacks and not all stacks. Row-major order
+align_channels = [];                    % Option to align only certain channels (set to >1)
+align_slices = {};                      % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
 
 % Specific to translation method
-align_stepsize = 10;                     % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
-only_pc = "false";                       % true, false; Use only phase correlation for registration. This gives only a quick estimate for channel alignment. 
+align_stepsize = 10;                    % interger; Only for alignment by translation. Number of images sampled for determining translations. Images in between are interpolated
+only_pc = "false";                      % true, false; Use only phase correlation for registration. This gives only a quick estimate for channel alignment. 
 
 % Specific to elastix method
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
-elastix_params = ["32_prealign", "16_prealign"];               % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
-pre_align = "true";                    % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
-max_chunk_size = 1400;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
+elastix_params = "16_prealign";         % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
+pre_align = "true";                     % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
+max_chunk_size = 1400;                  % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
 chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
-hist_match = [0, 64];                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
+hist_match = 64;                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
 
 %% Stitching Parameters
 % Parameters for running iterative 2D stiching
-stitch_sub_stack = [];                              % z positions; If only stitching a cetrain z range from all the images
-stitch_sub_channel = [];                            % channel index; If only stitching certain channels
-stitch_start_slice = [];                            % numeric; Start stitching from specific slice. Leave empty for optimized position.
-overlap = 0.10;                                     % 0:1; overlap between tiles as fraction
-blending_method = "sigmoid";                        % sigmoid, linear, max
-sd = 0.05;                                          % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
-border_pad = 25;                                    % integer >= 0; Crops borders during stitching. Increase if images shift significantly between channels to prevent zeros values from entering stitched image
-sift_refinement = "true";                           % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-load_alignment_params = "false";                    % true, false; Load translation alignment parameters to apply during stitching. Set to "false" if starting from images already aligned.
+stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
+stitch_sub_channel = [];                % channel index; If only stitching certain channels
+overlap = 0.10;                         % 0:1; overlap between tiles as fraction
+blending_method = "sigmoid";            % sigmoid, linear, max
+sd = 0.05;                              % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
+border_pad = 25;                        % integer >= 0; Crops borders during stitching. Increase if images shift significantly between channels to prevent zeros values from entering stitched image
+sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
+use_middle = "false";                   % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
 
-%% Additional Filters and Adjustments That May Be Useful But Are Not Required
+%% Additional Post-processing Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image
 % has been merged.
 % Parameters for rescale_intensities
@@ -78,15 +80,15 @@ Gamma = [];                             % 1xn_channels numeric; Gamma intensity 
 subtract_background = "false";          % true, false. Subtrat background (similar to Fiji's rolling ball background subtraction)
 nuc_radius = 13;                        % numeric >= 1; Max radius of cell nuclei along x/y in pixels. Required also for DoG filtering
 
+% Difference-of-Gaussian filter
+DoG_img = "false";                      % true,false; Apply difference of gaussian enhancement of blobs
+DoG_minmax = [0.8,2];                   % 1x2 numeric; Min/max sigma values to take differene from.
+DoG_factor = 1;                         % [0,1]; Factor controlling amount of adjustment to apply. Set to 1 for absolute DoG
+
 % Smoothing filters
 smooth_img = "false";                   % 1xn_channels, "gaussian", "median", "guided". Apply a smoothing filter
 smooth_sigma = [];                      % 1xn_channels numeric; Size of smoothing kernel. For median and guided filters, it is the dimension of the kernel size
 
-% Difference-of-Gaussian Filter
-DoG_img = "false";                          % true,false; Apply difference of gaussian enhancement of blobs
-DoG_minmax = [0.8,2];                       % 1x2 numeric; Min/max sigma values to take differene from.
-DoG_factor = 1;                             % [0,1]; Factor controlling amount of adjustment to apply. Set to 1 for absolute DoG
-
 % Permute image
-flip_axis = "none";                     % "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
+flip_axis = "none";                     % "none", "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
 rotate_axis = 0;                        % 90 or -90; Rotate image

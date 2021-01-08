@@ -1,8 +1,20 @@
-function NM_analyze(config)
+function [config, path_table] = NM_analyze(config, step)
 %--------------------------------------------------------------------------
 % NuMorph analysis pipeline designed to perform image registration, nuclei
 % counting, and cell-type classification based on nuclear protein markers
 % in whole brain images.
+%--------------------------------------------------------------------------
+% Usage:  
+% [config, path_table] = NM_analyze(config, step)
+% 
+% Inputs:
+%   config - config structure for processing
+%   step - 'stitch', 'align', 'intensity'. Perform only one of the 3 steps
+%   use_adjustments - apply intensity adjustments if performing 1 step
+%
+% Output:
+%   config - config structure after processing
+%   path_table - table of filenames used and additional image information
 %--------------------------------------------------------------------------
 
 % Load configuration from .mat file, if not provided
@@ -14,6 +26,11 @@ elseif ~isstruct(config)
     error("Invalid configuartion input")
 end
 config.var_directory = fullfile(config.output_directory,'variables');
+
+% Default to run full pipeline
+if nargin<2
+    step = 'analyze';
+end
 
 % Make an output directory
 if exist(config.output_directory,'dir') ~= 7
@@ -27,104 +44,52 @@ end
 
 fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
 
+%% Create directories
+% Update image directory if using processed images
+if ~isequal(config.use_processed_images,"false")
+    config.img_directory = fullfile(config.output_directory,config.use_processed_images);
+    if ~exist(config.img_directory,'dir')
+        error("Could not locate processed image directory %s\n",config.img_directory)
+    end
+end
+
 %% Read image filename information
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
-    % Start from after multi-channel alignment    
-    fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
-    location = "aligned";
-elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
-    % Start from after stitching
-    fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
-    location = "stitched";
-else
-    %Start from raw image directory
-    fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
-    location = "raw";
-end
-path_table = path_to_table(config,location);
+% Generate table containing image information
+path_table = path_to_table(config);
 
-%% Read Filename Information
-% Load image paths for registration
-%if any(strcmp([config.resample_image,config.register_image],"true"))
-%    if isequal(config.resample_image,"true")
-%        % Resample images to desired atlas resolution
-%        fprintf('%s\t Reading image filename information from stitched
-%        directory \n',datetime('now'))
-%        path_cell{1} = dir(config.img_directory);
-%        if isequal(fullfile(config.output_directory,'stitched'),config.img_directory)
-%            location = "stitched";
-%        else
-%            location = "raw";
-%        end
-%        path_table = path_to_table(config,location);
+% Count number of x,y tiles for each channel
+nchannels = length(unique(path_table.channel_num));
+ntiles = length(unique([path_table.x,path_table.y]));
+assert(ntiles == 1, "To perform analysis, there should be only 1 tile for "+...
+    "each channel in the image dataset.")
 
-        % Unless specified otherwise, resample all markers
-%        if isempty(config.resample_markers)
-%            resample_markers = 1:length(config.markers);
-%        end
-%        for k = resample_markers
-%            fprintf('%s\t Resampling channel %s\n',datetime('now'),markers(k))            
-%            path_sub = path_table(path_table.markers == markers(k),:);
-%            resample_img_to_atlas(path_sub, output_directory, resolution, resample_res);
-%        end
-%        resample_image = "load";
-%    end
+% Check if all resolutions are equal
+equal_res = all(cellfun(@(s) config.resolution{1}(3) == s(1,3),config.resolution));
 
-%    if exist(fullfile(output_directory,'resampled'),'dir') == 7 && isequal(resample_image,"load")
-%        % Load images from resampled directory
-%        fprintf('%s\t Reading image filename information from resampled directory \n',datetime('now'))
-%        path_cell{1} = dir(fullfile(output_directory,'resampled'));
-%        location = 'resampled';
-%        path_table_resampled = path_to_table(path_cell,location,markers,channel_num);        
-%    else
-%        error('%s\t Could not locate resampled directory in the specified image directory. ' +...
-%            "Set resample_image to ""true"" to generate images for registration",string(datetime('now')));
-%    end
-%end
-
-%% Function for Registration
-switch config.register_image
-    case 'true'
-        % Resample image to lower resolution for registration
-        resample_dir = fullfile(config.output_directory, 'resampled');
-        
-        a = 1;
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        mov_img_path = path_table_resampled.file{1};
-        
-        % Calculate registration parameters
-        reg_params = register_to_atlas(config, mov_img_path);
-
-        % Apply transformation to other channels in the sample
-        if isequal(config.save_registered_image,'true')
-            for i = 2:height(path_table_resampled)
-                fprintf('%s\t Applying transform to %s images\n',datetime('now'),markers(i)); 
-                mov_img_path = path_table_resampled.file{i};
-                apply_transform_to_resampled(mov_img_path,reg_params)
-            end
-        end
-    
-    case 'load'
-        % Attempt to load registration parameters
-        fprintf('%s\t Loading registration parameters \n',datetime('now'))
-        try
-            load(fullfile(output_directory,'variables','reg_params.mat'),'reg_params')
-        catch ME
-            error('%s\t Could not locate registration parameters \n',string(datetime('now')))
-        end
-    case 'false'
-        fprintf('%s\t No image registration selected \n',datetime('now'))
-        reg_params = [];
+%% Run single step and return if specified
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Note no specific checks on tiles/markers included
+if nargin>1 && isequal(step,'resample') 
+    config = perform_resampling(config, path_table);
+    if nargout == 1; path_table = []; end
+    if nargout < 1; clear config; end
+    return
+elseif nargin>1 && isequal(step,'register')
+    config = perform_registration(config);
+    if nargout == 1; path_table = []; end
+    if nargout < 1; clear config; end
+    return
+elseif nargin>1 && isequal(step,'count')
+    [config, path_table] = perform_channel_alignment(config, path_table, equal_res);
+    if nargout == 1; path_table = []; end
+    if nargout < 1; clear config; end
+    return
+elseif nargin>1 && isequal(step,'classify')
+    [config, path_table] = perform_channel_alignment(config, path_table, equal_res);
+    if nargout == 1; path_table = []; end
+    if nargout < 1; clear config; end
+    return
 end
 
 %% Function for Generating Mask
@@ -274,4 +239,119 @@ end
 
 fprintf('%s\t Analysis steps completed! \n',datetime('now'))
 
+end
+
+
+function config = perform_resampling(config, path_table)
+% Image resampling
+
+res = config.resample_resolution;
+flags = true(1,length(config.markers));
+res_path = fullfile(config.output_directory,'resampled');
+config.resampled_paths = cell(1,length(config.markers));
+
+% Create resampled directory
+if exist(res_path,'dir') ~= 7
+    mkdir(res_path)
+else
+    % Check for images alread resampled
+    for i = config.resample_channels
+        filename = fullfile(res_path,sprintf('%s_C%d_%s_%d_%d_%d.nii',...
+            config.sample_name,i,config.markers(i),res(1),res(2),res(3)));
+        if exist(filename,'file') ~= 2
+            flags(i) = false;
+        else
+            config.resampled_paths{i} = filename;
+        end
+    end
+
+    % If all channels resampled at correct resolution, return
+    if ~isequal(config.resample_images,"update")
+        if all(flags)
+            return
+        else
+            config.resample_channels = find(~flags);
+        end
+    end
+end
+
+% Perform resampling
+for k = config.resample_channels
+    fprintf('%s\t Resampling channel %s\n',datetime('now'),config.markers(k))            
+    path_sub = path_table(path_table.markers == config.markers(k),:);
+    resample_img_to_atlas(path_sub, config);
+end
+
+end
+
+
+function config = perform_registration(config)
+% Image registration
+
+fprintf('%s\t Performing image registration \n',datetime('now'))
+
+% Get which structures
+[~,structures] = fileparts(config.structures);
+
+% 
+reg_dir = fullfile(config.output_directory,'registered');
+reg_file = fullfile(reg_dir,'reg_params.mat');
+mask_dir = fullfile(config.output_directory,'masks');
+mask_file = fullfile(mask_dir,sprintf('%s_C1_%s_%d_%s_mask.nii',...
+            config.sample_name,config.markers(1),....
+            config.resample_resolution(3),structures));
+reg_params = [];
+
+% Create mask directory
+if exist(reg_dir,'dir') ~= 7
+    mkdir(reg_dir)
+end
+
+% Create registerd directory
+if exist(reg_dir,'dir') ~= 7
+    mkdir(reg_dir)
+end
+
+% Attempt to load registration parameters
+if exist(reg_file,'file') == 7    
+    % Load previous parameters if not updating
+    if ~isequal(config.register_image,"update")
+        fprintf('%s\t Loading previosuly calculated registration parameters \n',datetime('now'))
+        load(reg_file,'reg_params')
+    end
+    
+    % Check if mask exists and return if not updating
+    if isequal(config.use_mask,"true") && exist(mask_file,'file') == 7 && ~isempty(reg_params)
+        fprintf('%s\t Loading previosuly calculated annotation mask \n',datetime('now'))
+        config.mask_path = {mask_file};
+        return        
+    end
+end
+        
+% Get resampled paths
+resample_table = path_to_table(config,'resampled');
+
+% Subset channels to register
+idx = ismember(resample_table.markers,config.markers(config.register_channels));
+resample_table = resample_table(idx,:);
+assert(length(unique(resample_table.x)) == 1 && length(unique(resample_table.y)) == 1 &&...
+    length(unique(resample_table.z)) == 1, "All resampled images for registration must be "+...
+    "at the same resolution")
+config.resample_resolution = [resample_table.x(1), resample_table.y(1), resample_table.z(1)];
+
+% Calculate registration parameters
+reg_params = register_to_atlas(config, resample_table.file);
+
+% Apply transformation to other channels in the sample
+if isequal(config.save_registered_image,'true')
+    for i = 2:height(path_table_resampled)
+        fprintf('%s\t Applying transform to %s images\n',datetime('now'),markers(i)); 
+        resample_table = path_table_resampled.file{i};
+        apply_transform_to_resampled(resample_table,reg_params)
+    end
+end
+
+% Generate mask
+    
+        
 end

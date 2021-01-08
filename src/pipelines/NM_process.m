@@ -3,13 +3,15 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 % NM_process NuMorph processing pipeline designed to perform channel 
 % alignment, intensity adjustment, and stitching on multi-channel 
 % light-sheet images.
-%
-% Syntax:  [config, path_table] = NM_process(config, step, use_adjustments)
+%--------------------------------------------------------------------------
+% Usage:  
+% [config, path_table] = NM_process(config, step, use_adjustments)
 % 
 % Inputs:
-%   config - config structure for processing
-%   step - 'stitch', 'align', 'intensity'. Perform only one of the 3 steps
-%   use_adjustments - apply intensity adjustments if performing 1 step
+%   config - config structure for processing.
+%   step - 'stitch', 'align', 'intensity'. Perform only one of the 3 steps.
+%   use_adjustments - (default: true) apply intensity adjustments if
+%   performing 1 step.
 %
 % Output:
 %   config - config structure after processing
@@ -167,6 +169,14 @@ end
 function [config, path_table] = perform_intensity_adjustment(config, path_table, nrows, ncols)
 % Intensity adjustments
 
+if length(config.adjust_tile_position) == 1
+    config.adjust_tile_position = repmat(config.adjust_tile_position,1,length(config.markers));
+end
+
+if length(config.adjust_tile_shading) == 1
+    config.adjust_tile_shading = repmat(config.adjust_tile_shading,1,length(config.markers));
+end
+
 % Check selection
 if isequal(config.adjust_intensity,"false")
     % No intensity adjustments
@@ -190,18 +200,8 @@ end
 if exist(adj_file,"file") == 2 && length(config.update_intensity_channels) ~= length(config.markers)
     fprintf("%s\t Loading adjustment parameters \n",datetime('now'));
     load(fullfile(config.output_directory,'variables','adj_params.mat'),'adj_params')
-    [adj_params, config] = check_adj_parameters(adj_params,config);
-
-    % Additional checks on number of tiles
-    for i = 1:length(adj_params.t_adj)
-        if ~isempty(adj_params.t_adj{i})
-        assert(size(adj_params.t_adj{i},1) == nrows(i), "Incorrect numner of rows "+...
-               "in the tile adjustment matrix for marker %s",config.markers(i))
-        assert(size(adj_params.t_adj{i},2) == ncols(i), "Incorrect numner of columns "+...
-               "in the tile adjustment matrix for marker %s",config.markers(i))
-        end
-    end
-
+    [adj_params, config] = check_adj_parameters(adj_params,config,nrows,ncols);
+    
     % Attach to config structure
     config.adj_params = adj_params;
     
@@ -225,53 +225,54 @@ if ~loaded_params || isequal(config.adjust_intensity,"update")
 
     % Update parameters from config structure
     for i = 1:length(adj_fields)
-        adj_params.(adj_fields{i}) = config.(adj_fields{i});
-    end
-    
-    % Save marker and img_location
-    adj_params.markers = config.markers;
-    if length(config.img_directory) == length(config.markers)
-        adj_params.img_directory = config.img_directory;
-    else
-        adj_params.img_directory = repmat(config.img_directory,1,length(config.markers));
+        params.(adj_fields{i}) = config.(adj_fields{i});
     end
 end
 
 % Calculate intensity adjustments
-lowerThresh_measured = zeros(1,length(config.markers)); 
-upperThresh_measured = lowerThresh_measured; signalThresh_measured = lowerThresh_measured; 
-flatfield = cell(1,length(config.markers));  darkfield = flatfield;
-for k = 1:length(config.markers)            
+ for k = 1:length(config.markers)            
     if ~ismember(k,config.update_intensity_channels)
         continue
+    else
+        marker = config.markers(k);
     end
     fprintf("%s\t Measuring intensity for %s \n",datetime('now'),config.markers(k));
     stack = path_table(path_table.markers == config.markers(k),:);
+    
+    % Save marker and img_location
+    if length(config.img_directory) == length(config.markers)
+        params.img_directory = config.img_directory(k);
+    else
+        params.img_directory = config.img_directory;
+    end
 
     % Take measurements    
-    [lowerThresh_measured(k), upperThresh_measured(k), signalThresh_measured(k), t_adj, y_adj, flatfield{k}, darkfield{k}] = ...
+    [lowerThresh_measured, upperThresh_measured, signalThresh_measured, t_adj, y_adj, flatfield, darkfield] = ...
         measure_images(config, stack, k);
 
-    % Save new adjustments parameters structure
-    adj_params.lowerThresh(k) = lowerThresh_measured(k);
-    adj_params.upperThresh(k) = upperThresh_measured(k);
-    adj_params.signalThresh(k) = signalThresh_measured(k);
+    % Save adjustments to parameter structure
+    params.lowerThresh = lowerThresh_measured;
+    params.upperThresh = upperThresh_measured;
+    params.signalThresh = signalThresh_measured;
     
-    adj_params.y_adj{k} = y_adj;
-    adj_params.t_adj{k} = t_adj;
-    adj_params.flatfield{k} = flatfield{k};
-    adj_params.darkfield{k} = darkfield{k};
-    adj_params.darkfield_intensity{k} = config.darkfield_intensity(k);
+    params.y_adj = y_adj;
+    params.t_adj = t_adj;
+    params.flatfield = flatfield;
+    params.darkfield = darkfield;
+    params.darkfield_intensity = config.darkfield_intensity(k);
+    
+    % Save params to adj params structure
+    adj_params.(marker) = params;
 end
 
 % Check for user-defined intensity threshold values
-[adj_params, config] = check_adj_parameters(adj_params, config);
+[adj_params, config] = check_adj_parameters(adj_params, config, nrows, ncols);
 config.adj_params = adj_params;
-config.adjust_intensity(config.adjust_intensity == "update") = "true";
 
-% Save adjustment parameters to output directory
+% Reorganize adjustment parameters and save to output directory
 fprintf("%s\t Saving adjustment parameters \n", datetime('now'));
 save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
+config.adjust_intensity = "true";
 
 % Save flatfield and darkfield as seperate variables
 if isequal(config.adjust_tile_shading,"basic")
@@ -347,9 +348,6 @@ if isequal(config.align_method,'translation')
     % Create variable
     alignment_table = cell(ncols,nrows);
     save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
-    if ~exist(save_path,'file')
-        save(save_path,'alignment_table')
-    end
 
     % Define which tiles to align if only doing subset
     tiles_to_align = 1:nb_tiles;
@@ -367,8 +365,8 @@ if isequal(config.align_method,'translation')
         path_align = path_table(path_table.x==x & path_table.y==y,:);
         alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align);
         save(save_path,'alignment_table')
-
     end
+    
     fprintf("%s\t Alignment completed! \n",datetime('now'));
 
     % Change image directory to aligned directory so that subsequent
@@ -418,6 +416,7 @@ elseif isequal(config.align_method,'elastix')
     end
 
     % If pre-aligning, check for and load calculated translation parameters
+    alignment_table = [];
     if isequal(config.pre_align,"true")
         if exist(fullfile(config.var_directory,'alignment_table.mat'),'file') == 2
             load(fullfile(config.var_directory,'alignment_table.mat'),'alignment_table')
@@ -428,7 +427,8 @@ elseif isequal(config.align_method,'elastix')
                 pause(1)
             end
         else
-            fprintf("%s\t Could not locate alignment table for pre-alignment \n",datetime('now'));
+            fprintf("%s\t Could not locate alignment table for pre-alignment. Generating "+...\
+                "new table for pre-alignment.\n",datetime('now'));
             config_pre = config;
             config_pre.align_method = "translation";
             config_pre.align_tiles = [];
@@ -437,8 +437,6 @@ elseif isequal(config.align_method,'elastix')
             perform_channel_alignment(config_pre,path_table,equal_res);    
             load(fullfile(config.var_directory,'alignment_table.mat'),'alignment_table')
         end
-    else
-        alignment_table = [];
     end
 
     % Perform alignment

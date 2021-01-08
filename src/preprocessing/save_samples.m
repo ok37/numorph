@@ -50,8 +50,9 @@ switch process
             c_idx = path_table(i,:).channel_num;
             
             % Apply intensity adjustments
-            img_adj = apply_intensity_adjustment(img,'params',config.adj_params,...
-                    'r',r,'c',c,'idx',c_idx);
+            img_adj = apply_intensity_adjustment(img,'params',...
+                config.adj_params.(config.markers(c_idx)),...
+                    'r',r,'c',c);
 
             % Apply any type of post-processing
             img_adj = postprocess_image(config, img_adj, c_idx);
@@ -73,10 +74,12 @@ switch process
         
         % Save shading correction images
         fprintf("%s\t Saving current intensity adjustment visualizations \n",datetime('now'));
-        n_markers = length(config.adj_params.y_adj);
-        for i = 1:n_markers
+        markers = fields(config.adj_params);
+        for i = 1:length(markers)
+            params = config.adj_params.(markers{i});
+            
             % Save flatfield 
-            flatfield = config.adj_params.flatfield{i};
+            flatfield = params.flatfield;
             fig = figure('visible','off');
             imagesc(flatfield,[0.5,1.5])
             colorbar
@@ -85,7 +88,7 @@ switch process
                 sprintf('flatfield_%d.png',i)))
             
             % Save y_adj 
-            y_adj = config.adj_params.y_adj{i};
+            y_adj = params.y_adj;
             y_adj = repmat(y_adj,1,size(flatfield,2));
             fig = figure('visible','off');
             imagesc(y_adj,[0.5,1.5])
@@ -95,7 +98,7 @@ switch process
                 sprintf('y_adj_%d.png',i)))
             
             % Save t_adj
-            t_adj = config.adj_params.t_adj{i};
+            t_adj = params.t_adj;
             if t_adj~=1
                 t_adj = t_adj(:,:,2).*t_adj(:,:,1);
                 fig = figure('visible','off');

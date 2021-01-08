@@ -83,7 +83,6 @@ if isempty(options.lambda_darkfield)
    % options.lambda_darkfield = max(1e4./sum(abs(minD(:))),0.1);
 end
 
-
 D = sort(D,3);
 XAoffset = zeros(nrows,ncols);
 

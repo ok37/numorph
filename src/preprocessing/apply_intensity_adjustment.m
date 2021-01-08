@@ -17,7 +17,6 @@ addOptional(p, 'u_thresh', 1, @isnumeric) % Upper threshold rescale value
 addOptional(p, 'Gamma', 1, @isnumeric) % Gamma adjustment value
 addOptional(p, 'flatfield', false, @isnumeric) % Flatfield matrix
 addOptional(p, 'darkfield', false, @isnumeric) % Darkfield matrix
-addOptional(p, 'idx', 1, @isnumeric) % Channel index
 addOptional(p, 'r', 1, @isnumeric) % Row index
 addOptional(p, 'c', 1, @isnumeric) % Column index
 
@@ -34,23 +33,22 @@ darkfield = p.Results.darkfield;
 
 % If adjustment parameter structure is sent in, use these values
 adj_params = p.Results.params; % Adj params
-idx = p.Results.idx; % Channel
 r = p.Results.r; % Row
 c = p.Results.c; % Column
 if ~isempty(adj_params)
-    if isequal(adj_params.adjust_tile_position,'true') && ~isempty(adj_params.t_adj{idx})
-        t_adj = adj_params.t_adj{idx}(r,c,:);
-        l_thresh = adj_params.lowerThresh(idx);
+    if isequal(adj_params.adjust_tile_position,'true') && ~isempty(adj_params.t_adj)
+        t_adj = adj_params.t_adj(r,c,:);
+        l_thresh = adj_params.lowerThresh;
     end
     if isequal(adj_params.adjust_tile_shading,'basic')
-       flatfield = adj_params.flatfield{idx};
-       darkfield = adj_params.darkfield{idx};
+       flatfield = adj_params.flatfield;
+       darkfield = adj_params.darkfield;
     elseif isequal(adj_params.adjust_tile_shading,'manual')
-        y_adj = adj_params.y_adj{idx};
-        l_thresh = adj_params.lowerThresh(idx);
+        y_adj = adj_params.y_adj;
+        l_thresh = adj_params.lowerThresh;
     end
     if ~isempty(adj_params.darkfield_intensity)
-        dak_val = adj_params.darkfield_intensity(idx);
+        dak_val = adj_params.darkfield_intensity;
     end
 end
 

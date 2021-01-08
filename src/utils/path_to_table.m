@@ -24,6 +24,10 @@ if nargin<2
         % Start from after stitching
         fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
         location = "stitched";
+    elseif isequal(config.img_directory, fullfile(config.output_directory,'resampled'))
+        % Start from after resampled
+        fprintf("%s\t Reading image filename information from resampled directory \n",datetime('now'))
+        location = "resampled";
     elseif contains(config.img_directory,'.csv')
         % Read from csv file
         fprintf("%s\t Reading image filename information from .csv file \n",datetime('now'))
@@ -53,12 +57,19 @@ end
 var_location = fullfile(config.output_directory,'variables','path_table.mat');
 if exist(var_location,'file') == 2
     load(var_location,'path_table')
+    if ~isfield(path_table,location)
+        quick_load = false;
+        save_table = true;
+    end
 else
     path_table = [];
 end
 
 % Unpack paths
-if ~isequal(location,"csv")
+if isequal(location,"resampled")
+    paths = {dir(fullfile(config.output_directory,'resampled'))};
+    quick_load = false; 
+elseif ~isequal(location,"csv")
     for i = 1:length(config.img_directory)
         paths{i} = dir(config.img_directory(i));
         % Check for empty paths fields
@@ -71,31 +82,31 @@ end
 % Munge paths or read filename information from previously saved variable
 switch location
     case 'aligned'
-        if ~isempty(path_table) && isfield(path_table,'aligned') && quick_load
+        if ~isempty(path_table) && quick_load
             paths_table_main = path_table.aligned;
             return            
         end
         paths_new = munge_aligned(paths);
     case 'stitched'
-        if ~isempty(path_table) && isfield(path_table,'stitched') && quick_load
+        if ~isempty(path_table) && quick_load
             paths_table_main = path_table.stitched;
             return
         end
         paths_new = munge_stitched(paths);
     case 'resampled'
-        if ~isempty(path_table) && isfield(path_table,'resampled') && quick_load
-            paths_table_main = path_table.resampled;
-            return
-        end
         paths_new = munge_resampled(paths);
+        paths_table_main = struct2table(reshape([paths_new{1}],[],1));
+        return
     case 'raw'
-        if ~isempty(path_table) && isfield(path_table,'raw') && quick_load
+        if ~isempty(path_table) && quick_load
             paths_table_main = path_table.raw;
-            return
+            if all(ismember(paths_table_main.markers,config.markers))
+                return
+            end
         end        
         paths_new = munge_raw(config,paths);
     case 'csv'
-        if ~isempty(path_table) && isfield(path_table,'raw') && quick_load
+        if ~isempty(path_table) && quick_load
             paths_table_main = path_table.raw;
             return
         end   
@@ -135,6 +146,7 @@ paths_table_main.y = paths_table_main.y + 1-min(paths_table_main.y);
 paths_table_main.z = paths_table_main.z + 1-min(paths_table_main.z);
 paths_table_main.channel_num = paths_table_main.channel_num + 1-min(paths_table_main.channel_num);
 
+
 % Check table for correct size
 if height(unique(paths_table_main(:,2:end),'rows')) ~= height(paths_table_main)
     error("Duplicate entries found in assmebled image file table")
@@ -149,7 +161,7 @@ end
 %        max(unique(paths_table_main.x))*max(unique(paths_table_main.y)))
 %end
 
-% Check if images are single channel
+% Check for multiple channels in single image
 if length(imfinfo(paths_table_main.file{1})) > 1
     error("Multi-page .tif detected. NuMorph currently does not support multi-channel .tif images")
 end
@@ -269,10 +281,6 @@ paths_sub = dir(fullfile(paths{1}(1).folder));
 % Check .nii in current folder
 paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.nii'),paths_sub));
 
-if ~isequal(length(paths_sub), length(config.markers))
-    error("Number of .nii files does not match number of specified markers");
-end
-
 % Create new field for file location
 C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
 [paths_sub.file] = C{:};
@@ -283,10 +291,22 @@ paths_sub = rmfield(paths_sub,fields_to_remove);
 components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
 components = vertcat(components{:});
 
+if ~isequal(components{1,1}, 'C1') && ~isequal(components{1,2}, 'C1')
+    error("Could not recognize .nii filename structure. First file should start as SAMPLE_C1_..."+...
+        ".nii")
+elseif isequal(components{1,1}, 'C1')
+    components = horzcat(repmat({'SAMPLE'},size(components,1),1),components);
+end
+
 % Take image information
 [paths_sub.sample_name] = components{:,1};
 [paths_sub.channel_num] = components{:,2};
 [paths_sub.markers] = components{:,3};
+
+positions = cellfun(@(s) str2double(s),components(:,[4,5,6]),'UniformOutput',false);
+[paths_sub.x] = positions{:,1};
+[paths_sub.y] = positions{:,2};
+[paths_sub.z] = positions{:,3};
 
 paths_new = {rmfield(paths_sub,{'name'})};
 
@@ -295,9 +315,10 @@ end
 
 function paths_new = munge_raw(config, paths)
 % Read filename information from ImSpector Software in Lavision
-        
-% Check for subdirectories and use those
-if length(paths) == 1          
+
+
+% Search subdirectories if no .tifs in current folder
+if length(paths) == 1 && all(arrayfun(@(s) ~contains(s.name,'.tif'), paths{1}))           
     % Subset folders with images 
     paths_full = paths{1}(arrayfun(@(s) contains(s.name,cellstr(config.markers),'IgnoreCase',true),paths{1}),:);            
 
@@ -310,11 +331,11 @@ if length(paths) == 1
     end
     paths_full = fullfile(paths_full(1).folder,{paths_full.name});
     paths_full = paths_full(cellfun(@(s) ~endsWith(s,{'.','..'}),paths_full));
-
     processed_keys = {'stitched','aligned','resampled'};
 
     % Check for subdirectories
     sub_dir = cellfun(@(s) isfolder(s),paths_full);
+    paths = {};
     for i = 1:length(paths_full)
         if ~sub_dir(i)
             continue
@@ -444,4 +465,5 @@ else
     end
     paths_new{1} = paths_sub;
 end
+
 end

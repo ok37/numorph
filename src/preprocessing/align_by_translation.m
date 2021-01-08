@@ -335,8 +335,10 @@ coreg_table = [coreg_table t_table];
 % Add image filenames
 for i = fliplr(1:length(markers))
    file_paths = path_full(path_full.markers == markers(i),:);
-   if ~isempty(file_paths(file_paths.z < 1 | file_paths.z > max(ref_slices),:).file)
-        file_paths(file_paths.z < 1 | file_paths.z > max(ref_slices),:).file = {''};
+   idx = find(file_paths.z < 1 | file_paths.z > max(ref_slices));
+   if ~isempty(idx)
+        empty_file = repmat({''},length(idx),1);
+        file_paths(idx,:).file = empty_file;
    end
    file_paths = file_paths(:,1);
    file_paths.Properties.VariableNames = sprintf("file_%d",i);
@@ -370,8 +372,14 @@ if isequal(save_images,"true")
     
                 % Apply intensity adjustments
                 if isequal(config.adjust_intensity,"true")
-                    mov_img = apply_intensity_adjustment(mov_img,'params',config.adj_params,...
-                        'r',row,'c',col,'idx',channel_num(j));
+                   if isequal(config.adj_params.(markers(j)).adjust_tile_shading,'basic')
+                       mov_img = apply_intensity_adjustment(mov_img,...
+                           'flatfield', config.adj_params.(markers(j)).flatfield,...
+                           'darkfield', config.adj_params.(markers(j)).darkfield);
+                   elseif isequal(config.adj_params.(markers(j)).adjust_tile_shading,'manual')
+                      mov_img = apply_intensity_adjustment(mov_img,...
+                          'y_adj',config.adj_params.(markers(j)).y_adj);
+                   end
                 end
             end
             

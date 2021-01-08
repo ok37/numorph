@@ -174,14 +174,21 @@ function check_variable_lengths(stage)
 switch stage
     case 'process'
         % Variables to check
-        variable_names = {'markers','single_sheet','ls_width','laser_y_displacement','blending_method',...
+        variable_names = {'markers','ignore_markers','channel_num','single_sheet','ls_width','laser_y_displacement','blending_method',...
             'elastix_params','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
             'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'resolution','z_initial',...
             'adjust_tile_shading','adjust_tile_position','lowerThresh','upperThresh','signalThresh'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
         
-        if exist('markers') ~= 1  || isempty(markers)
-            error("Must provide marker names for channel");end
+        if exist('markers','var') ~= 1  || isempty(markers)
+            error("Must provide unique marker names for channel");end
+        if exist('ignore_markers','var') == 1  && ~isempty(ignore_markers)
+            idx = ismember(markers,ignore_markers);
+            markers = markers(~idx);   
+            if exist('channel_num') == 1 && ~isempty(channel_num)
+                channel_num = channel_num(~idx);
+            end
+        end
         if exist('single_sheet','var') == 1 && length(single_sheet) == 1
             single_sheet = repmat(single_sheet,1,length(markers));end
         if exist('ls_width','var') == 1 && length(ls_width) == 1
@@ -256,8 +263,55 @@ switch stage
         end
     case 'analyze'
         % Variables to check
-        variable_names = {};
+        variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
+            'resample_channels','resample_resolution','direction'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
+        
+        if exist('resample_channels','var') == 1 && isempty(resample_channels)
+            resample_channels = 1:length(markers);end
+        if exist('resample_resolution','var') == 1 && length(resample_resolution) == 1
+            resample_resolution = repmat(resample_resolution,1,3);end
+        if exist('markers','var') ~= 1  || isempty(markers)
+            error("Must provide unique marker names for channel");end
+        if exist('direction','var') ~= 1
+            if isempty(direction)
+                direction = "atlas_to_image";
+            end
+            assert(isequal(direction,"atlas_to_image") || isequal(direction,"image_to_atlas"),...
+                "Invalid option for registration direction")
+        end
+        if exist('resolution','var') == 1
+            if ~iscell(resolution)
+                resolution = {resolution};
+            end
+            resolution = repmat(resolution,1,length(markers));
+        end
+        if exist('lowerThresh','var') == 1 && ~isempty(lowerThresh)
+            assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...
+                "specified for all markers or left empty")
+            if isempty(lowerThresh) && ~isempty(upperThresh)
+                upperThresh = zeros(0,1,length(markers));
+            end
+        end
+        if exist('upperThresh','var') == 1
+            if ~isempty(upperThresh)
+                assert(length(upperThresh) == length(markers),"Upper threshold values need to be "+...
+                    "specified for all markers or left empty")
+            end
+            if isempty(upperThresh) && ~isempty(lowerThresh)
+                upperThresh = repmat(65535,1,length(markers));
+            end
+        end
+        if exist('signalThresh','var') == 1
+            if ~isempty(signalThresh)
+                assert(length(signalThresh) == length(markers),"Signal threshold values need to be "+...
+                    "specified for all markers or left empty")
+            elseif ~isempty(lowerThresh) || ~isempty(upperThresh)
+                error("signalThresh must specified if lowerThresh and/or upperThresh "+...
+                    "is also specified")
+            end
+        end
+        
 end
 
 % Resave these variables

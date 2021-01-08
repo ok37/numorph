@@ -32,13 +32,11 @@ end
 fprintf('%s\t Loading %d images for estimating flatfield \n',datetime('now'),n_images)
 
 tempI = loadtiff(path_sub.file{1});
-I = zeros(size(tempI),'single');
+I = zeros([size(tempI), n_images],'single');
 
+files = path_sub.file;
 parfor i = 1:n_images
-    I(:,:,i) = loadtiff(path_sub.file{i});
-    if i == round(n_images/2)
-        fprintf('%s\t Halfway there... \n',datetime('now'))
-    end
+    I(:,:,i) = loadtiff(files{i});
 end
 
 fprintf('%s\t Running BaSIC on %d images \n',datetime('now'),height(path_sub))

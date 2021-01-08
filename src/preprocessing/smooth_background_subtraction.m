@@ -11,11 +11,11 @@ function [I_new, B] = smooth_background_subtraction(I, apply_filter, r)
 % Inputs:
 % I - 2D image, any type.
 %
-% apply_filter - (optional) logical to apply a series of filters to final
-% image and remove residual noise. Default is false.
+% apply_filter - (default: false) logical to apply a series of filters to 
+% final image and remove residual noise. Can be 2 element vector. First is
+% wiener filter, then median filter.
 %
-% r - (optional) ball radius for background subtraction. Default is 9
-% pixels.
+% r - (default: 9) ball radius for background subtraction.
 %
 % Outputs:
 % I_new - subtracted 2D image of input image type.
@@ -26,6 +26,12 @@ function [I_new, B] = smooth_background_subtraction(I, apply_filter, r)
 % Default arguments
 if nargin<2
     apply_filter = false;
+elseif ~islogical(apply_filter)
+    error("apply_filter must be logical")
+end
+
+if length(apply_filter) == 1
+    apply_filter = repmat(apply_filter,1,2);
 end
 
 if nargin<3
@@ -54,8 +60,11 @@ B = imopen(B1,se);
 I_new = I - B;
 
 % Optional: filter final results
-if apply_filter
+if apply_filter(1)
     I_new = wiener2(I_new,[4 4]);
+end
+
+if apply_filter(2)
     I_new = medfilt2(I_new,[3,3]);
 end
 
@@ -63,5 +72,8 @@ end
 if ~isequal(I_new, img_class)
     I_new = cast(I_new,img_class);
 end
+if nargout==2 && ~isequal(B, img_class)
+    B = cast(B,img_class);
+end    
 
 end

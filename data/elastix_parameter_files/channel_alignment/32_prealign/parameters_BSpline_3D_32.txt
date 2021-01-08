@@ -1,4 +1,4 @@
-// Example parameter file for B-spline registration
+v// Example parameter file for B-spline registration
 // C-style comments: //
 
 // The internal pixel type, used for internal computations
@@ -133,7 +133,7 @@
 // With an AdaptiveStochasticGradientDescent optimizer,
 // in combination with the two options below, around 2000
 // samples may already suffice.
-(NumberOfSpatialSamples 20000)
+(NumberOfSpatialSamples 100000)
 
 // Refresh these spatial samples in every iteration, and select
 // them randomly. See the manual for information on other sampling
@@ -149,7 +149,7 @@
 // It may improve accuracy if you set this to 3. Never use 0.
 // An order of 1 gives linear interpolation. This is in most 
 // applications a good choice.
-(BSplineInterpolationOrder 3)
+(BSplineInterpolationOrder 1)
 
 // Order of B-Spline interpolation used for applying the final
 // deformation.

@@ -53,7 +53,7 @@ assert(length(x) == 1, "More than 1 tile column detected in path_table.")
 assert(length(y) == 1, "More than 1 tile row detected in path_table.")
 
 % Paths to elastix parameter files
-parameter_path = fullfile(home_path,'supplementary_data','elastix_parameter_files','channel_alignment');
+parameter_path = fullfile(home_path,'data','elastix_parameter_files','channel_alignment');
 transform_path = cell(length(markers)-1,3); outputDir = cell(1,length(markers)-1);
 for i = 1:length(markers)-1
     parameter_dir = dir(parameter_path);
@@ -114,32 +114,36 @@ end
 %% Subset channels, chunks, and/or ranges
 % Subset channels or use all
 if ~isempty(config.align_channels)
-    c_idx = [1,ismember(2:length(markers),config.align_channels)];
     align_channels = config.align_channels;
+    align_channels(align_channels == 1) = [];
+    assert(all(ismember(align_channels,2:length(markers))), "Channels to align "+...
+        "out of range in image dataset.")
+    c_idx = [1,ismember(2:length(markers),align_channels)];
 else
-    c_idx = ones(1,length(markers));
     align_channels = 2:length(markers);
+    c_idx = ones(1,length(markers));
 end
 align_markers = markers(align_channels);
-total_images = height(path_table(path_table.markers == markers(1),:));
+nslices = height(path_table(path_table.markers == markers(1),:));
 
 % Check whether aligning full stack
+update_stack = false;
 if isequal(config.channel_alignment,"update")
     update_stack = true;
     assert(~(~isempty(config.align_chunks) && ~isempty(config.align_slices)),....
         "Can update either chunks or slices but not both.")
-    assert(~isempty(out),...
-        "Cannot update chunks or slices without running alignment on full tile stack first.")
-    assert(out.total_images == total_images,...
-        "Image numbers do not match between loaded parameters and file path table.") 
-    assert(all(isfield(out,align_markers)),...
-        "Not all markers to align are present in loaded parameters")
-else
-    update_stack = false;
+    if ~isempty(config.align_slices) || ~isempty(config.align_chunks)
+        assert(~isempty(out),...
+            "Cannot update chunks or slices without running alignment on full tile stack first.")
+        assert(out.nslices == nslices,...
+            "Image numbers do not match between loaded parameters and file path table.") 
+        assert(all(isfield(out,align_markers)),...
+            "Not all markers to align are present in loaded parameters")
+    end
 end
 
 % Subset z positions or use all
-total_images = height(path_table(path_table.markers == markers(1),:));
+nslices = height(path_table(path_table.markers == markers(1),:));
 if update_stack && ~isempty(config.align_slices)
     if ~iscell(config.align_slices)
         config.align_slices = {config.align_slices};
@@ -149,7 +153,7 @@ if update_stack && ~isempty(config.align_slices)
     chunk_ranges = zeros(length(config.align_slices),4);
     for i = 1:length(config.align_slices)
         sl = config.align_slices{i};
-        chunk_ranges(i,:) = [min(sl), max(sl), max(1,min(sl)-chunk_pad), min(max(sl)+chunk_pad,total_images)];
+        chunk_ranges(i,:) = [min(sl), max(sl), max(1,min(sl)-chunk_pad), min(max(sl)+chunk_pad,nslices)];
         fprintf('Aligning slices %d to %d\n', chunk_ranges(i,1), chunk_ranges(i,2))
     end
     
@@ -194,9 +198,9 @@ elseif update_stack && ~isempty(config.align_chunks)
 else
     % Use all images
     z_min_adj = 1;
-    z_max_adj = total_images;
+    z_max_adj = nslices;
     align_chunks = NaN;
-    z_range_save = 1:total_images;
+    z_range_save = 1:nslices;
 end
 
 %% Preconfigure matrixes
@@ -206,7 +210,7 @@ z_range_adj = z_min_adj:z_max_adj;
 tempI = imread(path_table.file{1});
 [nrows, ncols] = size(tempI);
 cropping_flag =  [0 0 0]; % Flag for cropping images to reference channel
-dim_adj = round([nrows ncols total_images]./s); % Resampled image dimensions
+dim_adj = round([nrows ncols nslices]./s); % Resampled image dimensions
 
 % Check if channels have the same sized images
 for i = [1,align_channels]
@@ -219,7 +223,7 @@ end
 
 % Initialize matrices for storing raw images
 I_raw = cell(1,length(markers));
-I_raw(:) = {zeros(nrows,ncols,total_images,'uint16')};
+I_raw(:) = {zeros(nrows,ncols,nslices,'uint16')};
 
 % Start parallel pool
 try
@@ -274,7 +278,7 @@ for i = 1:length(markers)
     I_sub = zeros(nrows,ncols,length(z_range_adj));
     files = path_sub(z_range_adj);
     res_adj1 = res_adj{i}; cropping_flag1 = cropping_flag(i);
-    parfor j = 1:length(z_range_adj)        
+    for j = 1:length(z_range_adj)        
         if ~isempty(files{j})
             I_sub(:,:,j) = read_slice(files{j},res_adj1,cropping_flag1);
         else
@@ -288,13 +292,15 @@ end
 if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity)) &&...
    all(arrayfun(@(s) ~isequal(s,"false"),config.adjust_tile_shading))
    adj_params = config.adj_params;
+   adj_ref = config.adj_params.(markers(1));
     parfor i = 1:length(markers)
         if c_idx(i) == 0
             continue
         else
             fprintf('Applying intensity adjustments for marker %s\n',markers(i));
+            params = adj_params.(markers(i));
         end
-        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, adj_params, i);
+        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, params, adj_ref);
     end
 end
 
@@ -317,18 +323,18 @@ end
 
 % Further adjustments to optimize images for registration
 if ~using_loaded_parameters || update_stack
-    I = cell(1,length(I_raw));
-    I{1} = I_raw{1};
-
+    % Generate mask
     if update_stack && ~isempty(config.align_slices)
         % If specific slices selected, use all the features in the slice
         % objects
-        mask = zeros(size(I{1}));
+        mask = zeros(size(I_raw{1}));
     else
-        % Generate sampling mask
-        mask = generate_sampling_mask(I{1},mask_int_threshold,signalThresh(1));
+        % Generate sampling mask from intensity threshold
+        mask = generate_sampling_mask(I_raw{1},mask_int_threshold,signalThresh(1));
     end
     
+    % Prepare images for registration
+    I = cell(1,length(I_raw));
     for i = [1, align_channels]
         I{i} = I_raw{i};
         % Smooth blobs using Guassian filter to reduce effects of
@@ -384,10 +390,10 @@ if ~using_loaded_parameters || update_stack
     if isempty(config.align_chunks)
         % If total number of images is less than the max chunk size, adjust
         % padding
-        if max_chunk_size>total_images
+        if max_chunk_size>nslices
            chunk_pad = 0; 
         end
-        chunk_ranges = get_chunk_positions(mask, total_images, max_chunk_size, chunk_pad);
+        chunk_ranges = get_chunk_positions(mask, nslices, max_chunk_size, chunk_pad);
         align_chunks = 1:size(chunk_ranges,1);
     end
 end
@@ -407,9 +413,9 @@ if ~using_loaded_parameters || update_stack
     fprintf('Performing intial registration \n')
     
     % If doing slices or chunks, check for init_tform 
-    if update_stack && using_loaded_parameters
+    init_tform = cell(1,length(markers)-1);
+    if update_stack && using_loaded_parameters && ~isempty(config.align_slices)
         % Load initial tform it exists
-        init_tform = cell(1,length(align_channels));
         for i = align_channels
             if isfield(out.(align_markers(i-1)),'init_tform')
                 fprintf("Loading intial whole stack registration for marker %s\n", align_markers(i-1))
@@ -417,7 +423,6 @@ if ~using_loaded_parameters || update_stack
             end
         end
     else
-        init_tform = cell(1,length(markers)-1);
         I1 = I{1}(:,:,z_range_adj);
         parfor i = 1:length(markers)-1
            if c_idx(i+1) == 0 || isempty(transform_path{i,1})
@@ -428,6 +433,8 @@ if ~using_loaded_parameters || update_stack
             elseif i ~= 1
                 pause(1)
            end
+           
+           % Perform registration
            init_tform{i} = elastix(I{i+1}(:,:,z_range_adj),I1,outputDir{i},...
                transform_path(i,1),'s',s,'threads',[]);
 
@@ -440,12 +447,14 @@ if ~using_loaded_parameters || update_stack
         
     % Save inital transform 
     for i = 1:length(markers)-1
-        out.(markers(i+1)).init_tform = init_tform{i};
+        if ~isempty(init_tform{i})
+            out.(markers(i+1)).init_tform = init_tform{i};
+        end
     end
     
     % Save tile positions
     out.x = x; out.y = y;
-    out.ncols = ncols; out.nrows = nrows; out.total_images = total_images;
+    out.ncols = ncols; out.nrows = nrows; out.total_images = nslices;
     
     fprintf('Performing chunk-wise registration \n')
     for i = 1:length(align_chunks)
@@ -526,7 +535,7 @@ end
 % Return if not aplying transformations
 if ~warp_images || isequal(config.save_images,'false')
     return
-elseif ~update_stack
+elseif using_loaded_parameters && ~update_stack
     fprintf("%s\t Transform parameters already exist. Skipping registration "+... 
         "and applying transforms.\n",datetime('now'));
 end
@@ -536,13 +545,13 @@ end
 for i = 1:length(align_markers)
     if isfield(out,align_markers(i))
         out_sub = out.(align_markers(i));
-        if isfield(out.(align_markers(i)),'chunk_tform')
+        if isfield(out_sub,'chunk_tform')
             if isnan(align_chunks)
                 align_chunks = 1:length(out_sub.chunk_tform);
             end
             out2.chunk_tform = out_sub.chunk_tform(align_chunks);
         end
-        if isfield(out.(align_markers(i)),'init_tform')
+        if isfield(out_sub,'init_tform')
             out2.init_tform = out_sub.init_tform;
         end
     end
@@ -752,26 +761,26 @@ chunk_ranges(:,4) = min(chunk_ranges(:,4),total_images);
 end
 
 
-function I_raw = apply_intensity_adjustments_tile(I_raw, adj_params, i)
+function I_raw = apply_intensity_adjustments_tile(I_raw, params, adj_ref)
 % Apply intensity adjustments prior to aligning images
 
-% Crop y_adj and flatfield to match reference 
-adj_params.y_adj{i} = crop_to_ref(adj_params.y_adj{1},adj_params.y_adj{i});
-adj_params.flatfield{i} = crop_to_ref(adj_params.flatfield{1},adj_params.flatfield{i});
-adj_params.darkfield{i} = crop_to_ref(adj_params.darkfield{1},adj_params.darkfield{i});
+% Crop y_adj and flatfield to match reference
+params.y_adj = crop_to_ref(adj_ref.y_adj,params.y_adj);
+params.flatfield = crop_to_ref(adj_ref.flatfield,params.flatfield);
+params.darkfield = crop_to_ref(adj_ref.darkfield,params.darkfield);
 
 % Adjust intensities
 for j = 1:size(I_raw,3)
    if sum(I_raw(:,:,j) == 0)
        continue
    end
-   if isequal(adj_params.adjust_tile_shading(i),'basic')
+   if isequal(params.adjust_tile_shading,'basic')
        I_raw(:,:,j) = apply_intensity_adjustment(I_raw(:,:,j),...
-           'flatfield', adj_params.flatfield{i},...
-           'darkfield', adj_params.darkfield{i});
-   elseif isequal(adj_params.adjust_tile_shading(i),'manual')
+           'flatfield', params.flatfield,...
+           'darkfield', params.darkfield);
+   elseif isequal(params.adjust_tile_shading,'manual')
       I_raw(:,:,j) = apply_intensity_adjustment(I_raw(:,:,j),...
-          'y_adj',adj_params.y_adj{i});
+          'y_adj',params.y_adj);
    end
 end
 

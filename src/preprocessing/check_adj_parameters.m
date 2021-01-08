@@ -1,4 +1,4 @@
-function [adj_params, config, lowerThresh, upperThresh, signalThresh] = check_adj_parameters(adj_params, config)
+function [adj_params_full, config, lowerThresh, upperThresh, signalThresh] = check_adj_parameters(adj_params, config, nrows, ncols)
 %--------------------------------------------------------------------------
 % Check for user defined adjustment parameters that will override measured
 % values.
@@ -45,82 +45,80 @@ if isempty(adj_params)
 end
 
 % Get measured thresholds from adj_params structure
-lowerThresh_measured = adj_params.lowerThresh;
-upperThresh_measured = adj_params.upperThresh;
-signalThresh_measured = adj_params.signalThresh;
+adj_params_full = adj_params;
+for i = 1:length(config.markers)
+    if isfield(adj_params_full,config.markers(i))
+        adj_params = adj_params_full.(config.markers(i));
+    else
+        error("Adjustment parameters for marker %s is not found in parameter structure. "+...
+            "Update adjustment parameters.",config.markers(i))
+    end
+    lowerThresh_measured = adj_params.lowerThresh;
+    upperThresh_measured = adj_params.upperThresh;
+    signalThresh_measured = adj_params.signalThresh;
 
-if lowerThresh_measured>1
-    lowerThresh_measured = lowerThresh_measured/65535;
-end
-if upperThresh_measured>1
-    upperThresh_measured = upperThresh_measured/65535;
-end
-if signalThresh_measured>1
-    signalThresh_measured = signalThresh_measured/65535;
-end
+    % If empty, set to predicted threshold values
+    if isempty(lowerThresh)
+        adj_params.lowerThresh = lowerThresh_measured;
+        config.lowerThresh(i) = lowerThresh_measured;
+    else
+        fprintf('%s\t Using user-defined lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh*65535)));    
+        adj_params.lowerThresh = lowerThresh(i);
+    end
 
-% If empty, set to predicted threshold values
-if isempty(lowerThresh)
-    adj_params.lowerThresh = lowerThresh_measured;
-    config.lowerThresh = lowerThresh_measured;
-else
-    fprintf('%s\t Using user-defined lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh*65535)));    
-    adj_params.lowerThresh = lowerThresh;
-    config.lowerThresh = lowerThresh;
-end
+    if isempty(upperThresh)
+        adj_params.upperThresh = upperThresh_measured;
+        config.upperThresh(i) = upperThresh_measured;
+    else
+        fprintf('%s\t Using user-defined upperThresh of %s \n',datetime('now'),num2str(round(upperThresh*65535)));    
+        adj_params.upperThresh = upperThresh(i);
+    end
 
-if isempty(upperThresh)
-    adj_params.upperThresh = upperThresh_measured;
-    config.upperThresh = upperThresh_measured;
-else
-    fprintf('%s\t Using user-defined upperThresh of %s \n',datetime('now'),num2str(round(upperThresh*65535)));    
-    adj_params.upperThresh = upperThresh;
-    config.upperThresh = upperThresh;
-end
+    if isempty(signalThresh)
+        adj_params.signalThresh = signalThresh_measured;
+        config.signalThresh(i) = signalThresh_measured;
+    else
+        fprintf('%s\t Using user-defined signalThresh of %s \n',datetime('now'),num2str(round(signalThresh*65535)));    
+        adj_params.signalThresh = signalThresh(i);
+    end
 
-if isempty(signalThresh)
-    adj_params.signalThresh = signalThresh_measured;
-    config.signalThresh = signalThresh_measured;
-else
-    fprintf('%s\t Using user-defined signalThresh of %s \n',datetime('now'),num2str(round(signalThresh*65535)));    
-    adj_params.signalThresh = signalThresh;
-    config.signalThresh = signalThresh;
-end
+    % Set Gamma equal to 1 if undefined
+    if isempty(config.Gamma)
+        adj_params.Gamma = 1;
+    else
+        adj_params.Gamma = config.Gamma(i); 
+    end
 
-% Set Gamma equal to 1 if undefined
-if isempty(config.Gamma)
-    adj_params.Gamma = ones(1,length(config.markers));
-else
-    adj_params.Gamma = config.Gamma; 
+    % Check img directories
+    if ~any(adj_params.img_directory == config.img_directory)
+        warning("Intensity adjustment parameters were calculated from %s "+...
+            "and not the input image directory. Some adjustments may have been "+...
+            "already applied. Consider updating adjustment parameters.",...
+            adj_params.img_directory)
+        pause(5)
+    end
+    
+    % Update which adjustment to apply based on current configs
+    adj_params.adjust_tile_shading = config.adjust_tile_shading(i);
+    adj_params.adjust_tile_position = config.adjust_tile_position(i);
+    
+    % Check tile position
+    if isequal(adj_params.adjust_tile_position,'true')
+        assert(~isempty(adj_params.t_adj), "No tile position adjustments found for "+...
+            "marker %s",config.markers(i))
+        assert(size(adj_params.t_adj,1) == nrows(i), "Incorrect numner of rows "+...
+               "in the tile adjustment matrix for marker %s",config.markers(i))
+        assert(size(adj_params.t_adj,2) == ncols(i), "Incorrect numner of columns "+...
+               "in the tile adjustment matrix for marker %s",config.markers(i))
+    end
+    
+    % Save into full parameter structure
+    adj_params_full.(config.markers(i)) = adj_params;
 end
 
 % Set default nucleus diameter (15um)
 if isempty(config.nuc_radius)
     config.nuc_radius = round(15/config.resolution(1));
-end
-
-% Update which adjustment to apply based on current configs
-adj_params.adjust_tile_shading = config.adjust_tile_shading;
-adj_params.adjust_tile_position = config.adjust_tile_position;
-
-% Check img directories
-for i = 1:length(adj_params.img_directory)
-    if ~any(adj_params.img_directory(i) == (config.img_directory))
-        warning("Intensity adjustment parameters were calculated from %s "+...
-            "and not the input image directory. Some adjustments may have been "+...
-            "already applied. Consider updating adjustment parameters.",...
-            adj_params.img_directory(i))
-        pause(5)
-        break
-    end
-end
-
-% Check markers 
-for i = 1:length(config.markers)
-    if ~any(config.markers(i) == adj_params.markers)
-        error("Adjustment parameters for marker %s is not found in parameter structure. "+...
-            "Update adjustment parameters.",config.markers(i))
-    end
 end
 
 end

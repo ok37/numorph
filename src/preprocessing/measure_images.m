@@ -34,6 +34,10 @@ tempI = imread(stack.file{1});
 % Get intensity thresholds
 if isempty(config.lowerThresh) || isempty(config.upperThresh) || isempty(config.signalThresh)
     [lowerThresh, upperThresh, signalThresh] = measure_thresholds(stack,defaults);
+else
+    lowerThresh = config.lowerThresh(channel_idx); 
+    upperThresh = config.upperThresh(channel_idx); 
+    signalThresh = config.signalThresh(channel_idx);
 end
 
 % If just getting thresholds, measure those and return
