@@ -26,6 +26,9 @@
 // may want to set this option to "false".
 (UseDirectionCosines "true")
 
+(UseFastAndLowMemoryVersion "true")
+
+
 // **************** Main Components **************************
 
 // The following components should usually be left as they are:
