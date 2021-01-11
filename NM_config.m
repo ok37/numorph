@@ -315,6 +315,7 @@ switch stage
 end
 
 % Resave these variables
+variable_names = who;
 save(fullfile('templates', 'NM_variables.mat'),variable_names{:},'-mat','-append')
 
 end

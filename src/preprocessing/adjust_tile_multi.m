@@ -1,4 +1,4 @@
-function [adj_matrix1, adj_matrix2] = adjust_tile_multi(config, path_table, defaults)
+function t_adj = adjust_tile_multi(config, path_table, defaults)
 %--------------------------------------------------------------------------
 % Calculate intensity adjustment for multi-tile layout by measuring
 % overlapping regions.
@@ -58,9 +58,7 @@ overlap_max_v = {[overlap_max_r(1),overlap_max_r(end)],[1,ncols]};
 
 % Measure pairwise horizontal intensity differences
 fprintf('%s\t Measuring between tile differences horizontally \n',datetime('now'));    
-h_matrix1 = ones(y_tiles,x_tiles);
-h_matrix2 = ones(y_tiles,x_tiles);
-
+h_matrix = ones(y_tiles,x_tiles);
 for i = 1:y_tiles
     for j = 1:x_tiles-1
         I_left = zeros([nrows round(ncols*overlap)-pad_h length(img_range)],'uint16');
@@ -84,24 +82,16 @@ for i = 1:y_tiles
         %I_right = (single(I_right)-d_right)./f_right + d_right;
 
         % Difference in average intensity indicates between tile differences
-        I_left1 = I_left*h_matrix1(i,j);
-        I_right1 = I_right*h_matrix1(i,j+1);
-        h_matrix1(i,j+1) = prctile(I_left1,low_prct)/prctile(I_right1,low_prct);
-
-        % Difference in average intensity indicates between tile differences
-        I_left1 = I_left*h_matrix2(i,j);
-        I_right1 = I_right*h_matrix2(i,j+1)*h_matrix1(i,j+1);
-        h_matrix2(i,j+1) = prctile(I_left1,high_prct)/prctile(I_right1,high_prct);
+        I_left = I_left*h_matrix(i,j);
+        I_right = I_right*h_matrix(i,j+1);
+        h_matrix(i,j+1) = prctile(I_left,high_prct)/prctile(I_right,high_prct);
     end
 end
-h_matrix1 = h_matrix1/mean2(h_matrix1);
-h_matrix2 = h_matrix2/mean2(h_matrix2);
+h_matrix = h_matrix/mean2(h_matrix);
 
 % Measure pairwise vertical intensity differences
 fprintf('%s\t Measuring between tile differences vertically \n',datetime('now'));    
-v_matrix1 = ones(y_tiles,x_tiles);
-v_matrix2 = ones(y_tiles,x_tiles);
-
+v_matrix = ones(y_tiles,x_tiles);
 for i = 1:y_tiles-1
     for j = 1:x_tiles
         I_top = zeros([round(nrows*overlap)-pad_v ncols length(img_range)],'uint16');
@@ -115,6 +105,7 @@ for i = 1:y_tiles-1
             I_bottom(:,:,k) = imread(file_bottom.file{1},'PixelRegion',overlap_min_v);  
         end
 
+        % Remove any zero values from shifting image
         I_top = single(I_top(I_top>0));
         I_bottom = single(I_bottom(I_bottom>0));
 
@@ -123,42 +114,30 @@ for i = 1:y_tiles-1
         %I_bottom = (single(I_bottom)-d_bottom)./f_bottom + d_bottom;
 
         %Difference in average intensity indicates between tile differences
-        I_top1 = I_top*v_matrix1(i,j);
-        I_bottom1 = I_bottom*v_matrix1(i+1,j);
-        v_matrix1(i+1,j) = prctile(I_top1,low_prct)/prctile(I_bottom1,low_prct);
-
-        %Difference in average intensity indicates between tile differences
-        I_top1 = I_top*v_matrix2(i,j);
-        I_bottom1 = I_bottom*v_matrix2(i+1,j)*v_matrix1(i+1,j);
-        v_matrix2(i+1,j) = prctile(I_top1,high_prct)/prctile(I_bottom1,high_prct);
+        I_top1 = I_top*v_matrix(i,j);
+        I_bottom1 = I_bottom*v_matrix(i+1,j);
+        v_matrix(i+1,j) = prctile(I_top1,high_prct)/prctile(I_bottom1,high_prct);
     end
 end
-v_matrix1 = v_matrix1/mean2(v_matrix1);
-v_matrix2 = v_matrix2/mean2(v_matrix2);
+v_matrix = v_matrix/mean2(v_matrix);
 
 % Combine matrices by row-wise multiplicaiton of each row
-adj_matrix1a = zeros(size(h_matrix1));
-adj_matrix1b = zeros(size(h_matrix1));
-for i = 1:size(h_matrix1,1)
-    adj_matrix1a = adj_matrix1a + v_matrix1.*h_matrix1(i,:)/size(h_matrix1,1); 
-    adj_matrix1b = adj_matrix1b + v_matrix2.*h_matrix2(i,:)/size(h_matrix2,1); 
+adj_matrix1 = zeros(size(h_matrix));
+for i = 1:size(h_matrix,1)
+    adj_matrix1 = adj_matrix1 + v_matrix.*h_matrix(i,:)/size(h_matrix,1); 
 end
 
 % Combine matrices by column-wise multiplication of column
-adj_matrix2a = zeros(size(h_matrix1));
-adj_matrix2b = zeros(size(h_matrix1));
-for i = 1:size(v_matrix1,2)
-    adj_matrix2a = adj_matrix2a + v_matrix1(:,i).*h_matrix1/size(h_matrix1,2);
-    adj_matrix2b = adj_matrix2b + v_matrix2(:,i).*h_matrix2/size(h_matrix2,2);
+adj_matrix2 = zeros(size(v_matrix));
+for i = 1:size(v_matrix,2)
+    adj_matrix2 = adj_matrix2 + v_matrix(:,i).*h_matrix/size(h_matrix,2);
 end
 
 % Calculate final adjustments by averaging column-wise/row-wise matrices
-adj_matrix1 = (adj_matrix1a+adj_matrix2a)/2;
-adj_matrix2 = (adj_matrix1b+adj_matrix2b)/2;
+t_adj = (adj_matrix1+adj_matrix2)/2;
 
 % Display final adjustment matrices
 fprintf('%s\t Final Tile Adjustment Matrices:\n',datetime('now'));    
-disp(adj_matrix1)
-disp(adj_matrix2)
+disp(t_adj)
 
 end

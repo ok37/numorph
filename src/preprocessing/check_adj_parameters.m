@@ -41,6 +41,7 @@ if isempty(adj_params)
         config.upperThresh = upperThresh;
         config.signalThresh = signalThresh;
     end
+    adj_params_full = [];
     return
 end
 

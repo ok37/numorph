@@ -3,9 +3,7 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-stitch_img = "true";                    % true, update, false; 2D iterative stitching
-
-load_alignment_params = "false";        % true, update, false; True: apply previously calculated parameters to align individual tiles during stitching. Update: update previosuly calculated alignment parameters for specified images based on new settings
+stitch_images = "true";                    % true, update, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
 ignore_markers = "Auto";                % completely ignore marker from processing steps. 
@@ -49,7 +47,7 @@ only_pc = "false";                      % true, false; Use only phase correlatio
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
 elastix_params = "16_prealign";         % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
 pre_align = "true";                     % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
-max_chunk_size = 1400;                  % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
+max_chunk_size = 1500;                  % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
 chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
@@ -57,14 +55,17 @@ hist_match = 64;                        % 1xn_channels-1 interger; Match histogr
 
 %% Stitching Parameters
 % Parameters for running iterative 2D stiching
+sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
+load_alignment_params = "false";        % true, false; True: apply previously calculated parameters to align individual tiles during stitching
+overlap = 0.10;                         % 0:1; overlap between tiles as fraction
+
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                % channel index; If only stitching certain channels
-overlap = 0.10;                         % 0:1; overlap between tiles as fraction
+use_middle = "false";                   % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
+
 blending_method = "sigmoid";            % sigmoid, linear, max
 sd = 0.05;                              % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
 border_pad = 25;                        % integer >= 0; Crops borders during stitching. Increase if images shift significantly between channels to prevent zeros values from entering stitched image
-sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-use_middle = "false";                   % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
 
 %% Additional Post-processing Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image

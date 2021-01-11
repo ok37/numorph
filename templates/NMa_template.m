@@ -16,9 +16,9 @@ resample_channels = [];                     % Resample specific channels.
 resample_resolution = 25;                   % Resample resolution (. Should match resolution of Allen Reference Atlas
 
 %% Registration Parameters
-registration_method = "a";                   % Affine, BSpline, Points, Other
+registration_parameters = [];                % Name of folder containing elastix registration parameters. Place in /data/elastix_parameter_files/atlas_registration. If empty, will load from "default" or "points"
 register_channels = 1;                       % Which channel to register to atlas
-atlas_file = "ara_nissl_25.nii";        % Name of the atlas file to register to. Can provide full path or place .nii file in supplementary_data
+atlas_file = "ara_nissl_25.nii";             % Name of the atlas file to register to. Can provide full path or place .nii file in supplementary_data
 
 direction = "atlas_to_image";                % "atlas_to_image" or "image_to_atlas". Direction to perform registration. Note for image_to_atlas, inverse must be calculated
 calculate_inverse = "false";                 % true, false. Whether to calculate the inverse transform using elastix's Displacement Magnitude Penalty
@@ -74,7 +74,7 @@ split_markers = "false";                    % Run GMM seperately for each marker
 
 
 
-%% Additional Carry-over threshold values from NM_process
+%% Additional carry-over threshold values from NM_process
 lowerThresh = [];                       % 1xn_channels numeric; Lower intensity for rescaling
 signalThresh = [];                      % 1xn_channels numeric; Rough estimate for minimal intensity for features of interest
 upperThresh = [];                       % 1xn_channels numeric; Upper intensity for rescaling

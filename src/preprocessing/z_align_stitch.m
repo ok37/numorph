@@ -25,10 +25,13 @@ if nfiles_mov ~= nfiles_ref
 end
 
 % Adjust z_positions if specified number is too high
-z_positions = min(z_positions,nb_imgs_mov-z_window*2);
+if z_positions<1
+    z_positions = ceil(z_positions*nfiles_ref);
+end
+z_positions = min(z_positions,nfiles_mov-z_window*2);
 
 % Pick reference images in range
-z = round(linspace(z_window+1,nb_imgs_ref-z_window,z_positions));
+z = round(linspace(z_window+1,nfiles_ref-z_window,z_positions));
 path_ref = path_ref(z,:);
 
 % Determine overlap region

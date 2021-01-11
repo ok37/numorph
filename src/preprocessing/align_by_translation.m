@@ -193,6 +193,11 @@ for i = 1:size(order_m,1)
                tform.T(3) = m_subset(nearest_idx,idx+1);
                tform.T(6) = m_subset(nearest_idx,idx+2);
                order_m(i,idx) = 1; % Note poor pc result   
+               if i == 1
+                   warning("Poor phase correlation result for the initial slice. Alignment "+....
+                       "not likely to succeed. Check images and parameters....\n")
+                   pause(5)
+               end
            end
 
            % Check for big translations in phase correlation. It's very important to use

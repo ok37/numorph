@@ -1,15 +1,28 @@
-function new_names = rename_tile_position(file_directory, overwrite)
+function file_table = rename_tile_position(input_directory, overwrite)
 %--------------------------------------------------------------------------
-% Rename files based on adjusted file positions.
+% Rename files based on adjusted file positions. User is prompted to which
+% characters in the image filenames to replace.
 %--------------------------------------------------------------------------
-
+%
+% Usage:
+% new_names = rename_tile_position(input_directory, overwrite)
+%
+% Inputs:
+% input_directory - string specifying path to image directory.
+%
+% overwrite - ;ogical specifying whether to overwrite files with new names.
+% (Default: false).
+%
+% Outputs:
+% file_table - table containing old and new filenames.
+%--------------------------------------------------------------------------
 position_exp = ["[\d*", "\d*]","Z\d*"];
 
 if nargin <2
     overwrite = false;
 end
 
-files = dir(file_directory);
+files = dir(input_directory);
 files = files(arrayfun(@(s) contains(s.name,'.tif'),files));
 
 % Check if all file names the same length
@@ -68,8 +81,13 @@ for i = 1:length(id)
     if any(ic_range>name_length)
         ic_range = ic_range(1):name_length;
     end
-    adj(i) = input(sprintf('Enter adjustment for this index?:\n\t%s\n\t\t%s\n',...
+    usr_input = input(sprintf('Enter adjustment for this index?:\n\t%s\n\t\t%s\n',...
         files(1).name(ic_range),und));
+    if ~isempty(usr_input)
+        adj(i) = usr_input;
+    else
+        adj(i) = 0;
+    end
 end
 
 % Apply adjustments
@@ -93,12 +111,25 @@ if overwrite
         a = fullfile(files(i).folder,files(i).name);
         b = [fullfile(files(i).folder,new_names{i}) '_tmp'];
         [status, msg] = movefile(a,b);
+        if ~status
+            disp(msg)
+        end
     end
     for i = 1:length(files)
         b = [fullfile(files(i).folder,new_names{i}) '_tmp'];
         c = fullfile(files(i).folder,new_names{i});
         [status, msg] = movefile(b,c);
+        if ~status
+            disp(msg)
+        end
     end
 end
+
+% Create table output
+file_table = table('Size', [length(new_names),2],...
+    'VariableTypes',{'cell','cell'},...
+    'VariableNames',{'old_name','new_name'});
+file_table.old_name = {files.name}';
+file_table.new_name = new_names';
 
 end

@@ -17,7 +17,7 @@ end
 z_positions = config.z_positions;
 z_window = config.z_window;
 signalThresh = config.signalThresh(channel_idx);
-z_initial = config.z_initial(channel_idx);
+z_initial = config.z_initial(channel_idx-1);
 
 % Adjust for resolution
 res_adj = config.resolution{1}./config.resolution{channel_idx};

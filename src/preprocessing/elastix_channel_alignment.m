@@ -94,7 +94,7 @@ using_loaded_parameters = false;
 out = [];
 if exist(varfile,'file') == 2
     m = matfile(varfile);
-    out = m.alignment_params(x,y);
+    out = m.alignment_params(y,x);
     if ~isempty(out{1})
         fprintf("%s\t Loading previous alignment parameters \n",datetime('now'))
         out = out{1};
@@ -291,16 +291,15 @@ end
 % Apply intensity adjustments for each tile
 if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity)) &&...
    all(arrayfun(@(s) ~isequal(s,"false"),config.adjust_tile_shading))
-   adj_params = config.adj_params;
-   adj_ref = config.adj_params.(markers(1));
+   adj_params = arrayfun(@(s) config.adj_params.(s),markers,'UniformOutput',false);
+   adj_ref = adj_params{1};
     parfor i = 1:length(markers)
         if c_idx(i) == 0
             continue
         else
             fprintf('Applying intensity adjustments for marker %s\n',markers(i));
-            params = adj_params.(markers(i));
         end
-        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, params, adj_ref);
+        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, adj_params{i}, adj_ref);
     end
 end
 

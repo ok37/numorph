@@ -24,7 +24,12 @@ if nargin<1
 elseif isstring(config)
     config = load(fullfile(config,'NM_variables.mat'));
 elseif ~isstruct(config)
-    error("Invalid configuartion input")
+    error("Invalid configuration input")
+end
+
+% Check config structure to make sure it's correct
+if ~isfield(config,'adjust_intensity') || ~isfield(config,'align_channels')
+    error("config structure is not from processing template.")
 end
 
 % Default to run full pipeline
@@ -33,8 +38,17 @@ if nargin<2
 end
 
 % Apply intensity adjustments if only aligning or stitching
-if nargin<3
-    use_adjustments = true;
+if nargin<3 
+    if ~isequal(config.adjust_intensity,"false")
+        use_adjustments = true;
+    else
+        use_adjustments = false;
+    end
+end
+
+% Check step input
+if ~ismember({step},{'process','align','stitch','intensity'})
+    error("Invalid processing step specified.")
 end
 
 % Make an output directory
@@ -84,7 +98,7 @@ equal_res = all(cellfun(@(s) config.resolution{1}(3) == s(1,3),config.resolution
 % Configure intensity adjustments
 if use_adjustments || isequal(step,'intensity')
     % If single step, will only be loading intensity adjustments
-    if isequal(step,'stitch') || isequal(step,'align') && isequal(config.adjust_intensity,"update")
+    if isequal(step,'stitch') || isequal(step,'align')
         config.adjust_intensity = "true";
     end
     [config, path_table] = perform_intensity_adjustment(config, path_table, nrows, ncols);
@@ -504,11 +518,11 @@ function [config, path_table] = perform_stitching(config,path_table)
 % Stitching
 
 % Check selection
-if isequal(config.image_stitching,"false")
+if isequal(config.stitch_images,"false")
     fprintf("%s\t No image stitching selected. \n",datetime('now'));
     return
-elseif ~isequal(config.image_stitching, "true") && ~isequal(config.image_stitching, "update")
-    error("Unrecognized selection for image_stitching. "+...
+elseif ~isequal(config.stitch_images, "true") && ~isequal(config.stitch_images, "update")
+    error("Unrecognized selection for stitch_images. "+...
     "Valid options are ""true"", ""update"", or ""false"".")
 end
 
@@ -584,25 +598,23 @@ else
 end
 
 % Check whether to stitch from previously calculated transforms.
-if ~isequal(config.image_stitching,"update")
-    var_file = fullfile(config.output_directory,'variables','stitch_tforms.mat');
+nb_images = length(min(path_table.z_adj):max(path_table.z_adj));
+var_file = fullfile(config.output_directory,'variables','stitch_tforms.mat');
+h_stitch_tforms = []; v_stitch_tforms = [];
+if ~isequal(config.stitch_images,"update")
     if exist(var_file,'file') == 2
         fprintf("%s\t Loading previously calculated stitching parameters \n",datetime('now'));
         load(var_file, 'h_stitch_tforms','v_stitch_tforms')
+        
+        % Check if sizes match up
+        if size(h_stitch_tforms,2) ~= nb_images
+           error("%s\t Number of slices z slices in stitching parameters does not match loaded images \n",string(datetime('now')))
+        elseif size(h_stitch_tforms,1) ~= (ncols-1)*nrows*2
+           error("%s\t Number of column positions does not match loaded stitching parameters \n",string(datetime('now')))
+        elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
+           error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
+        end
     end
-
-    % Check if sizes match up
-    nb_images = length(min(path_table.z_adj):max(path_table.z_adj));
-
-    if size(h_stitch_tforms,2) ~= nb_images
-       error("%s\t Number of slices z slices in stitching parameters does not match loaded images \n",string(datetime('now')))
-    elseif size(h_stitch_tforms,1) ~= (ncols-1)*nrows*2
-       error("%s\t Number of column positions does not match loaded stitching parameters \n",string(datetime('now')))
-    elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
-       error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
-    end
-else
-    h_stitch_tforms = []; v_stitch_tforms = [];
 end
 
 if isempty(h_stitch_tforms)

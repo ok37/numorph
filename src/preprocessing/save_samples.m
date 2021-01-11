@@ -100,7 +100,6 @@ switch process
             % Save t_adj
             t_adj = params.t_adj;
             if t_adj~=1
-                t_adj = t_adj(:,:,2).*t_adj(:,:,1);
                 fig = figure('visible','off');
                 heatmap(t_adj)
                 caxis([0.5,1.5])

@@ -45,8 +45,6 @@ end
 % Count number of sections
 nb_sections = size(img_name_grid,4);
 [nrows,ncols] = size(img_name_grid(:,:,1));
-nb_img_tiles = size(img_name_grid,1)*size(img_name_grid,2);
-
 fprintf("%s\t Begin stitching %d slices \n",datetime('now'),nb_sections)
 
 %Check if only certain sub-section is to be stitched
@@ -56,6 +54,27 @@ if ~isempty(config.stitch_sub_stack)
     nb_sections = length(z_range);
 else
     z_range = 1:size(img_name_grid,4);
+end
+
+% Check if intensity adjustments are specified
+if isequal(config.adjust_intensity,"true")
+    if ~isfield(config,'adj_params')
+        error('%s\t Intensity adjustments requested but could not locate adjustment parameters.',...
+            datetime('now'))
+    end
+    adj_params = cell(1,length(config.markers));
+    for i = 1:length(config.markers)
+        adj_params{i} = config.adj_params.(config.markers(i));
+    end
+    fprintf('%s\t Applying some intensity adjustments \n',datetime('now'))
+else
+    fprintf('%s\t Stitching without intensity adjustments \n',datetime('now'))
+    adj_params = [];
+end
+
+% Check for alignment table
+if isequal(config.load_alignment_params,"true") && ~isempty(config.alignment_table)
+    fprintf('%s\t Applying channel alignment parameters during stitching \n',datetime('now'))
 end
 
 % Create .mat file for storing stitching information
@@ -104,9 +123,9 @@ if isempty(config.stitch_start_slice)
     %    [~,start_z] = min(abs(nb_sections/2-sig_pos));
     %    start_z = sig_pos(start_z);
     %end
-elseif isnumeric(config.use_middle) && isempty(config.stitch_sub_stack)
+elseif isnumeric(config.stitch_start_slice) && isempty(config.stitch_sub_stack)
     % Start from specified z position
-    start_z = config.use_middle;
+    start_z = config.stitch_start_slice;
 else
     % Otherwise start from the middle
     start_z = round(size(img_name_grid,4)/2);
@@ -156,7 +175,7 @@ for idx2 = 1:2
             %Print image being stitched
             fprintf(strcat(char(datetime('now')),'\t Stitching image %d \n'),z_range(i));
             [h_tform,v_tform]=stitch_worker(img_name_grid(:,:,:,i),pre_h_tform1,pre_v_tform1,...
-                config,z_pos,usfac,peaks);
+                config,z_pos,adj_params,usfac,peaks);
             
             %Store translations
             h_tform1 = h_tform'; v_tform1 = v_tform';
@@ -174,7 +193,7 @@ for idx2 = 1:2
             %Print image being stitched
             fprintf(strcat(char(datetime('now')),'\t Stitching image %d \n'),z_range(j));
             [h_tform,v_tform]=stitch_worker(img_name_grid(:,:,:,j),pre_h_tform2,pre_v_tform2,...
-                config,z_pos,usfac,peaks);
+                config,z_pos,adj_params,usfac,peaks);
            
             %Store translations
             h_tform1 = h_tform'; v_tform1 = v_tform';
@@ -186,65 +205,20 @@ end
 
 end
 
-function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tform,config,z_idx,usfac,peaks)
+function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tform,config,z_idx,adj_params,usfac,peaks)
 % Worker for stitching_iterative function
 
 % Defaults
 border_pad = config.border_pad; % Border cropping along edges
 min_overlap = 50;    % Minimum overlapping region in pixels
 
-%Image grid info
+% Image grid info
 [nrows,ncols,nchannels] = size(img_grid);
 
-%Read images, adjust intensities, apply translations for multichannel
-A = cell(size(img_grid));
-A{1} = imread(img_grid{1});
-[img_height,img_width,~] = size(A{1});
-ref_fixed = imref2d([img_height img_width]);
-for k = 1:nchannels 
-    c_idx = config.stitch_sub_channel(k);
-    for i = 1:nrows
-        for j = 1:ncols
-            % Read image. If applying alignment, read matching image in
-            % alignment table
-            if isempty(config.alignment_table) || c_idx==1
-                A{i,j,k} = imread(img_grid{i,j,k});
-                mov_img_entry = [];
-            else
-                ref_img_name = img_grid(i,j,1);
-                mov_img_entry = config.alignment_table{i,j}(string(config.alignment_table{i,j}{:,1}) == ref_img_name,:);
-                if ~isempty(mov_img_entry)
-                    A{i,j,k} = imread(mov_img_entry.file_2{:});
-                else
-                    error("Alignement filenames do not match")
-                end
-            end
-            
-            %Crop or pad images
-            if ~isequal(size(A{i,j,k}),[img_height,img_width])
-                A{i,j,k} = crop_to_ref(A{1},A{i,j,k});
-            end
-            
-            % Apply intensity adjustments
-            if isequal(config.adjust_intensity,"true")
-                A{i,j,k} = apply_intensity_adjustment(A{i,j,k},'params',config.adj_params,...
-                    'r',i,'c',j,'idx',c_idx);
-            end
-            
-            % Apply alignment transforms
-            if ~isempty(mov_img_entry)
-                x = mov_img_entry{1,5};
-                y = mov_img_entry{1,6};
-                
-                tform = affine2d([1 0 0; 0 1 0; x y 1]);
-                A{i,j,k} = imwarp(A{i,j,k}, tform,'OutputView',ref_fixed,'FillValues',0); 
-            end
-        end
-    end
-end
-
-% Convert images to single
-A = cellfun(@(s) single(s),A,'UniformOutput',false);
+% Read images, adjust intensities, apply translations for multichannel
+A = read_stitching_grid(img_grid,config.stitch_sub_channel,config.markers,...
+    adj_params,config.alignment_table);
+[img_height,img_width] = size(A{1});
 
 % Calculate overlaps in pixels
 h_overlap = round(img_width*config.overlap);
@@ -284,8 +258,10 @@ end
 B = A(:,1,:);
 
 % Calculate horizontal translations
-if ncols > 1
-    for i = 1:nrows 
+for i = 1:nrows 
+    if ncols == 1
+        continue
+    end
     for j = 1:ncols-1
         % Update overlap region of the left image 
         overlap_h_max = size(B{i,1},2)-length(overlap_h_min)+1:size(B{i,1},2);
@@ -331,10 +307,6 @@ if ncols > 1
                 final_tform = affine2d([1 0 0; 0 1 0; pre_h_tform{i,j}(1) pre_h_tform{i,j}(2) 1]);
             end
         end
-
-        % Adjust horizontally overlapped pixels based on translations
-        %ref_fixed2 = imref2d([img_height img_width+ceil(final_tform.T(3))]);
-        %ref_fixed2 = imref2d([img_height img_width]);
         
         % If overlap is extended, resize to to expected overlapping region
         if ext_adj_h > 0
@@ -362,27 +334,28 @@ if ncols > 1
             w_h_adj(1:adj_right) = 0;
         end
         
+        % Rescale non-cropped areas
+        min_w_h_adj = min(w_h_adj(w_h_adj>0));
+        w_h_adj(w_h_adj>=min_w_h_adj) = (w_h_adj(w_h_adj>=(min_w_h_adj)) - min_w_h_adj)./(1-min_w_h_adj);
+        
         % Save translation
         pre_h_tform{i,j} = [final_tform.T(3), final_tform.T(6)];
-        %final_tform.T(3) = final_tform.T(3) + pre_tform(1);
-        %final_tform.T(6) = final_tform.T(6) + pre_tform(2);
-
-        %pre_tform(1) = final_tform.T(3);
-        %pre_tform(2) = final_tform.T(6);
-        ref_fixed2 = imref2d([img_height img_width+floor(final_tform.T(3))]);
         
-        % Transform and merge images (faster to for loop on each channel)
+        % Transform and merge images (faster to use for loop on each channel)
+        ref_fixed2 = imref2d([img_height img_width+floor(final_tform.T(3))]);
         for k = 1:nchannels
             reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
+            
+            %Adjust intensity again?
+            if isequal(config.adjust_tile_position,"true")
+                adj_factor = prctile(B{i,k}(:,overlap_h_max),75,'all')/prctile(reg_img(:,overlap_h_min),75,'all');
+                reg_img = reg_img * adj_factor;
+            end            
             B{i,k} = blend_images(reg_img,B{i,k},false,config.blending_method(k),w_h_adj);  
         end
         
-        % Save translation
-        pre_h_tform{i,j} = [final_tform.T(3), final_tform.T(6)];
-
     end
-    end  
-end
+end  
 
 %disp(final_tform.T)
 %figure; imshow(imadjust(uint16(B{1,1}))*2)
@@ -461,6 +434,8 @@ for i = 1:length(B)-1
     else
         w_v_adj = (overlap_v_min1/v_overlap)';
     end
+    min_w_v_adj = min(w_v_adj(w_v_adj>0));
+    w_v_adj(w_v_adj>=min_w_v_adj) = (w_v_adj(w_v_adj>=(min_w_v_adj)) - min_w_v_adj)./(1-min_w_v_adj);
 
     % Clip ends based on vertical translation where image intensity
     % is 0
@@ -480,9 +455,10 @@ for i = 1:length(B)-1
     for k = 1:nchannels
         reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
         %Adjust intensity again?
-        %adj_factor = median(I{k}(overlap_v_max,:),'all')/median(reg_img(overlap_v_min,:),'all');
-        %adj_factor = prctile(I{k}(overlap_v_max,:),75)/prctile(reg_img(overlap_v_min,:),75);
-        %reg_img = reg_img * adj_factor;
+        if isequal(config.adjust_tile_position,"true")
+            adj_factor = prctile(I{k}(overlap_v_max,:),75,'all')/prctile(reg_img(overlap_v_min,:),75,'all');
+            reg_img = reg_img * adj_factor;
+        end
         I{k} = blend_images(reg_img,I{k},false,config.blending_method(k),w_v_adj); 
     end
     
@@ -496,22 +472,24 @@ if isequal(config.save_images,'false')
 end
 
 % Postprocess the image with various filters, background subtraction, etc.
-for i = 1:nchannels
-    c_idx = config.stitch_sub_channel(i);
-    I{c_idx} = postprocess_image(config, I{c_idx}, c_idx);
+c_idx = config.stitch_sub_channel;
+for i = 1:length(c_idx)
+    I{i} = postprocess_image(config, I{i}, c_idx(i));
 end
 
 %Crop or pad images based on ideal size
 I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',false);
 
+figure; imshow(imadjust(uint16(I{1}*50)))
+
 %Save images as individual channels (will be large)
-for i = 1:nchannels
-    img_name = sprintf('%s_%s_C%d_%s_stitched.tif',config.sample_name,num2str(z_idx,'%04.f'),i,config.markers(i));
+for i = 1:length(c_idx)
+    img_name = sprintf('%s_%s_C%d_%s_stitched.tif',...
+        config.sample_name,num2str(z_idx,'%04.f'),c_idx(i),config.markers(c_idx(i)));
     img_path = fullfile(char(config.output_directory),'stitched',img_name);
     imwrite(uint16(I{i}),img_path)
 end
 
-%imshow(imadjust(uint16(I{1}))*2)
 end
 
 function tform = sift_refinement_worker(mov_img,ref_img)

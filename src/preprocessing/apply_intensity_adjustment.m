@@ -37,7 +37,7 @@ r = p.Results.r; % Row
 c = p.Results.c; % Column
 if ~isempty(adj_params)
     if isequal(adj_params.adjust_tile_position,'true') && ~isempty(adj_params.t_adj)
-        t_adj = adj_params.t_adj(r,c,:);
+        t_adj = adj_params.t_adj(r,c);
         l_thresh = adj_params.lowerThresh;
     end
     if isequal(adj_params.adjust_tile_shading,'basic')
@@ -60,17 +60,13 @@ end
 
 % Adjust for tile intensity differences
 if isnumeric(t_adj) && l_thresh > 0
-    I = I*t_adj(1);
     Imin = l_thresh*65535;
     I_dark = I-Imin;
-    I_dark(I_dark<0) = 0;
-    I = (I_dark)*(t_adj(2)) + Imin;
+    I = (I_dark*t_adj) + Imin;
 elseif isnumeric(t_adj)
-    I = I*t_adj(1);
     Imin = dark_val;
     I_dark = I-Imin;
-    I_dark(I_dark<0) = 0;
-    I = (I_dark)*(t_adj(2)) + Imin;
+    I = (I_dark*t_adj) + Imin;
 end
 
 % Apply flatfield correction

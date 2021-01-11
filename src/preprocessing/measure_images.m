@@ -46,8 +46,7 @@ if get_thresholds
 end
 
 % Calculate and adjust for laser width
-if isequal(config.adjust_tile_shading,"manual")
-    fprintf('%s\t Adjusting For Laser Width \n',datetime('now'));    
+if isequal(config.adjust_tile_shading(channel_idx),"manual")
     y_adj = adjust_ls_width_measured(config.single_sheet(channel_idx),tempI,...
     config.ls_width(channel_idx),resolution,config.laser_y_displacement(channel_idx))';
 else
@@ -57,6 +56,14 @@ end
 % Calculate shading correction using BaSiC
 if isequal(config.adjust_tile_shading(channel_idx),"basic")
     [flatfield, darkfield] = estimate_flatfield(config, stack);
+    % Check value in flatfield image
+    if any(flatfield(:)>1.5) || any(flatfield(:)<0.5)
+        warning("BaSiC measured some relatively large adjustment values in the "+...
+            "flatfield image which may not be accurate. Try subsetting to tile positions with uniform signal "+...
+            "throughout the full field of view. Otherwise BaSiC may not be the appropriate "+...
+            "method for shading correction.")
+        pause(5)
+    end
     flatfield = single(flatfield);
     darkfield = single(darkfield);
 else
@@ -66,12 +73,8 @@ end
 % Tile intensity adjustments
 if x_tiles*y_tiles>1 && isequal(config.adjust_tile_position(channel_idx),"true")
     % Measure overlapping tiles and get thresholds
-    defaults.image_sampling = defaults.image_sampling*10;
-    [adj_matrix1,adj_matrix2] = adjust_tile_multi(config,stack,defaults);
-    
-    % Store tile adjustment
-    t_adj(:,:,1) = adj_matrix1;
-    t_adj(:,:,2) = adj_matrix2;
+    defaults.image_sampling = min(defaults.image_sampling*10,1);
+    t_adj = adjust_tile_multi(config,stack,defaults);
 else
     if x_tiles*y_tiles == 1
         fprintf('%s\t Only 1 tile detected for marker %d \n',...

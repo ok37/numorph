@@ -10,12 +10,14 @@ function paths_table_main = path_to_table(config,location,quick_load,save_table)
 
 % Check file location if not provided
 if nargin<2
-    if isstring(config)
+    if isstring(config) || ischar(config)
         % Directory location and not config structure
-        fprintf("%s\t Reading image filename information from raw image directory \n",datetime('now'))
-        a = config; clear config;
-        config.img_directory = a;
-        location = "raw";
+        fprintf("%s\t Reading image filename from single folder using default settings \n",datetime('now'))
+        paths = string(config);
+        assert(isfolder(paths) && length(paths) == 1,...
+            "Input must single folder in current directory")
+        paths_table_main = munge_single(paths);
+        return
     elseif isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
         % Start from after multi-channel alignment    
         fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
@@ -69,7 +71,7 @@ end
 if isequal(location,"resampled")
     paths = {dir(fullfile(config.output_directory,'resampled'))};
     quick_load = false; 
-elseif ~isequal(location,"csv")
+elseif ~isequal(location,"csv") && ~isequal(location,"single")
     for i = 1:length(config.img_directory)
         paths{i} = dir(config.img_directory(i));
         % Check for empty paths fields
@@ -172,6 +174,42 @@ if save_table
     path_table.(location) = paths_table_main;
     save(var_location,'path_table')
 end
+
+end
+
+function paths_new = munge_single(paths)
+% Try to create path table for single folder with whatever information is
+% available.
+
+position_exp = ["[\d*", "\d*]","Z\d*"]; % Default position expression vector
+
+paths = dir(paths);
+paths = paths(arrayfun(@(s) contains(s.name, '.tif'),paths));
+files = {paths.name};
+
+% Fill in table
+paths_new = table('Size',[length(files), 7],...
+    'VariableTypes',{'cell','string','string','string','double','double','double'},...
+    'VariableNames',{'file','sample_name','markers','channel_num','x','y','z'});
+paths_new.file = arrayfun(@(s,t) fullfile(s.folder,t),paths,files');
+
+% Can only do channel number here
+paths_new.channel_num = cellfun(@(s) str2double(regexprep(regexp(s,'_C\d*_','match'),{'_C','_'},'')),files)';
+
+% Do slice positions
+paths_new.y = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(1),'match'),'[^\d+]','')),files)';
+paths_new.x = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(2),'match'),'[^\d+]','')),files)';
+paths_new.z = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(3),'match'),'[^\d+]','')),files)';
+
+% Set channels and positions to start at 1
+paths_new.channel_num = paths_new.channel_num - min(paths_new.channel_num) + 1;
+paths_new.x = paths_new.x- min(paths_new.x) + 1;
+paths_new.y = paths_new.y - min(paths_new.y) + 1;
+paths_new.z = paths_new.z - min(paths_new.z) + 1;
+
+% Fill in remainig columns
+paths_new.sample_name = repmat("SAMPLE",height(paths_new),1);
+paths_new.markers = "marker"+num2str(paths_new.channel_num);
 
 end
 
