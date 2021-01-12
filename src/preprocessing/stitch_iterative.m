@@ -208,10 +208,10 @@ A = read_stitching_grid(img_grid,config.stitch_sub_channel,config.markers,...
 [img_height,img_width] = size(A{1});
 
 % Calculate overlaps in pixels
-h_overlap = round(img_width*config.overlap);
-v_overlap = round(img_height*config.overlap);
-x0 = round(h_overlap/2);
-y0 = round(v_overlap/2);
+h_overlap = ceil(img_width*config.overlap);
+v_overlap = ceil(img_height*config.overlap);
+x0 = ceil(h_overlap/2);
+y0 = ceil(v_overlap/2);
 
 % Calculate extended overlap if presumed overlap is small
 if h_overlap < min_overlap
@@ -333,7 +333,7 @@ for i = 1:nrows
         % Transform and merge images (faster to use for loop on each channel)
         ref_fixed2 = imref2d([img_height img_width+floor(final_tform.T(3))]);
         for k = 1:nchannels
-            reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
+            reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
             
             %Adjust intensity again?
             if isequal(config.adjust_tile_position,"true")
@@ -439,7 +439,7 @@ for i = 1:length(B)-1
     ref_fixed2 = imref2d([img_height+floor(final_tform.T(6)) size(I{1},2)]);
     
     for k = 1:nchannels
-        reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0,'SmoothEdges',true);
+        reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
         %Adjust intensity again?
         if isequal(config.adjust_tile_position,"true")
             adj_factor = prctile(I{k}(overlap_v_max,:),75,'all')/prctile(reg_img(overlap_v_min,:),75,'all');
@@ -532,9 +532,9 @@ X2 = f2(1:2,matches(2,:)); X2(3,:) = 1;
 w = 1+weight.*((1-weight)/0.25);
 
 if size(ref_img,1)>size(ref_img,2)
-    w = w(round(X1(1,:)));
+    w = w(ceil(X1(1,:)));
 else
-    w = w(round(X1(2,:)))';
+    w = w(ceil(X1(2,:)))';
 end
 
 %For plotting points

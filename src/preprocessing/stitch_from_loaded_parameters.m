@@ -108,10 +108,10 @@ A = read_stitching_grid(img_grid,config.stitch_sub_channel,config.markers,...
 [img_height,img_width] = size(A{1});
 
 % Calculate overlaps in pixels
-h_overlap = round(img_width*config.overlap);
-v_overlap = round(img_height*config.overlap);
-x0 = round(h_overlap/2);
-y0 = round(v_overlap/2);
+h_overlap = ceil(img_width*config.overlap);
+v_overlap = ceil(img_height*config.overlap);
+x0 = ceil(h_overlap/2);
+y0 = ceil(v_overlap/2);
 
 overlap_h_min = 1:h_overlap;
 overlap_v_min = 1:v_overlap;
@@ -134,7 +134,7 @@ for i = 1:nrows
         final_tform = affine2d([1 0 0; 0 1 0; h_tforms(a) h_tforms(a+1) 1]);
 
         % Adjust horizontally overlapped pixels based on translations
-        ref_fixed = imref2d([img_height img_width+ceil(final_tform.T(3))]);
+        ref_fixed = imref2d([img_height img_width+floor(final_tform.T(3))]);
         
         % Create adjusted blending weights
         x1 = x0 - final_tform.T(3);
@@ -188,7 +188,7 @@ for i = 1:length(B)-1
     final_tform = affine2d([1 0 0; 0 1 0; v_tforms(b) v_tforms(b+1) 1]);
     
     % Adjust vertically overlapped pixels based on translations
-    ref_fixed = imref2d([img_height+ceil(final_tform.T(6)) size(I{1},2)]);
+    ref_fixed = imref2d([img_height+floor(final_tform.T(6)) size(I{1},2)]);
     
     % Create adjusted blending weights
     y1 = y0 - final_tform.T(6);
@@ -197,9 +197,7 @@ for i = 1:length(B)-1
     else
         w_v_adj = (overlap_v_min/v_overlap)';
     end
-    min_w_v_adj = min(w_v_adj(w_v_adj>0));
-    w_v_adj(w_v_adj>=min_w_v_adj) = (w_v_adj(w_v_adj>=(min_w_v_adj)) - min_w_v_adj)./(1-min_w_v_adj);
-
+    
     % Clip ends based on vertical translation where image intensity
     % is 0
     if final_tform.T(6) > 0
@@ -209,6 +207,10 @@ for i = 1:length(B)-1
         adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
         w_v_adj(1:adj_bottom) = 0;
     end
+    
+    % Rescale non-cropped areas
+    min_w_v_adj = min(w_v_adj(w_v_adj>0));
+    w_v_adj(w_v_adj>=min_w_v_adj) = (w_v_adj(w_v_adj>=(min_w_v_adj)) - min_w_v_adj)./(1-min_w_v_adj);
         
     for k = 1:nchannels
         reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed,'FillValues',0,'SmoothEdges',true);

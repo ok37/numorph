@@ -4,19 +4,22 @@ function resampled_I = resample_image(path_table, resolution, resample_resolutio
 % structure, desired resolution, and image filetype. One file contains
 % entire stack.
 %--------------------------------------------------------------------------
+%
+% Usage:
+% resampled_I = resample_image(path_table, resolution, resample_resolution, channels)
+%
 % Inputs:
-% config - config structure from NM_analyze.
+% path_table - table of image file paths from path_to_table.
 % 
-% resample_res - 1x3 interger. Resolution to resample to.
+% resolution - (1x3 numeric) input image resolution. 
 %
-% markers - (optional) numeric or string array specifying which markers to
-% resample. Default is to resample all markers.
+% resample_resolution - (1x3 numeric) target resampling resolution.
 %
-% file_type - (optional) '.nii' or '.tif'. Which filetype to save to.
-% Default is .nii.
+% channels - (default: all channels) subset specific channel number to
+% resample.
 %
 % Outputs:
-% re_I - resampled image.
+% resampled_I - resampled image.
 %--------------------------------------------------------------------------
 
 % Check if path_table is string
