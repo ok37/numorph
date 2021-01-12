@@ -1,4 +1,4 @@
-function file_table = rename_tile_position(input_directory, overwrite)
+function path_table = rename_tile_position(input_directory, overwrite)
 %--------------------------------------------------------------------------
 % Rename files based on adjusted file positions. User is prompted to which
 % characters in the image filenames to replace.
@@ -126,10 +126,10 @@ if overwrite
 end
 
 % Create table output
-file_table = table('Size', [length(new_names),2],...
+path_table = table('Size', [length(new_names),2],...
     'VariableTypes',{'cell','cell'},...
     'VariableNames',{'old_name','new_name'});
-file_table.old_name = {files.name}';
-file_table.new_name = new_names';
+path_table.old_name = {files.name}';
+path_table.new_name = new_names';
 
 end

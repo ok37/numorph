@@ -46,7 +46,7 @@ if isempty(adj_params)
 end
 
 % Get measured thresholds from adj_params structure
-adj_params_full = adj_params;
+adj_params_full = adj_params; a=1;
 for i = 1:length(config.markers)
     if isfield(adj_params_full,config.markers(i))
         adj_params = adj_params_full.(config.markers(i));
@@ -91,12 +91,13 @@ for i = 1:length(config.markers)
     end
 
     % Check img directories
-    if ~any(adj_params.img_directory == config.img_directory)
+    if ~any(adj_params.img_directory == config.img_directory) && a==1
         warning("Intensity adjustment parameters were calculated from %s "+...
             "and not the input image directory. Some adjustments may have been "+...
             "already applied. Consider updating adjustment parameters.",...
             adj_params.img_directory)
         pause(5)
+        a=0;
     end
     
     % Update which adjustment to apply based on current configs

@@ -44,6 +44,8 @@ if nargin<3
     else
         use_adjustments = false;
     end
+elseif ~use_adjustments
+    config.adjust_intensity = "false";
 end
 
 % Check step input
@@ -283,9 +285,10 @@ end
 [adj_params, config] = check_adj_parameters(adj_params, config, nrows, ncols);
 config.adj_params = adj_params;
 
-% Reorganize adjustment parameters and save to output directory
+% Save parameters and thresholds to output directory
 fprintf("%s\t Saving adjustment parameters \n", datetime('now'));
 save(fullfile(config.output_directory,'variables','adj_params.mat'), 'adj_params')
+config = check_for_thresholds(config,path_table);
 config.adjust_intensity = "true";
 
 % Save flatfield and darkfield as seperate variables
@@ -600,8 +603,8 @@ end
 % Check whether to stitch from previously calculated transforms.
 nb_images = length(min(path_table.z_adj):max(path_table.z_adj));
 var_file = fullfile(config.output_directory,'variables','stitch_tforms.mat');
-h_stitch_tforms = []; v_stitch_tforms = [];
-if ~isequal(config.stitch_images,"update")
+h_stitch_tforms = []; v_stitch_tforms = []; update_stack = true;
+if isequal(config.stitch_images,"true")
     if exist(var_file,'file') == 2
         fprintf("%s\t Loading previously calculated stitching parameters \n",datetime('now'));
         load(var_file, 'h_stitch_tforms','v_stitch_tforms')
@@ -614,10 +617,22 @@ if ~isequal(config.stitch_images,"update")
         elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
            error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
         end
+        update_stack = false;
+        
+        % Check if all slices have been stitched. If not, switch to update
+        % and stitch remaining slices
+        if any(all(h_stitch_tforms == 0)) && any(all(v_stitch_tforms == 0))
+            warning("Missing stitching transforms in loaded stitching parameters. "+...
+                "Stitching will continue only for these slices. To re-stitch entire stack, "+...
+                "set stitch_images to ""update"".\n");
+            
+            config.stitch_sub_stack = find(sum(h_stitch_tforms,1) == 0);
+            update_stack = true;
+        end
     end
 end
 
-if isempty(h_stitch_tforms)
+if update_stack
     % Perform stitching
     stitch_iterative(config,path_table)
 else

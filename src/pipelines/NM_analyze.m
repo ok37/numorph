@@ -279,7 +279,7 @@ end
 for k = config.resample_channels
     fprintf('%s\t Resampling channel %s\n',datetime('now'),config.markers(k))            
     path_sub = path_table(path_table.markers == config.markers(k),:);
-    resample_img_to_atlas(path_sub, config);
+    resample_path_table(path_sub, config);
 end
 
 end

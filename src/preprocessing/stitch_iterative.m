@@ -6,7 +6,6 @@ function stitch_iterative(config, path_table)
 % Therefore this program will start from roughly the middle z positions and
 % work its way out towards the first and last slice.
 %--------------------------------------------------------------------------
-
 usfac = 10;
 peaks = 5;
 
@@ -59,8 +58,7 @@ end
 % Check if intensity adjustments are specified
 if isequal(config.adjust_intensity,"true")
     if ~isfield(config,'adj_params')
-        error('%s\t Intensity adjustments requested but could not locate adjustment parameters.',...
-            datetime('now'))
+        error("Intensity adjustments requested but could not locate adjustment parameters.")
     end
     adj_params = cell(1,length(config.markers));
     for i = 1:length(config.markers)
@@ -92,8 +90,8 @@ end
 % from middle or from other specified z 
 if isempty(config.stitch_start_slice)
     fprintf("%s\t Calculating stitching start position \n",datetime('now'))
-    % Check 10% of tiles
-    pos = max(1,floor(linspace(1,nb_sections,round(nb_sections*0.1)))); 
+    % Check 5% of images
+    pos = max(1,floor(linspace(1,nb_sections,ceil(nb_sections*0.05)))); 
     signal = zeros(length(pos),numel(img_name_grid(:,:,1)));
     for i = 1:length(pos)
         img_grid = img_name_grid(:,:,1,pos(i));
@@ -109,35 +107,21 @@ if isempty(config.stitch_start_slice)
     signal_ave = mean(signal,1);
     [~,z_idx] = max(signal(:,signal_ave == min(signal_ave)));
     start_z = pos(z_idx);    
-    
-    % Find which tiles have some kind of signal
-    %sig_tiles = sum(signal>0.05,2);
-    %sig_pos = pos(sig_tiles == max(sig_tiles));
-    % Choose closest to the middle from these positions
-    %if sig_tiles < nb_img_tiles
-    %    small_signal = signal(:,~any(signal>0.10));
-    %    [~,z_idx] = max(small_signal);
-    %    z_idx = round(mean(z_idx));
-    %    start_z = pos(z_idx);
-    %else
-    %    [~,start_z] = min(abs(nb_sections/2-sig_pos));
-    %    start_z = sig_pos(start_z);
-    %end
 elseif isnumeric(config.stitch_start_slice) && isempty(config.stitch_sub_stack)
     % Start from specified z position
     start_z = config.stitch_start_slice;
 else
     % Otherwise start from the middle
-    start_z = round(size(img_name_grid,4)/2);
+    start_z = ceil(size(img_name_grid,4)/2);
 end 
 
 % Start parallel pool
 if nb_sections > 20
-try
-    p = gcp('nocreate');
-catch
-    p = 1;
-end
+    try
+        p = gcp('nocreate');
+    catch
+        p = 1;
+    end
 else
     p = 1;
 end
@@ -152,32 +136,34 @@ end
 %(i.e. images are moving more than expected) the previous translation is
 %used as the current section is lacking enough features (likely because
 %it's at the edge of the sample
-for idx2 = 1:2
+parfor idx2 = 1:2
     m = matfile(stitch_file,'Writable',true);
     if ~isempty(config.stitch_sub_stack)
-        %%%%%%%Wrong
        h_tform = m.h_stitch_tforms(:,start_z);
-       h_tform = {reshape(h_tform, 2, length(h_tform)/2)};
-       v_tform = m.v_stitch_tforms(:,start_z)';
-       v_tform = {reshape(v_tform, 2, length(v_tform)/2)};
+       v_tform = m.v_stitch_tforms(:,start_z);
+       if all(h_tform == 0) && all(v_tform == 0)
+           h_tform = []; v_tform = [];
+       else
+           h_tform = reshape(num2cell(reshape(h_tform,2,length(h_tform)/2),1),nrows,ncols-1);
+           v_tform = reshape(num2cell(reshape(v_tform,2,length(v_tform)/2),1),nrows-1,1);
+       end
     else
         h_tform = []; v_tform = [];
     end
-    h_tform = []; v_tform = [];
     
     if idx2 == 1
-        %From middle to top
+        % From middle to top
         for i = fliplr(1:start_z)
             z_pos = z_range(i);
             pre_h_tform1 = h_tform;
             pre_v_tform1 = v_tform;
             
-            %Print image being stitched
-            fprintf(strcat(char(datetime('now')),'\t Stitching image %d \n'),z_range(i));
+            % Print image being stitched
+            fprintf('%s\t Stitching image %d \n',datetime('now'),z_pos);
             [h_tform,v_tform]=stitch_worker(img_name_grid(:,:,:,i),pre_h_tform1,pre_v_tform1,...
                 config,z_pos,adj_params,usfac,peaks);
             
-            %Store translations
+            % Store translations
             h_tform1 = h_tform'; v_tform1 = v_tform';
             m.h_stitch_tforms(:,z_pos) = [h_tform1{:}]'; 
             m.v_stitch_tforms(:,z_pos) = [v_tform1{:}]';
@@ -191,7 +177,7 @@ for idx2 = 1:2
             pre_v_tform2 = v_tform;
 
             %Print image being stitched
-            fprintf(strcat(char(datetime('now')),'\t Stitching image %d \n'),z_range(j));
+            fprintf('%s\t Stitching image %d \n',datetime('now'),z_pos);
             [h_tform,v_tform]=stitch_worker(img_name_grid(:,:,:,j),pre_h_tform2,pre_v_tform2,...
                 config,z_pos,adj_params,usfac,peaks);
            
@@ -210,7 +196,8 @@ function [pre_h_tform,pre_v_tform] = stitch_worker(img_grid,pre_h_tform,pre_v_tf
 
 % Defaults
 border_pad = config.border_pad; % Border cropping along edges
-min_overlap = 50;    % Minimum overlapping region in pixels
+min_overlap = 100;               % Minimum overlapping region in pixels
+signal_thresh = 0.05;           % Minimum fraction of poisitive pixels
 
 % Image grid info
 [nrows,ncols,nchannels] = size(img_grid);
@@ -275,7 +262,7 @@ for i = 1:nrows
         % Check number of bright pixels
         signal = sum(ref_img(:)>config.lowerThresh(1))/numel(mov_img);
 
-        if signal <0.005
+        if signal<signal_thresh
             try 
                 final_tform = affine2d([1 0 0; 0 1 0; pre_h_tform{i,j}(1) pre_h_tform{i,j}(2) 1]);
             catch
@@ -289,7 +276,9 @@ for i = 1:nrows
 
             % Warn user if large translation
             if isempty(tformPC) || abs(tformPC.T(3)-pre_h_tform{i,j}(1))>limit_x+ext_adj_h || abs(tformPC.T(6)-pre_h_tform{i,j}(2))>limit_y
-                fprintf(strcat(char(datetime('now')),'\t Warning: large horizontal displacement at %d x %d \n'),i,j);
+                if signal > signal_thresh*5
+                    fprintf('%s\t Warning: large horizontal displacement at %d x %d \n',datetime('now'),i,j);                
+                end
                 tformPC = affine2d([1 0 0; 0 1 0; pre_h_tform{i,j}(1) pre_h_tform{i,j}(2) 1]);
                 pc_img = imtranslate(mov_img, [pre_h_tform{i,j}(1) pre_h_tform{i,j}(2)]);
             end
@@ -357,9 +346,6 @@ for i = 1:nrows
     end
 end  
 
-%disp(final_tform.T)
-%figure; imshow(imadjust(uint16(B{1,1}))*2)
-
 % Crop horizontally stitched images to minimum width
 min_width = min(cellfun(@(s) size(s,2),B(:,1)));
 B = cellfun(@(s) s(:,1:min_width), B,'UniformOutput',false);
@@ -389,14 +375,16 @@ for i = 1:length(B)-1
     signal = sum(ref_img(:)>config.lowerThresh(1))/numel(mov_img);
     
     % When there is no intensity, use previous translation
-    if signal <0.02
+    if signal<signal_thresh
         final_tform = affine2d([1 0 0; 0 1 0; pre_v_tform{i}(1) pre_v_tform{i}(2) 1]);
     else
         % Perform phase correlation and refine with SIFT
         [pc_img,ref_img,tformPC] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
         
         if isempty(tformPC) || abs(tformPC.T(3)-pre_v_tform{i}(1))>limit_x || abs(tformPC.T(6)-pre_v_tform{i}(2))>limit_y+ext_adj_v
-            fprintf(strcat(char(datetime('now')),'\t Warning: large vertical displacement at %d\n'),i);
+            if signal>signal_thresh*5
+                fprintf('%s\t Warning: large vertical displacement at %d\n',datetime('now'),i);                            
+            end
             tformPC = affine2d([1 0 0; 0 1 0; pre_v_tform{i}(1) pre_v_tform{i}(2) 1]);
             pc_img = imtranslate(mov_img,[pre_v_tform{i}(1) pre_v_tform{i}(2)]);
         end
@@ -440,11 +428,9 @@ for i = 1:length(B)-1
     % Clip ends based on vertical translation where image intensity
     % is 0
     if final_tform.T(6) > 0
-        disp(final_tform.T(6))
         adj_top = max(border_pad,ceil(final_tform.T(6)));
         w_v_adj(1:adj_top) = 0;
     else
-        disp(final_tform.T(6))
         adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
         w_v_adj(1:adj_bottom) = 0;
     end
@@ -480,7 +466,7 @@ end
 %Crop or pad images based on ideal size
 I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',false);
 
-figure; imshow(imadjust(uint16(I{1}*50)))
+%figure; imshow(imadjust(uint16(I{1}*50)))
 
 %Save images as individual channels (will be large)
 for i = 1:length(c_idx)
@@ -570,7 +556,7 @@ if numMatches > 3
 
     tform = affine2d([1 0 0; 0 1 0; x y 1]);
 else
-    fprintf(strcat(char(datetime('now')),'\t Not enough matches to use SIFT, attempting image registration\n'))
+    %fprintf(strcat(char(datetime('now')),'\t Not enough matches to use SIFT, attempting image registration\n'))
     metric = registration.metric.MattesMutualInformation;
     optimizer = registration.optimizer.RegularStepGradientDescent;
        

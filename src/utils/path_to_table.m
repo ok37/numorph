@@ -9,6 +9,7 @@ function paths_table_main = path_to_table(config,location,quick_load,save_table)
 %--------------------------------------------------------------------------
 
 % Check file location if not provided
+paths = [];
 if nargin<2
     if isstring(config) || ischar(config)
         % Directory location and not config structure
@@ -16,8 +17,18 @@ if nargin<2
         paths = string(config);
         assert(isfolder(paths) && length(paths) == 1,...
             "Input must single folder in current directory")
-        paths_table_main = munge_single(paths);
-        return
+        names = dir(paths);
+        if any(arrayfun(@(s) contains(s.name,'aligned'),names))
+            location = "aligned";
+        elseif any(arrayfun(@(s) contains(s.name,'stitched'),names))
+            location = "stitched";
+        elseif any(arrayfun(@(s) contains(s.name,'.nii'),names))
+            location = "resampled";
+        else
+            paths_table_main = munge_single(paths);
+            return
+        end
+        paths = {dir(paths)};
     elseif isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
         % Start from after multi-channel alignment    
         fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
@@ -56,8 +67,8 @@ if nargin<4
 end
 
 % Load table if variable exists
-var_location = fullfile(config.output_directory,'variables','path_table.mat');
-if exist(var_location,'file') == 2
+if isstruct(config) && exist(fullfile(config.output_directory,'variables','path_table.mat'),'file') == 2
+    var_location = fullfile(config.output_directory,'variables','path_table.mat');  
     load(var_location,'path_table')
     if ~isfield(path_table,location)
         quick_load = false;
@@ -71,7 +82,7 @@ end
 if isequal(location,"resampled")
     paths = {dir(fullfile(config.output_directory,'resampled'))};
     quick_load = false; 
-elseif ~isequal(location,"csv") && ~isequal(location,"single")
+elseif ~isequal(location,"csv") && ~iscell(paths)
     for i = 1:length(config.img_directory)
         paths{i} = dir(config.img_directory(i));
         % Check for empty paths fields
@@ -197,9 +208,30 @@ paths_new.file = arrayfun(@(s,t) fullfile(s.folder,t),paths,files');
 paths_new.channel_num = cellfun(@(s) str2double(regexprep(regexp(s,'_C\d*_','match'),{'_C','_'},'')),files)';
 
 % Do slice positions
-paths_new.y = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(1),'match'),'[^\d+]','')),files)';
-paths_new.x = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(2),'match'),'[^\d+]','')),files)';
-paths_new.z = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(3),'match'),'[^\d+]','')),files)';
+try
+    paths_new.y = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(1),'match'),'[^\d+]','')),files)';
+    paths_new.x = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(2),'match'),'[^\d+]','')),files)';
+catch
+    paths_new.y = ones(height(paths_new),1);
+    paths_new.x = ones(height(paths_new),1);
+end
+
+try
+    paths_new.z = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(3),'match'),'[^\d+]','')),files)';    
+catch
+    a = arrayfun(@(s) regexp(s.name,'\d*','Match'), paths, 'UniformOutput', false);
+    a = cat(1,a{:});
+    idx = false(1,size(a,2));
+    for i = size(a,2)
+        idx(i) = ~all(a{1,i} == a{end,i});
+    end
+    
+    if sum(idx) == 1
+        paths_new.z = str2double(a(:,idx));
+    else
+        paths_new.z = ones(size(a,1),1);
+    end
+end
 
 % Set channels and positions to start at 1
 paths_new.channel_num = paths_new.channel_num - min(paths_new.channel_num) + 1;
@@ -241,15 +273,19 @@ paths_sub = rmfield(paths_sub,fields_to_remove);
 components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
 components = vertcat(components{:});
 
-% Take image information
-[paths_sub.sample_name] = components{:,1};
+%Take image information
+for i = 1:length(paths_sub)
+    paths_sub(i).sample_name = string(components{i,1});
+    paths_sub(i).markers = string(components{i,4});
+end
+
 channel_num = cellfun(@(s) str2double(s(2)),components(:,3),'UniformOutput',false);
 [paths_sub.channel_num] = channel_num{:,1};
-[paths_sub.markers] = components{:,4};
+
+% Set x,y tiles as 1 and save z positions
 positions = cellfun(@(s) str2double(s),components(:,[6,5,2]),'UniformOutput',false);
 x = num2cell(ones(1,length(paths_sub)));
 
-% Set x,y tiles as 1 and save z positions
 [paths_sub.x] = x{:};
 [paths_sub.y] = x{:};
 [paths_sub.z] = positions{:,3};

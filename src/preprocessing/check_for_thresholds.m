@@ -29,18 +29,30 @@ if exist(var_file,'file') == 2
     end
 end
 
-fprintf("%s\t Lower and upper intensity thresholds are unspecified but are required "+...
-    "for processing. Measuring these now... \n",datetime('now'));
-for i = 1:length(config.markers)
-    [thresholds.lowerThresh(i), thresholds.upperThresh(i), thresholds.signalThresh(i)] = measure_images(config,path_table,i,true);
-end
+% Check if thresholds already calculated and attached to adj_params
 thresholds.img_directory = config.img_directory;
 thresholds.markers = config.markers;
-save(var_file,'thresholds')
 
-% Save into config
-config.lowerThresh = thresholds.lowerThresh;
-config.signalThresh = thresholds.signalThresh;
-config.upperThresh = thresholds.upperThresh;
+if ~isfield(config,'adj_params')
+    fprintf("%s\t Lower and upper intensity thresholds are unspecified but are required "+...
+        "for processing. Measuring these now... \n",datetime('now'));
+    for i = 1:length(config.markers)
+        [thresholds.lowerThresh(i), thresholds.upperThresh(i), thresholds.signalThresh(i)] = measure_images(config,path_table,i,true);
+    end
+    
+    % Save into config
+    config.lowerThresh = thresholds.lowerThresh;
+    config.signalThresh = thresholds.signalThresh;
+    config.upperThresh = thresholds.upperThresh;
+else
+    for i = 1:length(config.markers)
+        thresholds.lowerThresh(i) = config.adj_params.(config.markers(i)).lowerThresh;
+        thresholds.signalThresh(i) = config.adj_params.(config.markers(i)).signalThresh;
+        thresholds.upperThresh(i) = config.adj_params.(config.markers(i)).upperThresh;
+    end
+end
+
+% Save thresholds
+save(var_file,'thresholds')
 
 end

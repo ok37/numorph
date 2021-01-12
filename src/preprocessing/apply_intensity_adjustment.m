@@ -14,6 +14,7 @@ addOptional(p, 't_adj', false, @isnumeric) % Tile intensity adjustment value
 addOptional(p, 'y_adj', false, @isnumeric) % LS width adjustment vector
 addOptional(p, 'l_thresh', 0, @isnumeric) % Lower threshold rescale value
 addOptional(p, 'u_thresh', 1, @isnumeric) % Upper threshold rescale value
+addOptional(p, 's_thresh', 0, @isnumeric) % Signal threshold value
 addOptional(p, 'Gamma', 1, @isnumeric) % Gamma adjustment value
 addOptional(p, 'flatfield', false, @isnumeric) % Flatfield matrix
 addOptional(p, 'darkfield', false, @isnumeric) % Darkfield matrix
@@ -27,6 +28,7 @@ t_adj = p.Results.t_adj;
 y_adj = p.Results.y_adj;    
 l_thresh = p.Results.l_thresh;
 u_thresh = p.Results.u_thresh;
+s_thresh = p.Results.s_thresh;
 Gamma = p.Results.Gamma;
 flatfield = p.Results.flatfield;
 darkfield = p.Results.darkfield;
@@ -38,14 +40,14 @@ c = p.Results.c; % Column
 if ~isempty(adj_params)
     if isequal(adj_params.adjust_tile_position,'true') && ~isempty(adj_params.t_adj)
         t_adj = adj_params.t_adj(r,c);
-        l_thresh = adj_params.lowerThresh;
+        s_thresh = adj_params.signalThresh;
     end
     if isequal(adj_params.adjust_tile_shading,'basic')
        flatfield = adj_params.flatfield;
        darkfield = adj_params.darkfield;
     elseif isequal(adj_params.adjust_tile_shading,'manual')
         y_adj = adj_params.y_adj;
-        l_thresh = adj_params.lowerThresh;
+        s_thresh = adj_params.lowerThresh;
     end
     if ~isempty(adj_params.darkfield_intensity)
         dak_val = adj_params.darkfield_intensity;
@@ -59,8 +61,8 @@ if ~isequal(img_class,'single')
 end
 
 % Adjust for tile intensity differences
-if isnumeric(t_adj) && l_thresh > 0
-    Imin = l_thresh*65535;
+if isnumeric(t_adj) && s_thresh > 0
+    Imin = s_thresh*65535;
     I_dark = I-Imin;
     I = (I_dark*t_adj) + Imin;
 elseif isnumeric(t_adj)
@@ -83,8 +85,8 @@ if isnumeric(y_adj)
         y_ref = 1:size(I,1);
         y_adj = crop_to_ref(y_ref,y_adj);
     end
-    if l_thresh > 0
-        a = (l_thresh*65535)*(y_adj-1);
+    if s_thresh > 0
+        a = (s_thresh*65535)*(y_adj-1);
         I = I.*y_adj - a;
     else
         a = dark_val*(y_adj-1);

@@ -1,4 +1,4 @@
-function resampled_image = resample_img_to_atlas(path_table, config, resolution, resample_res, channels)
+function resampled_image = resample_path_table(path_table, config, resolution, resample_res, channels)
 %--------------------------------------------------------------------------
 % Resample image to specific resolution. 
 %--------------------------------------------------------------------------
@@ -21,14 +21,14 @@ if isempty(config) && nargin<3
     error("Must provide config structure or specify resolutions.")
 end
 
-% Default do all channels in path_table
-if nargin<5
-    channels = unique(path_table.channel_num);
-end
-
 % Default resample resolution
 if nargin<4
     resample_res = config.resample_resolution;
+end
+
+% Default do all channels in path_table
+if nargin<5
+    channels = unique(path_table.channel_num);
 end
     
 % Check resolution

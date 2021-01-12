@@ -69,6 +69,9 @@ end
 
 if isempty(p) && length(z_range)>1
     parpool
+elseif isfield(p,'NumWorkers') && p.NumWorkers == 2
+    delete(p)
+    parpool
 end
 
 % Begin stitching
@@ -203,7 +206,6 @@ for i = 1:length(B)-1
         adj_top = max(border_pad,ceil(final_tform.T(6)));
         w_v_adj(1:adj_top) = 0;
     else
-        disp(final_tform.T(6))
         adj_bottom = max(border_pad,ceil(abs(final_tform.T(6))));
         w_v_adj(1:adj_bottom) = 0;
     end
