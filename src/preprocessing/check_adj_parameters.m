@@ -1,15 +1,36 @@
 function [adj_params_full, config, lowerThresh, upperThresh, signalThresh] = check_adj_parameters(adj_params, config, nrows, ncols)
 %--------------------------------------------------------------------------
 % Check for user defined adjustment parameters that will override measured
-% values.
+% values. Perform additional checks on adj_params to make sure they're
+% valid with config structure.
+%
 %--------------------------------------------------------------------------
-% 
+% Usage:
+% [adj_params_full, config, lowerThresh, upperThresh, signalThresh] = 
+%    check_adj_parameters(adj_params, config, nrows, ncols)
+%
+%--------------------------------------------------------------------------
 % Inputs:
-% adj_params - structure containing adjustment parameters.
+% adj_params: Intensity adjustment structure.
 %
-% config - config structure from NM_process.
+% config: Config structure from NM_process.
 %
-% Ouputs:
+% nrows: Number of tile rows in input images.
+% 
+% ncols: Number of tile columns in input images.
+% 
+%--------------------------------------------------------------------------
+% Outputs:
+% adj_params_full: Updated intensity adjustment structure.
+% 
+% config: Update config structure.
+%
+% lowerThresh: Lower intensity thresholds for each channel.
+%
+% upperThresh: Upper intensity thresholds for each channel.
+%
+% signalThresh: Minimum signal intensity thresholds for each channel.
+%
 %--------------------------------------------------------------------------
         
 % Check for user-defined intensity threshold values

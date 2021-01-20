@@ -130,19 +130,23 @@ switch location
 end
 
 % Convert to table
+tiles = true;
 if ~isempty(paths_new)
     for i = 1:length(paths_new)
         paths_table = struct2table(reshape([paths_new{i}],[],1));
+        tiles = any(ismember(paths_table.Properties.VariableNames,{'z','x','y'}));
 
         % Subset positions and channel numbers to base 1 index
-        if iscell(paths_table.x)
-            paths_table.x = [paths_table.x{:}] + 1-min([paths_table.x{:}]);
-            paths_table.y = [paths_table.y{:}] + 1-min([paths_table.y{:}]);
-            paths_table.z = [paths_table.z{:}] + 1-min([paths_table.z{:}]);
-        else
-            paths_table.x = paths_table.x + 1-min(paths_table.x);
-            paths_table.y = paths_table.y + 1-min(paths_table.y);
-            paths_table.z = paths_table.z + 1-min(paths_table.z);
+        if tiles 
+            if iscell(paths_table.x)
+                paths_table.x = [paths_table.x{:}] + 1-min([paths_table.x{:}]);
+                paths_table.y = [paths_table.y{:}] + 1-min([paths_table.y{:}]);
+                paths_table.z = [paths_table.z{:}] + 1-min([paths_table.z{:}]);
+            else
+                paths_table.x = paths_table.x + 1-min(paths_table.x);
+                paths_table.y = paths_table.y + 1-min(paths_table.y);
+                paths_table.z = paths_table.z + 1-min(paths_table.z);
+            end
         end
         
         if i > 1
@@ -154,10 +158,12 @@ if ~isempty(paths_new)
 end
 
 % Subset positions and channel numbers to base 1 index
-paths_table_main.x = paths_table_main.x + 1-min(paths_table_main.x);
-paths_table_main.y = paths_table_main.y + 1-min(paths_table_main.y);
-paths_table_main.z = paths_table_main.z + 1-min(paths_table_main.z);
-paths_table_main.channel_num = paths_table_main.channel_num + 1-min(paths_table_main.channel_num);
+if tiles
+    paths_table_main.x = paths_table_main.x + 1-min(paths_table_main.x);
+    paths_table_main.y = paths_table_main.y + 1-min(paths_table_main.y);
+    paths_table_main.z = paths_table_main.z + 1-min(paths_table_main.z);
+    paths_table_main.channel_num = paths_table_main.channel_num + 1-min(paths_table_main.channel_num);
+end
 
 
 % Check table for correct size
@@ -175,12 +181,13 @@ end
 %end
 
 % Check for multiple channels in single image
-if length(imfinfo(paths_table_main.file{1})) > 1
-    error("Multi-page .tif detected. NuMorph currently does not support multi-channel .tif images")
-end
+%if length(imfinfo(paths_table_main.file{1})) > 1
+%    error("Multi-page .tif detected. NuMorph currently does not support multi-channel .tif images")
+%end
 
 % Save path_table for quicker loading next time
 if save_table
+    var_location = fullfile(config.output_directory,'variables','path_table.mat');  
     fprintf("%s\t Saving path table \n",datetime('now'))
     path_table.(location) = paths_table_main;
     save(var_location,'path_table')
@@ -192,7 +199,7 @@ function paths_new = munge_single(paths)
 % Try to create path table for single folder with whatever information is
 % available.
 
-position_exp = ["[\d*", "\d*]","Z\d*"]; % Default position expression vector
+position_exp = ["Z\d*","[\d*", "\d*]"]; % Default position expression vector
 
 paths = dir(paths);
 paths = paths(arrayfun(@(s) contains(s.name, '.tif'),paths));
@@ -201,7 +208,7 @@ files = {paths.name};
 % Fill in table
 paths_new = table('Size',[length(files), 7],...
     'VariableTypes',{'cell','string','string','string','double','double','double'},...
-    'VariableNames',{'file','sample_name','markers','channel_num','x','y','z'});
+    'VariableNames',{'file','sample_id','markers','channel_num','x','y','z'});
 paths_new.file = arrayfun(@(s,t) fullfile(s.folder,t),paths,files');
 
 % Can only do channel number here
@@ -209,15 +216,15 @@ paths_new.channel_num = cellfun(@(s) str2double(regexprep(regexp(s,'_C\d*_','mat
 
 % Do slice positions
 try
-    paths_new.y = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(1),'match'),'[^\d+]','')),files)';
-    paths_new.x = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(2),'match'),'[^\d+]','')),files)';
+    paths_new.y = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(2),'match'),'[^\d+]','')),files)';
+    paths_new.x = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(3),'match'),'[^\d+]','')),files)';
 catch
     paths_new.y = ones(height(paths_new),1);
     paths_new.x = ones(height(paths_new),1);
 end
 
 try
-    paths_new.z = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(3),'match'),'[^\d+]','')),files)';    
+    paths_new.z = cellfun(@(s) str2double(regexprep(regexp(s,position_exp(1),'match'),'[^\d+]','')),files)';    
 catch
     a = arrayfun(@(s) regexp(s.name,'\d*','Match'), paths, 'UniformOutput', false);
     a = cat(1,a{:});
@@ -240,7 +247,7 @@ paths_new.y = paths_new.y - min(paths_new.y) + 1;
 paths_new.z = paths_new.z - min(paths_new.z) + 1;
 
 % Fill in remainig columns
-paths_new.sample_name = repmat("SAMPLE",height(paths_new),1);
+paths_new.sample_id = repmat("SAMPLE",height(paths_new),1);
 paths_new.markers = "marker"+num2str(paths_new.channel_num);
 
 end
@@ -275,7 +282,7 @@ components = vertcat(components{:});
 
 %Take image information
 for i = 1:length(paths_sub)
-    paths_sub(i).sample_name = string(components{i,1});
+    paths_sub(i).sample_id = string(components{i,1});
     paths_sub(i).markers = string(components{i,4});
 end
 
@@ -328,7 +335,7 @@ assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image
 
 %Take image information
 for i = 1:length(paths_sub)
-    paths_sub(i).sample_name = string(components{i,1});
+    paths_sub(i).sample_id = string(components{i,1});
     paths_sub(i).markers = string(components{i,4});
 end
 
@@ -373,7 +380,7 @@ elseif isequal(components{1,1}, 'C1')
 end
 
 % Take image information
-[paths_sub.sample_name] = components{:,1};
+[paths_sub.sample_id] = components{:,1};
 [paths_sub.channel_num] = components{:,2};
 [paths_sub.markers] = components{:,3};
 
@@ -390,6 +397,42 @@ end
 function paths_new = munge_raw(config, paths)
 % Read filename information from ImSpector Software in Lavision
 
+% These are all image extensions we're able to read
+ext = ["tif",".nii",".nrrd",".nhdr"];
+
+% Get list of all files in all sub_directories
+all_files = dir(fullfile(config.img_directory,'**/*.*'));
+
+% Remove output directory folder
+all_files = all_files(arrayfun(@(s) ~contains(s.folder,config.output_directory),all_files));
+
+% Get which image extensions are present and subset these images
+idx = false(length(ext),length(all_files));
+for i = 1:length(ext)
+    idx(i,:) = arrayfun(@(s) contains(s.name,ext(i)),all_files);
+end
+ext = ext(any(idx,2));
+all_files = all_files(any(idx));
+
+% Check for markers names in file
+idx = false(length(config.markers),length(all_files));
+for i = 1:length(config.markers)
+    idx(i,:) = arrayfun(@(s) contains(s.name,"_"+config.markers(i)),all_files);
+end
+
+% If all images contain only 1 marker label, it becomes straightforward
+% since these are single tile, multi-z images
+if all(any(idx)) && all(sum(idx,2) == 1) && size(idx,1) == size(idx,2)
+    paths_sub = repmat(struct(),length(all_files),1);
+    [~,c] = find(idx);
+    for i = 1:length(all_files)
+        paths_sub(i).file = {fullfile(all_files(i).folder,all_files(i).name)};
+        paths_sub(i).markers = config.markers(c(i));
+        paths_sub(i).channel_num = i;
+    end
+    paths_new{1} = paths_sub;
+    return
+end
 
 % Search subdirectories if no .tifs in current folder
 if length(paths) == 1 && all(arrayfun(@(s) ~contains(s.name,'.tif'), paths{1}))           
@@ -450,10 +493,10 @@ if length(config.img_directory) == length(config.markers)
         % Scan through each filename for relevant information
         for j = 1:length(path_idx)
             try
-                paths_sub(j).sample_name = config.sample_name;
-                paths_sub(j).y = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(1),'match'),'[^\d+]',''));
-                paths_sub(j).x = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(2),'match'),'[^\d+]',''));
-                paths_sub(j).z = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(3),'match'),'[^\d+]',''));
+                paths_sub(j).sample_id = config.sample_id;
+                paths_sub(j).y = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(2),'match'),'[^\d+]',''));
+                paths_sub(j).x = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(3),'match'),'[^\d+]',''));
+                paths_sub(j).z = str2double(regexprep(regexp(path_idx(j).name,config.position_exp(1),'match'),'[^\d+]',''));
 
                 if isempty([paths_sub(j).x]) || isempty([paths_sub(j).y]) || isempty([paths_sub(j).z])
                     if contains(path_idx(j).name,'stitched.tif')
@@ -517,10 +560,10 @@ else
     % Scan through each filename for relevant information
     for i = 1:length(paths_sub)
         try
-            paths_sub(i).sample_name = config.sample_name;
-            paths_sub(i).y = str2double(regexprep(regexp(paths(i).name,config.position_exp(1),'match'),'[^\d+]',''));
-            paths_sub(i).x = str2double(regexprep(regexp(paths(i).name,config.position_exp(2),'match'),'[^\d+]',''));
-            paths_sub(i).z = str2double(regexprep(regexp(paths(i).name,config.position_exp(3),'match'),'[^\d+]',''));
+            paths_sub(i).sample_id = config.sample_id;
+            paths_sub(i).y = str2double(regexprep(regexp(paths(i).name,config.position_exp(2),'match'),'[^\d+]',''));
+            paths_sub(i).x = str2double(regexprep(regexp(paths(i).name,config.position_exp(3),'match'),'[^\d+]',''));
+            paths_sub(i).z = str2double(regexprep(regexp(paths(i).name,config.position_exp(1),'match'),'[^\d+]',''));
             channel_idx = cellfun(@(s) ~isempty(s),regexp(paths(i).name,config.channel_num,'match'));
             if sum(channel_idx) > 1
                 % If non-unique channel number identifiers, parse by

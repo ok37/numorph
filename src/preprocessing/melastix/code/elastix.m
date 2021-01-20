@@ -81,30 +81,43 @@ function varargout=elastix(movingImage,fixedImage,outputDir,paramFile,varargin)
 % *** Handle default options ***
 
 %Confirm that the elastix binary is present
-[s,elastix_version] = system('elastix --version');
-r=regexp(elastix_version,'version');
+[~,elastix_version] = system('elastix --version');
+r=regexp(elastix_version,'version','once');
 % Modified
 if isempty(r)
     fprintf('Unable to find elastix binary in system path. Quitting\n')
     return
 end
 
-%%%%%New: change outputDir to char if string
+%%%%% New: change outputDir to char if string
 if isstring(outputDir)
     outputDir = char(outputDir);
 end
 
 %If the user supplies one input argument only and this is is a string then
 %we assume it's a request for the help or version so we run it 
-if nargin==1 & ischar(movingImage)
+if nargin==1 && ischar(movingImage)
     if regexp(movingImage,'^\w')
-        [s,msg]=system(['elastix --',movingImage]);
+        [~,msg]=system(['elastix --',movingImage]);
     end
     fprintf(msg)
     return
 end
 
-if ndims(movingImage) ~= ndims(fixedImage)
+%%%%% New: check if images provided are cells containing multiple channels
+multi_spec = false;
+if iscell(movingImage)
+    if length(movingImage) > 1
+       multi_spec = true; 
+    end
+end
+if iscell(fixedImage)
+    if length(fixedImage) > 1
+        multi_spec = true;
+    end
+end
+
+if ~multi_spec && ndims(movingImage) ~= ndims(fixedImage)
     fprintf('movingImage and fixedImage must have the same number of dimensions\n')
     return
 end
@@ -157,6 +170,7 @@ fMask = p.Results.fMask;
 mMask = p.Results.mMask;
 elementSpacing = p.Results.s;
 
+%%%%% New: get points
 mov_points = p.Results.mp;
 fix_points = p.Results.fp;
 
@@ -205,20 +219,20 @@ else
     end
 end
 
-
-
-
-%create fixedImage only if we're registering to an image. parameters
-%may have been supplied instead
-if iscell(fixedImage)
-    fixedImage = fixedImage{1};
-end
-
-if isnumeric(fixedImage)
-    targetFname=sprintf('%s_target',dirName);
-    mhd_write(fixedImage,targetFname,elementSpacing);
+if ~iscell(fixedImage)
+    fixedFname=sprintf('%s_target',dirName);
+    mhd_write(fixedImage,fixedFname,elementSpacing);
     if ~strcmp(outputDir,'.') %Don't copy if we're already in the directory
-        if ~movefile([targetFname,'.*'],outputDir); error('Can''t move files'), end
+        if ~movefile([fixedFname,'.*'],outputDir); error('Can''t move files'), end
+    end
+else
+    for i = 1:length(fixedImage)
+        fixedFname(i,:)= sprintf('%s_target_%d',dirName,i); %TODO: so the file name contains the dir name?
+        fixedSubImage = fixedImage{i};
+        mhd_write(fixedSubImage,fixedFname(i,:),elementSpacing);
+        if ~strcmp(outputDir,'.')
+            if ~movefile([fixedFname(i,:),'.*'],outputDir); error('Can''t move files'), end
+        end
     end
 end
 
@@ -234,7 +248,7 @@ if ~isempty(fMask)
     end
 end
 
-%Write moving mask image if provided
+%%%%% New: Write moving mask image if provided
 if ~isempty(mMask)
     mMask = uint8(mMask);
     maskMname = [dirName, '_mMask'];
@@ -245,8 +259,7 @@ if ~isempty(mMask)
 end
 
 
-%%%%%%New 
-%Write points files if provided
+%%%%% New: Write points files if provided
 if ~isempty(mov_points)
     mov_point_Fname=fullfile(outputDir,'tmp_mov_pts.txt');
     writePointsFile(mov_point_Fname,mov_points)
@@ -261,18 +274,18 @@ end
 
 
 %Build the parameter file(s)
-if ischar(paramFile) & strfind(paramFile,'.yml') & ~isempty(paramstruct) %modify settings from YAML with paramstruct
+if ischar(paramFile) && strfind(paramFile,'.yml') && ~isempty(paramstruct) %modify settings from YAML with paramstruct
     for ii=1:length(paramstruct)
         paramFname{ii}=sprintf('%s_parameters_%d.txt',dirName,ii);
         paramFname{ii}=fullfile(outputDir,paramFname{ii});
         elastix_parameter_write(paramFname{ii},paramFile,paramstruct(ii))
     end
 
-elseif ischar(paramFile) & strfind(paramFile,'.yml') & isempty(paramstruct) %read YAML with no modifications
+elseif ischar(paramFile) && strfind(paramFile,'.yml') && isempty(paramstruct) %read YAML with no modifications
     paramFname{1} = fullfile(outputDir,sprintf('%s_parameters_%d.txt',dirName,1));
     elastix_parameter_write(paramFname{1},paramFile)
 
-elseif (ischar(paramFile) & strfind(paramFile,'.txt')) %we have an elastix parameter file
+elseif (ischar(paramFile) && strfind(paramFile,'.txt')) %we have an elastix parameter file
     if ~strcmp(outputDir,'.')
         copyfile(paramFname,outputDir)
         paramFname{1} = fullfile(outputDir,paramFname);
@@ -319,7 +332,7 @@ else
 end
 
 
-%%%%New
+%%%% New: add mask, points files to command
 %If fixed mask is provided, add to command string
 if ~isempty(fMask)
     maskLocation = fullfile(outputDir,sprintf('%s.mhd',maskFname));
@@ -344,22 +357,32 @@ if ~isempty(fix_points)
 end
 
 
-
-%Build the the appropriate command
-
-CMD=sprintf('elastix -f %s.mhd -m %s.mhd -out %s ',...
-            fullfile(outputDir,targetFname),...
-            fullfile(outputDir,movingFname),...
-            outputDir);
+%%%%% New: build seperate commands for single or multi-channel registration
+if ~multi_spec
+    CMD=sprintf('elastix -f %s.mhd -m %s.mhd -out %s ',...
+                fullfile(outputDir,fixedFname),...
+                fullfile(outputDir,movingFname),...
+                outputDir);
+else
+    movingFnames = "";
+    for i = 1:size(movingFname,1)
+       movingFnames = movingFnames + ...
+           sprintf("-m%d %s ",i-1, fullfile(outputDir, strcat(string(movingFname(i,:)),'.mhd')));
+    end
+    fixedFnames = "";
+    for i = 1:size(fixedFname,1)
+       fixedFnames = fixedFnames + ...
+           sprintf("-f%d %s ",i-1, fullfile(outputDir, strcat(string(fixedFname(i,:)),'.mhd')));
+    end
+    
+    CMD=sprintf('elastix %s %s -out %s ',fixedFnames,movingFnames,outputDir);
+end
 CMD = [CMD,initCMD];
-
 
 if ~isempty(threads)
     CMD = sprintf('%s -threads  %d',CMD,threads);
 end
 
-
-    
 %Loop through, adding each parameter file in turn to the string
 for ii=1:length(paramFname) 
     CMD=[CMD,sprintf(' -p %s ', paramFname{ii})];
@@ -409,7 +432,7 @@ else %Things worked! So let's return stuff to the user
     out.outputDir=outputDir; %may be a relative path
     out.currentDir=pwd;
     out.movingFname=movingFname;
-    out.targetFname=targetFname;
+    out.targetFname=fixedFname;
 
     if nargout>1      
         %return the final transformed image

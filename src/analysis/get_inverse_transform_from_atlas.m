@@ -1,47 +1,59 @@
-function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, reg_params, direction, mov_img)
-% This function calculates the inverse of img_to_atlas transforms to go 
-% atlas_to_img using elastix's DisplacementMagnitudePenalty metric. This
+function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, mov_img, reg_params, direction)
+%--------------------------------------------------------------------------
+% Calculates the inverse of image_to_atlas transforms to go atlas_to_image or
+% vice versa using elastix's DisplacementMagnitudePenalty metric. This
 % metric doesn't give an exact inverse but an approximation, which is still
-% usually pretty good. To make the approximation even more precise, you can
-% decrease the grid spacing. 
-
-downsample_factor = 0.4;
+% usually pretty good. To make the approximation more precise, you can
+% decrease the grid spacing in the parameter file.
+%
+% Important: size parameter in the inverse parameters needs to be adjusted
+% to match the size of the non-input image.
+%--------------------------------------------------------------------------
+% Usage: 
+% [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(mov_img, 
+% config, reg_params, direction);
+%--------------------------------------------------------------------------
+% Inputs:
+% config: (structure) Configuration structure from NM_analyze.
+%
+% mov_img: (3d matrix) Image to calculate inverse from. For direction
+% 'atlas_to_image', this should be the atlas image. For direction,
+% 'image_to_atlas', this should be the moving image.
+% 
+% reg_params: (structure) Elastix registration parameters to invert. Will
+% attemp to load from variables if left empty.
+%
+% direction: ('atlas_to_image','image_to_atlas') Direction of registration.
+%--------------------------------------------------------------------------
+% Outputs:
+% reg_params: (structure) Update elastix registration parameters with
+% inverse parameters.
+%
+% reg_img: (3d matrix) Input image registered back to itself using the
+% calculated inverse parameters.
+%--------------------------------------------------------------------------
 
 % Note: this is the default parameter file for calculating the inverse
-parameter_path{1} = fullfile(config.home_path,'elastix_parameter_files',...
-                'atlas_registration','ElastixParameterPointsInverse.txt');
+home_path = fileparts(which('NM_config'));
+parameter_path{1} = fullfile(home_path,'elastix_parameter_files',...
+                'atlas_registration','inverse', 'ElastixParameterAffineInverse.txt');
 
 % Load registration parameters if not provided
-if nargin<2 || isempty(reg_params)
+if isempty(reg_params)
     reg_params = load(fullfile(config.output_directory,'variables','reg_params.mat'),'reg_params');
-    reg_params = reg_params.img_to_atlas;
 end
-
-if nargin<3
-    error("Specify direction as atlas_to_img or img_to_atlas")
-end
-
-if isequal(direction,'img_to_atlas') && nargin<3
-    error("Reference image required to register from img_to_atlas")
-end
-
-% Load ARA if going atlas_to_img
-if isequal(direction,'atlas_to_img')
-    if isfile(config.atlas_file)
-        atlas_path = config.atlas_file;
-    else
-        atlas_path = fullfile(config.home_path,'supplementary_data',config.atlas_file); 
-        if ~isfile(atlas_path)
-            error("Could not locate Allen Reference Atlas .nii file specified")
-        end
-    end
-    mov_img = niftiread(atlas_path);
-    mov_img = imresize3(mov_img,downsample_factor);
+            
+% Subset which parameters to inverse
+if isequal(direction, "image_to_atlas")
+    reg_params_sub = reg_params.atlas_to_img;
+elseif isequal(direction, "atlas_to_image")
+    reg_params_sub = reg_params.img_to_atlas;
+else
+    error("Incorrect direction specified")
 end
 
 % Create temporary directory for saving images
-outputDir = fullfile(config.home_path,'elastix_parameter_files',...
-    sprintf('%d_%d',yyyymmdd(datetime),randi(1E6,1)));
+outputDir = fullfile(config.output_directory,sprintf('tmp_reg_inv_%d',randi(1E4)));
 if ~exist(outputDir,'dir')
     mkdir(outputDir)
 end
@@ -49,18 +61,18 @@ end
 % To calculate inverse, only the last transform (B-spline) is needed. But
 % any initial rigid transforms need to be saved as text files and specified
 % in the parameters structure
-if length(reg_params.TransformParameters) > 1
-    for i = 1:length(reg_params.TransformParameters)-1
-        reg_params.TransformParameters{i}.InitialTransformParametersFileName =...
+if length(reg_params_sub.TransformParameters) > 1
+    for i = 1:length(reg_params_sub.TransformParameters)-1
+        reg_params_sub.TransformParameters{i}.InitialTransformParametersFileName =...
             'NoInitialTransform';
         fname = fullfile(outputDir,sprintf('init_tform%d.txt',i));
-        elastix_paramStruct2txt(fname,reg_params.TransformParameters{i})
-        reg_params.TransformParameters{i+1}.InitialTransformParametersFileName = fname;
+        elastix_paramStruct2txt(fname,reg_params_sub.TransformParameters{i})
+        reg_params_sub.TransformParameters{i+1}.InitialTransformParametersFileName = fname;
     end
 end
 
 fname1 = fullfile(outputDir,sprintf('tform_%s.txt','final'));
-elastix_paramStruct2txt(fname1,reg_params.TransformParameters{end})
+elastix_paramStruct2txt(fname1,reg_params_sub.TransformParameters{end})
 
 [reg_params_inv,reg_img]=elastix(mov_img,mov_img,outputDir,parameter_path,...
     't0',fname1,'threads',[]);

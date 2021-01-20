@@ -1,24 +1,34 @@
-function coreg_table = align_by_translation(config,path_table,z_displacement_align)
+function coreg_table = align_by_translation(config,path_table,z_displacement_align,only_pc)
 %--------------------------------------------------------------------------
 % Align image channels by translating 2D slices. Requires a z_displacement
 % structure to pre-align slices along z. Phase correlation is used to get a
 % rough alignment and actual registration is performed using MATLAB's 
 % imregister function (Image Processing Toolbox).
 %--------------------------------------------------------------------------
-% Inputs:
-% config - config structure from NM_process.
+% Usage:
+% coreg_table = 
+% align_by_translation(config,path_table,z_displacement_align, only_pc)
 %
-% path_table - path table containing only 1 tile position that will be
+%--------------------------------------------------------------------------
+% Inputs:
+% config: Config structure from NM_process.
+%
+% path_table: Path table containing only 1 tile position that will be
 % aligned.
 %
-% z_displacement_align - (optional) structure containing z displacement
-% matrix for markers to align. Otherwise z displacement is assumed to be 0
-% for all markers.
+% z_displacement_align: Structure containing z displacement matrix for 
+% markers to align. Otherwise z displacement is assumed to be 0 for all 
+% markers.
 %
-% only_pc - (optional) use only phase correlation for alignment without
-% perfmorming registration.
+% only_pc: (logical) Use only phase correlation for alignment without
+% perfmorming registration. (default: false)
+%
 %--------------------------------------------------------------------------
-
+% Outputs:
+% coreg_table: Table containing aligned filenames and their respective
+% translations for this tile.
+%
+%--------------------------------------------------------------------------
 
 % Default displacement threshold for comparing to previous translation in
 % pixels.
@@ -43,9 +53,10 @@ optimizer.MaximumIterations = 50;
 optimizer.RelaxationFactor = 0.5;
 
 % Use only phase correlation
-if ~isequal(config.only_pc,'true')
+
+if narging<4
     only_pc = false;
-else
+elseif isequal(config.only_pc,"true")
     only_pc = true;
 end
 
@@ -54,6 +65,9 @@ output_directory = config.output_directory;
 signalThresh = config.signalThresh;
 align_stepsize = config.align_stepsize;
 save_images = config.save_images;
+
+align_slices = config.align_slices;
+align_channels = config.align_channels;
 
 % Get relevant tile information
 channel_num = unique(path_table.channel_num);
@@ -66,49 +80,87 @@ ref_slices = unique(path_table.z);
 assert(length(row) == 1 & length(col) ==1 ,...
     "Image path table should contain only 1 unique tile position")
 
+% If only aligning certain channels or slices, load the alignment table
+update_table = false;
+alignment_table = [];
+if isequal(config.channel_alignment,"update")
+    update_table = true;
+    save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
+    if exist(save_path,'file') == 2
+        load(save_path,'alignment_table')
+        alignment_table = alignment_table{row,col};
+        
+        % Check height and width of loaded table. Otherwise clear table and
+        % make a new one
+        if isempty(config.align_slices) || ~isempty(config.align_channels)
+            assert(height(alignment_table) == max(ref_slices), "Loaded alignment table height "+...
+                "does not match the number of z slices present.")
+            assert(width(alignment_table) == length(markers) + (length(markers)-1)*5 + 1,"Number of "+...
+                "channels in the alignment table does not match the number of channels in the input "+...
+                "image directory.")
+        end
+    end
+end
+
+% Subset channels if not doing all 
+if ~isempty(align_channels)
+    assert(all(ismember(markers(align_channels),markers)),"Align channels "+...
+        "are outside of range for the number of markers present")
+    align_markers = [markers(1), markers(align_channels)];
+    align_channels = [1, align_channels];
+    path_table = path_table(ismember(path_table.markers, align_markers),:);
+else
+    align_markers = markers;
+end
+
 % Adjust for resolution
-res_adj = cell(1,length(markers)-1); res_equal = true(1,length(markers)-1);
+res_adj = cell(1,length(align_markers)-1); res_equal = true(1,length(align_markers)-1);
 for i = 2:length(markers)
-    tempI = imread(path_table(path_table.channel_num == channel_num(i),:).file{1});
+    tempI = read_img(path_table,1);
     res_adj{i-1} = size(tempI)./(config.resolution{1}(1:2)./config.resolution{channel_num(i)}(1:2));
     res_equal(i-1) = all(config.resolution{1}(1:2) == config.resolution{i}(1:2));
 end
-    
-% Check lower threshold
-if any(signalThresh<1)
-    signalThresh = signalThresh*65535;
-end
 
 % Get z displacement
-z_displacement = zeros(1,length(markers)-1);
-
-if nargin>2
-    for i = 2:length(markers)
-        z_displacement(i-1) = z_displacement_align.(markers(i))(row,col);
+z_displacement = zeros(1,length(markers));
+if nargin<4
+    for i = 2:length(align_markers)
+        z_displacement(i) = z_displacement_align.(align_markers(i))(row,col);
+        fprintf("%s\t Using z_displacement %d for marker %s\n", datetime('now'),...
+            z_displacement(i),markers(i));
     end
 end
 
 % Create matrix with with z displacements for each channel
-z_displacement = [0,z_displacement];
 z_list = zeros(length(ref_slices),length(markers));
 z_list(:,1) = ref_slices;
 
 % Creat new table
-path_new = path_table(path_table.markers == markers(1),:);
-for i = 2:length(markers)  
-    table_sub = path_table(path_table.markers == markers(i),:);
-    z_list(:,i) = table_sub.z + z_displacement(i);
+path_new = path_table(path_table.markers == align_markers(1),:);
+for i = 2:length(align_markers)  
+    table_sub = path_table(path_table.markers == align_markers(i),:);
+    z_list(:,i) = table_sub.z - z_displacement(i);
     table_sub.z = z_list(:,i);
     path_new = cat(1,path_new,table_sub);
 end
 path_full = path_new;
 
-% Take every n images along z if coreg_stepsize > 1 
-min_z = find(all(z_list>0,2),1);
-max_z = find(all(z_list<=max(z_list(:,1)),2),1,'last');
-if isempty(min_z) || isempty(max_z)
-    error("Z positions are too far out of range for this image set. Try "+...
-        "aligning each marker individually or set z_displacement to 0.")
+% Subset slices
+if ~isempty(align_slices)    
+    align_slices = [align_slices{:}];
+    for i = 1:length(align_slices)
+        path_new = path_new(ismember(path_new.z,align_slices),:);
+    end
+    min_z = min(align_slices);
+    max_z = max(align_slices);
+else
+    % Take every n images along z if coreg_stepsize > 1 
+    min_z = find(all(z_list>0,2),1);
+    max_z = find(all(z_list<=max(z_list(:,1)),2),1,'last');
+    if isempty(min_z) || isempty(max_z)
+        error("Z positions are too far out of range for this image set. Try "+...
+            "aligning each marker individually or set z_displacement to 0.")
+    end
 end
 
 % Get subset z_positions
@@ -128,9 +180,8 @@ order_m = cat(1,z,zeros(1+5*(numel(markers)-1),length(z)));
 
 % Read each image in stack and measure number of bright pixels
 for i = 2:length(markers)
-    table2 = path_new(path_new.markers==markers(i),:);
-    for j = 1:height(table2)
-        mov_img = imread(table2.file{j});
+    for j = 1:length(z)
+        mov_img = read_img(path_new,[i,z(j)]);        
         order_m(i,j) = numel(mov_img(mov_img>signalThresh(i)))/numel(mov_img);
     end
 end
@@ -154,23 +205,21 @@ for i = 1:size(order_m,1)
     z_idx = order_m(i,1);
    
     % Read reference image
-    path_ref = path_new(path_new.z==z_idx & path_new.markers==markers(1),:);
-    ref_img = imread(path_ref.file{1});
+    ref_img = read_img(path_new,[1,z_idx]);
    
     % For each non-reference channel, perform registration using translation
-    for j = 2:numel(markers)
+    for j = 2:length(align_markers)
         if order_m(i,j) > min_signal
             % Index within order matrix
             idx = 2+length(markers)+4*(j-2);
 
             % Read moving image
-            path = path_new(path_new.z==z_idx & path_new.markers==markers(j),:);
+            mov_img = read_img(path_new,[align_channels(j),z_idx]);
             
             % Continue if out of range
-            if isempty(path)
+            if isempty(mov_img)
                 continue
             end
-            mov_img = imread(path.file{:});
 
             % Readjust resolution if necessary
             if ~res_equal(j-1)
@@ -338,16 +387,13 @@ coreg_table(:,idxs) = [];
 coreg_table = [coreg_table t_table];
 
 % Add image filenames
+empty_files = repmat({''},height(coreg_table),1);
 for i = fliplr(1:length(markers))
+   file_table = table(empty_files,'VariableNames',{char(sprintf("file_%d",i))});
+   coreg_table = cat(2,file_table,coreg_table);
    file_paths = path_full(path_full.markers == markers(i),:);
-   idx = find(file_paths.z < 1 | file_paths.z > max(ref_slices));
-   if ~isempty(idx)
-        empty_file = repmat({''},length(idx),1);
-        file_paths(idx,:).file = empty_file;
-   end
-   file_paths = file_paths(:,1);
-   file_paths.Properties.VariableNames = sprintf("file_%d",i);
-   coreg_table = cat(2,file_paths,coreg_table);
+   file_paths = file_paths(file_paths.z >= min_z & file_paths.z <= max_z,:);
+   coreg_table{ismember(coreg_table.Reference_Z,file_paths.z),1} = file_paths.file;
 end
 
 % Save images if needed
@@ -365,8 +411,16 @@ if isequal(save_images,"true")
         t_idx(i) = find(contains(coreg_table.Properties.VariableNames,'X') & contains(coreg_table.Properties.VariableNames,markers(i)));
     end
     
+    % Subset images to save
+    if ~isempty(align_slices)
+        save_z = align_slices;
+    else
+        save_z = 1:height(coreg_table);
+    end
+    
     % For each image in table
-    for i = 1:height(coreg_table)
+    tform = affine2d;
+    for i = save_z
         path_sub = coreg_table(coreg_table.Reference_Z == i,:);        
         for j = 1:length(markers)
             filepath = string(table2cell(coreg_table(i,j)));
@@ -401,7 +455,9 @@ if isequal(save_images,"true")
                 end
 
                 % Translate
-                mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
+                tform.T(3) = path_sub{1,t_idx(j)};
+                tform.T(6) = path_sub{1,t_idx(j)+1};
+                mov_img = imwarp(mov_img,tform,'FillValues',0);
             end
             
             % Write aligned images

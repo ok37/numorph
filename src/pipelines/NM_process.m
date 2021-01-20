@@ -3,19 +3,27 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 % NM_process NuMorph processing pipeline designed to perform channel 
 % alignment, intensity adjustment, and stitching on multi-channel 
 % light-sheet images.
+%
 %--------------------------------------------------------------------------
 % Usage:  
 % [config, path_table] = NM_process(config, step, use_adjustments)
 % 
+%--------------------------------------------------------------------------
 % Inputs:
-%   config - config structure for processing.
-%   step - 'stitch', 'align', 'intensity'. Perform only one of the 3 steps.
-%   use_adjustments - (default: true) apply intensity adjustments if
-%   performing 1 step.
+% config: Config structure for processing.
+% 
+% step: ('process','stitch','align','intensity'). Perform a single
+% processing or run full pipeline. (default: 'process')
+%   
+% use_adjustments - Apply intensity adjustments if performing 1 step. 
+% (default: true)
 %
+%--------------------------------------------------------------------------
 % Output:
-%   config - config structure after processing
-%   path_table - table of filenames used and additional image information
+% config: Updated config structure after processing.
+% 
+% path_table: Updated file path table after processing.
+% 
 %--------------------------------------------------------------------------
 
 % Load configuration from .mat file, if not provided
@@ -64,7 +72,7 @@ if exist(config.var_directory,'dir') ~= 7
     mkdir(config.var_directory);
 end
 
-fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_name)
+fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_id)
 
 %% Create directories
 % Update image directory if using processed images
@@ -80,7 +88,6 @@ if ~isequal(config.use_processed_images,"false")
 end
 
 %% Read image filename information
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate table containing image information
 path_table = path_to_table(config);
 
@@ -107,7 +114,6 @@ if use_adjustments || isequal(step,'intensity')
 end
 
 %% Run single step and return if specified
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Note no specific checks on tiles/markers included
 if nargin>1 && isequal(step,'stitch')    
     [config, path_table] = perform_stitching(config, path_table);
@@ -332,6 +338,19 @@ end
 
 if isequal(config.align_method,'translation')
     fprintf("%s\t Aligning channels by translation \n",datetime('now'));
+    
+    % Load alignment table if it exists
+    save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
+    if exist(save_path,'file') == 2
+        fprintf("%s\t Loading alignment table that already exists \n",datetime('now'));
+        load(save_path,'alignment_table')
+        % Check rows and columns
+        assert(all(size(alignment_table) == [nrows,ncols]), "Loaded alignment table is not the same shape "+...
+            "as the tiles in the input image directory")
+    else
+        % Create variable
+        alignment_table = cell(nrows,ncols);
+    end
 
     % Determine z displacement from reference channel
     % Check first if .mat file exists in output directory
@@ -362,10 +381,6 @@ if isequal(config.align_method,'translation')
         save(fullfile(config.output_directory,'variables','z_displacement_align.mat'), 'z_displacement_align')
     end
 
-    % Create variable
-    alignment_table = cell(ncols,nrows);
-    save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
-
     % Define which tiles to align if only doing subset
     tiles_to_align = 1:nb_tiles;
     if ~isempty(config.align_tiles) && all(ismember(config.align_tiles,tiles_to_align))
@@ -382,6 +397,12 @@ if isequal(config.align_method,'translation')
         path_align = path_table(path_table.x==x & path_table.y==y,:);
         alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align);
         save(save_path,'alignment_table')
+        
+        % Save samples
+        if isequal(config.save_samples,"true")
+            fprintf('%s\t Saving samples \n',datetime('now'));
+            save_samples(config,'alignment',path_align)
+        end
     end
     
     fprintf("%s\t Alignment completed! \n",datetime('now'));

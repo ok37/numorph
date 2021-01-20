@@ -5,7 +5,7 @@ function path_table = rename_tile_position(input_directory, overwrite)
 %--------------------------------------------------------------------------
 %
 % Usage:
-% new_names = rename_tile_position(input_directory, overwrite)
+% path_table = rename_tile_position(input_directory, overwrite)
 %
 % Inputs:
 % input_directory - string specifying path to image directory.

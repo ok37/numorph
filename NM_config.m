@@ -1,16 +1,22 @@
 function [config, path_table] = NM_config(stage, sample, run)
 %--------------------------------------------------------------------------
-% NM_config Save configured parameters for running a pipeline.
-%
-% Syntax:  config = NM_config(stage, sample, run)
+% Generate configured parameters for running a pipeline.
+%--------------------------------------------------------------------------
+% Usage:  
+% config = NM_config(stage, sample, run)
 % 
+%--------------------------------------------------------------------------
 % Inputs:
-%   stage - 'process', 'analyze', 'evaluate'
-%   sample - (string) sample or group identifier(s) in NM_samples
-%   run - (optional, logical) whether to run respective pipeline
+% stage: 'process', 'analyze', 'evaluate'
 %
-% Output:
-%   config - parameter configuration structure
+% sample: (string) Sample or group identifier(s) in NM_samples.
+%
+% run: (logical) Whether to run respective pipeline. (default: false)
+%
+%--------------------------------------------------------------------------
+% Outputs:
+% config: Parameter configuration structure
+%
 %--------------------------------------------------------------------------
 
 if nargin<3
@@ -47,7 +53,9 @@ save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
 if nargin > 1 && ~isequal(main_stage,'evaluate')
-    [img_directory, output_directory] = NM_samples(sample, true);
+    [~, output_directory] = NM_samples(sample, true);
+    load(fullfile('templates', 'NM_variables.mat'),'-mat')
+    
 elseif nargin > 1 && isequal(main_stage,'evaluate')
     fid = fopen('./templates/NM_samples.m');
     c = textscan(fid,'%s');
@@ -63,6 +71,9 @@ else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
 
+% Check variable lengths for some variables
+check_variable_lengths(main_stage)
+
 % Update image directory if using processed or analyzed images
 if ~isequal(use_processed_images,"false")
     img_directory = fullfile(output_directory,use_processed_images);
@@ -72,9 +83,6 @@ if ~isequal(use_processed_images,"false")
         save(fullfile('templates','NM_variables.mat'),'img_directory','-mat','-append')
     end
 end
-
-% Check variable lengths for some variables
-check_variable_lengths(main_stage)
 
 % Add elastix paths if present
 if exist('elastix_path_bin','var')
