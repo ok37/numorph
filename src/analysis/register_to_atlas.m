@@ -1,4 +1,4 @@
-function reg_params = register_to_atlas(config, mov_img_path, num_points, mov_mask, atlas_mask)
+function reg_params = register_to_atlas(config, mov_img_path, num_points, only_inverse)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
 % reg_params variable. While it is simpler to just register the atlas to
@@ -11,7 +11,7 @@ Gamma = 0.9;                    % Gamma to apply for intensity adjustment
 inverse_folder = "inverse";     % Location of elastix parameter for calculating the inverse
 
 % Unpack config variables
-param_loc = config.registration_parameters;
+params = config.registration_parameters;
 resample_res = config.resample_resolution;
 hemisphere = config.hemisphere;
 orientation = config.orientation;
@@ -31,11 +31,11 @@ if nargin == 2
 end
 
 % Location of parameters
-if isempty(param_loc)
+if isempty(params)
     if isempty(points_file)
-        param_loc = "default";
+        params = "default";
     else
-        param_loc = "points";
+        params = "points";
     end
 end
     
@@ -114,61 +114,68 @@ end
 mov_img_array = cellfun(@(s) double(imadjustn(uint16(s),...
     [0,prctile(s(:),high_prct)/65535],[],Gamma)), mov_img_array,...
     'UniformOutput', false);
-
-% Add mask if coordinates are specified
-mask = [];
-if ~isempty(mask_coordinates)
-    mask = zeros(size(mov_img));
-    mask(mask_coordinates(1):mask_coordinates(2),:,:) = 1;
-end
     
 % Chain registration parameters. Parameter files are found in
 % ./elastix_parameter_files/atlas_registration. Update specific parameters
 % by editting these files.
 
-% Paths to elastix parameter files
-param_path = fullfile(home_path,'data','elastix_parameter_files','atlas_registration',param_loc);
-param_path = dir(param_path);
-parameter_paths = cell(1,length(param_loc));
-if ~isempty(param_path)
-    % Detect which transform is in the parameter file
-    parameterSub = param_path(arrayfun(@(s) endsWith(s.name,'.txt'),param_path));
-    for j = 1:length(parameterSub)
-        file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
-        text = textread(file_path,'%s','delimiter','\n');
-        n = find(cellfun(@(s) contains(s,'(Transform '),text));
-        if contains(text(n),'Translation') || contains(text(n),'Affine') || contains(text(n),'Euler')
-            fprintf('\t Performing rigid registration\n');
-            parameter_paths{1} = file_path;
-        elseif contains(text(n),'BSpline')
-            fprintf('\t Performing b-spline registration\n');
-            parameter_paths{2} = file_path;
+if ~only_inverse
+    % Paths to elastix parameter files
+    param_path = fullfile(home_path,'data','elastix_parameter_files','atlas_registration',params);
+    param_path = dir(param_path);
+    parameter_paths = cell(1,length(params));
+    if ~isempty(param_path)
+        % Detect which transform is in the parameter file
+        parameterSub = param_path(arrayfun(@(s) endsWith(s.name,'.txt'),param_path));
+        for j = 1:length(parameterSub)
+            file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
+            text = textread(file_path,'%s','delimiter','\n');
+            n = find(cellfun(@(s) contains(s,'(Transform '),text));
+            if contains(text(n),'Translation') || contains(text(n),'Affine') || contains(text(n),'Euler')
+                fprintf('\t Performing rigid registration\n');
+                parameter_paths{1} = file_path;
+            elseif contains(text(n),'BSpline')
+                fprintf('\t Performing b-spline registration\n');
+                parameter_paths{2} = file_path;
+            end
         end
+    else
+        error("Could not locate elastix parameter folder %s.",param_path)
     end
+
+    % Load registration points
+    points = [];
+    if ~isempty(points_file)
+        fprintf('\t Loading points to guide registration\n');
+
+        % Load points from BigWarpJ .csv file
+        [mov_points,atlas_points] = load_points_from_bdv(output_directory, points_file);
+
+        % Trim points if not using all
+        if isequal(num_points,'all')
+            num_points = size(mov_points,1);
+        end
+        points.mov_points = mov_points(1:num_points,:);
+        points.atlas_points = atlas_points(1:num_points,:);
+    end
+
+    % Add mask if coordinates are specified
+    mask = [];
+    if ~isempty(mask_coordinates)
+        mask = zeros(size(mov_img));
+        mask(mask_coordinates(1):mask_coordinates(2),:,:) = 1;
+    end
+
+    % Perform registration
+    % Single channel, pairwise registration
+    [reg_params,reg_img] = elastix_registration(atlas_img_array,mov_img_array,...
+        parameter_paths,points,mask,config.output_directory,direction);
 else
-    error("Could not locate elastix parameter folder %s.",param_path)
-end
-
-% Load registration points
-points = [];
-if ~isempty(points_file)
-    fprintf('\t Loading points to guide registration\n');
-    
-    % Load points from BigWarpJ .csv file
-    [mov_points,atlas_points] = load_points_from_bdv(output_directory, points_file);
-
-    % Trim points if not using all
-    if isequal(num_points,'all')
-        num_points = size(mov_points,1);
+    % Load registration parameters from file
+    if isfile(reg_file) 
+        load(reg_file,'reg_params')
     end
-    points.mov_points = mov_points(1:num_points,:);
-    points.atlas_points = atlas_points(1:num_points,:);
 end
-
-% Perform registration
-% Single channel, pairwise registration
-[reg_params,reg_img] = elastix_registration(atlas_img_array,mov_img_array,...
-    parameter_paths,points,mask,config.output_directory,direction);
 
 % Image sizes
 size_mov = size(mov_img);
@@ -210,9 +217,6 @@ reg_params.mov_res = resample_res;
 reg_params.native_img_size = native_img_size([2 1 3]);
 reg_params.mov_img_size = size_mov([2 1 3]);
 reg_params.atlas_img_size = size_atlas([2 1 3]);
-
-% Save registration parameters
-save(fullfile(output_directory,'variables','reg_params.mat'),'reg_params')
 
 % Write registered image
 if isequal(save_registered_image, 'true')

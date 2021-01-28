@@ -2,41 +2,43 @@
 % These are the key parameters
 % Set flags to indicate how/whether to run process
 resample_images = "true";                       % true, update, false; Perform image resampling 
-register_images = "false";                      % true, update, false; Register image to reference atlas.
+register_images = "true";                      % true, update, false; Register image to reference atlas.
 count_nuclei = "false";                         % true, update, false; Count cell nuclei or other blob objects.
 classify_cells = "false";                       % true, update, false; Classify cell-types for detected nuclei centroids.
 
 use_processed_images = "stitched";              % false or name of sub-directory in output directory (i.e. aligned, stitched...); Direct pipeline to load previously processed images in output directory
-structures = "structure_template.csv";          % Specify csv file in ./annotations detailing which structures to analyze
 save_samples = "true";                          % true, false
 
+%% Annotation Parameters
+% Orientation key: anterior(a)/posterior(p), superior(s)/inferior(i), left(l)/right(r)
+use_annotation_mask = "N58204NLSAMWHS_RCCF_labels.nhdr";            % true, false or name of file; Use annotation mask for cell counting. Specify mask filename and place in /data/masks/
+structures = "structure_template.csv";                              % Specify csv file in /annotations detailing which structures to analyze
+annotation_resolution = 45;                                         % Isotropic image resolution of mask file if using custom. Ideally should match resample resolution
+annotation_orientation = 'lps';                                     % Orientation of custom annotation
+
 %% Resampling Parameters
-% Resampling
+resample_resolution = 25;                   % Isotropic resample resolution. This is also the resolution at which registration is performed
 resample_channels = [];                     % Resample specific channels.
-resample_resolution = 25;                   % Resample resolution (. Should match resolution of Allen Reference Atlas
+resample_orientation = [];                  % Change orientation 
 
 %% Registration Parameters
-registration_parameters = [];                % Name of folder containing elastix registration parameters. Place in /data/elastix_parameter_files/atlas_registration. If empty, will load from "default" or "points"
+registration_parameters = "quick";           % Name of folder containing elastix registration parameters. Place in /data/elastix_parameter_files/atlas_registration. If empty, will load from "default" or "points"
 register_channels = 1;                       % Which channel to register to atlas
-atlas_file = "ara_nissl_25.nii";             % Name of the atlas file to register to. Can provide full path or place .nii file in supplementary_data
+atlas_file = "ara_nissl_25.nii";             % Name of the atlas file to register to. Can provide full path or place .nii file in /supplementary_data/atlas
 
-direction = "atlas_to_image";                % "atlas_to_image" or "image_to_atlas". Direction to perform registration. Note for image_to_atlas, inverse must be calculated
-calculate_inverse = "false";                 % true, false. Whether to calculate the inverse transform using elastix's Displacement Magnitude Penalty
+direction = "atlas_to_image";                % "atlas_to_image","image_to_atlas","mri_to_image","image_to_mri","mri_to_atlas","atlas_to_mri". Direction to perform registration. Note for image_to_atlas, inverse must be calculated
+calculate_inverse = "false";                 % true, false. Whether to calculate the inverse transform
 
 mask_coordinates = [];                      % Row start, row end, col start, col end. Create a mask around edges during registration
 points_file = [];                           % Name of points file to guide registration
-save_registered_image = "true";             % Save a copy of registration results
+save_registered_images = [];                % Whether to save registered images
 
 hemisphere = "left";                        % left, right, whole (which brain hemisphere or whole brain)
-orientation = "lateral";                    % lateral, dorsal, ventral. Which orientation is at z=0 (i.e. for hemisphere laying flat on midline, this would be lat
+orientation = "lateral";                    % [row, column, slice] orientation. 
 
 %% Nuclei Detection
-count_method = "3dunet";              % 3dunet, hessian. 
-measure_local_background = "load";    % true, false; measure local image background
-
-use_mask = "true";                    % true, custom, false; Use mask for cell counting
-mask_file = [];                       % Name of custom defined mask file. Otherwise, leave empty
-mask_resolution = [];                 % Image resolution of mask file
+count_method = "3dunet";            % 3dunet, hessian. 
+measure_local_background = "load";  % true, false; measure local image background
 
 % 3D-Unet
 model_file = '128_model.h5';        % Model file name located in /analysis/3dunet/nuclei/models

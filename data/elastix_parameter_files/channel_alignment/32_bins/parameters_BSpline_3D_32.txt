@@ -57,7 +57,7 @@
 // unrealistic deformations. This is a very important setting!
 // We recommend tuning it for every specific application. It is
 // difficult to come up with a good 'default' value.
-(FinalGridSpacingInPhysicalUnits 800 800 8)
+(FinalGridSpacingInPhysicalUnits 400 400 8)
 
 // Alternatively, the grid spacing can be specified in voxel units.
 // To do that, uncomment the following line and comment/remove

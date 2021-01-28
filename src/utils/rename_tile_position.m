@@ -77,6 +77,9 @@ end
 und = '  ^';
 adj = zeros(1,length(id));
 for i = 1:length(id)
+    if isempty(id{i})
+        continue
+    end
     ic_range = id{i}(end)-10:id{i}(end)+10;
     if any(ic_range>name_length)
         ic_range = ic_range(1):name_length;
@@ -95,6 +98,9 @@ new_names = {files.name};
 for i = 1:length(new_names)
     name = new_names(i);
     for j = 1:length(id)
+        if isempty(id{j})
+            continue
+        end
         x1 = num2str(str2double(name{1}(id{j})) + adj(j));
         if length(x1) < length(id{j})
             % Pad with zero

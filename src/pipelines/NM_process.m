@@ -26,13 +26,9 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 % 
 %--------------------------------------------------------------------------
 
-% Load configuration from .mat file, if not provided
-if nargin<1
-    config = load(fullfile('templates','NM_variables.mat'));
-elseif isstring(config)
-    config = load(fullfile(config,'NM_variables.mat'));
-elseif ~isstruct(config)
-    error("Invalid configuration input")
+% If first input is string or char, generate config structure
+if ischar(config) || isstring(config)
+    config = NM_config('process',char(config));
 end
 
 % Check config structure to make sure it's correct
@@ -57,8 +53,14 @@ elseif ~use_adjustments
 end
 
 % Check step input
+step = char(step);
 if ~ismember({step},{'process','align','stitch','intensity'})
     error("Invalid processing step specified.")
+end
+
+% Check for image directory
+if ~exist(config.img_directory,'dir')
+    error("Could not input image directory %s\n",config.img_directory)
 end
 
 % Make an output directory
@@ -339,9 +341,15 @@ end
 if isequal(config.align_method,'translation')
     fprintf("%s\t Aligning channels by translation \n",datetime('now'));
     
+    % Subset channels to align
+    if isempty(config.align_channels)
+        config.align_channels = 2:length(config.markers);
+    end
+    align_markers = config.markers(config.align_channels);
+    
     % Load alignment table if it exists
     save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
-    if exist(save_path,'file') == 2
+    if isfile(save_path)
         fprintf("%s\t Loading alignment table that already exists \n",datetime('now'));
         load(save_path,'alignment_table')
         % Check rows and columns
@@ -358,23 +366,31 @@ if isequal(config.align_method,'translation')
             ~isequal(config.update_z_adjustment,"true")
         fprintf("%s\t Loading z displacement matrix \n",datetime('now'));
         load(fullfile(config.output_directory,'variables','z_displacement_align.mat'),'z_displacement_align')
+        
+        % Check that z_displacement calculated for each marker to align
+        idx = ~ismember(convertStringsToChars(align_markers),fields(z_displacement_align'));        
+        if any(idx)
+            error("Missing z displacement for marker %s. Update z adjustment",...
+                align_markers(idx));
+        end
     else
-        for k = 2:length(config.markers)
+        for k = 1:length(config.align_channels)
+            align_marker = config.markers(config.align_channels(k));
             fprintf("%s\t Performing channel alignment z calculation for %s/%s \n",...
-                datetime('now'),config.markers{k},config.markers{1});
+                datetime('now'),align_marker,config.markers(1));
             z_tile = zeros(1,numel(position_mat));
             ave_signal = zeros(1,numel(position_mat));
             for idx = 1:numel(position_mat)
                 [y,x] = find(position_mat==idx);
                 path_ref = path_table(path_table.x==x & path_table.y==y & path_table.markers == config.markers(1),:);
-                path_mov = path_table(path_table.x==x & path_table.y==y & path_table.markers == config.markers(k),:);
+                path_mov = path_table(path_table.x==x & path_table.y==y & path_table.markers == align_marker,:);
                 % This measures the displacement in z for a given channel to the reference
-                [z_tile(idx),ave_signal(idx)] = z_align_channel(config,path_mov,path_ref,k);
+                [z_tile(idx),ave_signal(idx)] = z_align_channel(config,path_mov,path_ref,config.align_channels(k));
                 fprintf("%s\t Predicted z displacement of %d for tile %d x %d \n",...
                     datetime('now'),z_tile(idx),y,x);
             end
             z_matrix = reshape(z_tile,[ncols, nrows])';
-            z_displacement_align.(config.markers(k)) = z_matrix;
+            z_displacement_align.(align_markers(k)) = z_matrix;
         end
         % Save displacement variable to output directory
         fprintf("%s\t Saving z displacement matrix \n",datetime('now'));
@@ -388,32 +404,27 @@ if isequal(config.align_method,'translation')
     elseif ~isempty(config.align_tiles) && ~all(ismember(config.align_tiles,tiles_to_align))
         error("Selected subset of tiles to align outside range of all tiles")
     end
+    
+    % Determine if saving images or just parameters based on parameter
+    if isequal(config.save_images, "true") &&...
+            isequal(config.load_alignment_params,"true")
+        config.save_images = "false";
+    end
 
     % Perform channel alignment
     for idx = tiles_to_align
         [y,x] = find(position_mat==idx);            
-        fprintf("%s\t Aligning channels to %s for tile %d x %d \n",...
+        fprintf("%s\t Aligning channels by translation to %s for tile %d x %d \n",...
                     datetime('now'),config.markers{1},y,x);
         path_align = path_table(path_table.x==x & path_table.y==y,:);
         alignment_table{y,x} = align_by_translation(config,path_align,z_displacement_align);
         save(save_path,'alignment_table')
         
         % Save samples
-        if isequal(config.save_samples,"true")
+        if isequal(config.save_samples,"true") && ~isempty(config.align_tiles)
             fprintf('%s\t Saving samples \n',datetime('now'));
             save_samples(config,'alignment',path_align)
         end
-    end
-    
-    fprintf("%s\t Alignment completed! \n",datetime('now'));
-
-    % Change image directory to aligned directory so that subsequent
-    % steps load these images. Otherwise point config to alignment params
-    if isequal(config.save_images,"true")
-        config.img_directory = fullfile(config.output_directory,"aligned");
-        path_table = path_to_table(config,"aligned");
-    else
-        config.load_alignment_params = "true";
     end
     
 elseif isequal(config.align_method,'elastix')
@@ -471,7 +482,8 @@ elseif isequal(config.align_method,'elastix')
             config_pre.align_method = "translation";
             config_pre.align_tiles = [];
             config_pre.save_images = "false";
-            config_pre.only_pc = "true";
+            config_pre.only_pc = "false";
+            config.align_stepsize = 50;
             perform_channel_alignment(config_pre,path_table,equal_res);    
             load(fullfile(config.var_directory,'alignment_table.mat'),'alignment_table')
         end
@@ -490,30 +502,54 @@ elseif isequal(config.align_method,'elastix')
         alignment_results = elastix_channel_alignment(config,path_align,true);
         
         % Save with the exception of only aligning slices
-        if ~isequal(config.channel_alignment,"update") && ~isempty(config.align_slices)
+        if isequal(config.channel_alignment,"update") && ~isempty(config.align_slices)
+            continue
+        else
             alignment_params{y,x} = alignment_results;
             save(save_path,'alignment_params','-v7.3')
         end
 
         % Save samples
-        if isequal(config.save_samples,"true")
+        if isequal(config.save_samples,"true") && ~isempty(config.align_tiles)
             fprintf('%s\t Saving samples \n',datetime('now'));
             save_samples(config,'alignment',path_align)
         end
     end
+else
+    error("Unrecognized selection for align_method. "+...
+        "Please select ""translation"", ""elastix"".")
+end
 
-    % Change image directory to aligned directory so that subsequent
-    % steps load these images
-    config.img_directory = fullfile(config.output_directory,'aligned');
-    path_table = path_to_table(config,"aligned",false,true);
+fprintf("%s\t Alignment completed! \n",datetime('now'));
 
+% Save samples on full
+if isequal(config.save_samples,"true")
+    fprintf('%s\t Saving samples \n',datetime('now'));
+    save_samples(config,'alignment',path_align)
+end
+
+% Change image directory to aligned directory so that subsequent
+% steps load these images. Otherwise point config to alignment params
+config.load_alignment_params = "false";
+if isequal(config.save_images,"true")
+    config.img_directory = fullfile(config.output_directory,"aligned");
+    path_table = path_to_table(config,"aligned");
+    
+    % Check number of loaded tiles
+    ncols = length(unique(path_table.x));
+    nrows = length(unique(path_table.y));
+    if nb_tiles ~= ncols*nrows
+        warning("Number of aligned tiles and raw image tiles are not equal")
+        pause(5)
+    end
+    
     % Update tile intensity adjustments using newly aligned images.
     % Also, set light sheet width adjustments + flatfield adjustments
     % to false as these were applied during the alignment step
     config.adjust_tile_shading = repmat("false",1,length(config.markers));
     config.adj_params.adjust_tile_shading = config.adjust_tile_shading;
-
-   % In case applying tile adjustments, re-calculate thresholds
+    
+    % In case applying tile adjustments, re-calculate thresholds
     if isequal(config.adjust_intensity,"true") && isequal(config.adjust_tile_position,"true")
         for k = 1:length(config.markers)            
             fprintf("%s\t Updating intensity measurements for marker %s using "+...
@@ -523,17 +559,9 @@ elseif isequal(config.align_method,'elastix')
             config.adj_params.t_adj{k} = t_adj;
         end
     end
-else
-    error("%s\t Unrecognized selection for align_method. "+...
-        "Please select ""translation"", ""elastix"".\n",string(datetime('now')))
-end
-
-% Check number of loaded tiles
-ncols = length(unique(path_table.x));
-nrows = length(unique(path_table.y));
-if nb_tiles ~= ncols*nrows
-    warning("Number of aligned tiles and raw image tiles are not equal")
-    pause(5)
+    
+elseif isequal(config.align_method,'translation') && isequal(config.save_images,"false")
+    config.load_alignment_params = "true";
 end
 
 end
@@ -624,32 +652,43 @@ end
 % Check whether to stitch from previously calculated transforms.
 nb_images = length(min(path_table.z_adj):max(path_table.z_adj));
 var_file = fullfile(config.output_directory,'variables','stitch_tforms.mat');
-h_stitch_tforms = []; v_stitch_tforms = []; update_stack = true;
-if isequal(config.stitch_images,"true")
-    if exist(var_file,'file') == 2
-        fprintf("%s\t Loading previously calculated stitching parameters \n",datetime('now'));
-        load(var_file, 'h_stitch_tforms','v_stitch_tforms')
+if isfile(var_file)
+    fprintf("%s\t Loading previously calculated stitching parameters \n",datetime('now'));
+    load(var_file, 'h_stitch_tforms','v_stitch_tforms')
+
+    % Check if sizes match up
+    if size(h_stitch_tforms,2) ~= nb_images
+       error("%s\t Number of slices z slices in stitching parameters does not match loaded images \n",string(datetime('now')))
+    elseif size(h_stitch_tforms,1) ~= (ncols-1)*nrows*2
+       error("%s\t Number of column positions does not match loaded stitching parameters \n",string(datetime('now')))
+    elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
+       error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
+    end
+else
+    h_pos = (ncols-1)*nrows*2;
+    v_pos = (nrows-1)*2;
+    nb_sections = length(unique(path_table.z));
+    h_stitch_tforms = zeros(h_pos,nb_sections);
+    v_stitch_tforms = zeros(v_pos,nb_sections);
+    save(stitch_file,'h_stitch_tforms','v_stitch_tforms','-v7.3');    
+end
         
-        % Check if sizes match up
-        if size(h_stitch_tforms,2) ~= nb_images
-           error("%s\t Number of slices z slices in stitching parameters does not match loaded images \n",string(datetime('now')))
-        elseif size(h_stitch_tforms,1) ~= (ncols-1)*nrows*2
-           error("%s\t Number of column positions does not match loaded stitching parameters \n",string(datetime('now')))
-        elseif size(v_stitch_tforms,1) ~= (nrows-1)*2
-           error("%s\t Number of row positions does not match loaded stitching parameters \n",string(datetime('now')))
+update_stack = false;
+if isequal(config.stitch_images,"true")        
+    % Check if all slices have been stitched. If not, switch to update
+    % and stitch remaining slices
+    if any(all(h_stitch_tforms == 0)) && any(all(v_stitch_tforms == 0))
+        warning("Missing stitching transforms in loaded stitching parameters. "+...
+            "Stitching will continue only for these slices. To re-stitch entire stack, "+...
+            "set stitch_images to ""update"".");
+        config.stitch_sub_stack = find(sum(h_stitch_tforms,1) == 0);
+        start_z = find([diff(config.stitch_sub_stack)~=1,true],1);            
+        if isempty(start_z)
+            [~,idx] = min(abs(config.stitch_sub_stack - round(length(config.stitch_sub_stack)/2)));
+            start_z = config.stitch_sub_stack(idx);
         end
-        update_stack = false;
-        
-        % Check if all slices have been stitched. If not, switch to update
-        % and stitch remaining slices
-        if any(all(h_stitch_tforms == 0)) && any(all(v_stitch_tforms == 0))
-            warning("Missing stitching transforms in loaded stitching parameters. "+...
-                "Stitching will continue only for these slices. To re-stitch entire stack, "+...
-                "set stitch_images to ""update"".\n");
-            
-            config.stitch_sub_stack = find(sum(h_stitch_tforms,1) == 0);
-            update_stack = true;
-        end
+        config.stitch_start_slice = start_z;
+        update_stack = true;
     end
 end
 

@@ -72,13 +72,19 @@ if isstruct(config) && exist(fullfile(config.output_directory,'variables','path_
     if ~isfield(path_table,location)
         quick_load = false;
         save_table = true;
+    elseif length(unique(path_table.(location).markers)) ~= length(config.markers)
+        quick_load = false;
+        save_table = true;
     end
+else
+    save_table = true;
 end
 
 % Munge paths or read filename information from previously saved variable
 switch location
     case 'raw'
         if ~isempty(path_table) && quick_load
+            fprintf("%s\t Quick loading from table \n",datetime('now'))
             path_table_series = path_table.raw;
             if all(ismember(path_table_series.markers,config.markers))
                 return
@@ -87,12 +93,14 @@ switch location
         [path_table_series, path_table_nii] = munge_raw(config);
     case 'aligned'
         if ~isempty(path_table) && quick_load
+            fprintf("%s\t Quick loading from table \n",datetime('now'))
             path_table_series = path_table.aligned;
             return            
         end
         path_table_series = munge_aligned(config);
     case 'stitched'
         if ~isempty(path_table) && quick_load
+            fprintf("%s\t Quick loading from table \n",datetime('now'))
             path_table_series = path_table.stitched;
             return
         end
@@ -107,7 +115,6 @@ switch location
             return
         end   
         path_table_series = readtable(config.img_directory);
-        return
     otherwise
         error("Unrecognized location selected")
 end

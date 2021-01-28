@@ -14,7 +14,7 @@ function out = elastix_channel_alignment(config, path_table, warp_images)
 %--------------------------------------------------------------------------
 
 % Unpack image information variables
-sample_name = config.sample_name;
+sample_id = config.sample_id;
 markers = config.markers;
 output_directory = config.output_directory;
 home_path = config.home_path;
@@ -24,6 +24,7 @@ img_gamma_adj = repmat(0.8,1,length(markers)); % Apply gamma during intensity ad
 smooth_blobs = "false"; % Smooth blobs using gaussian filter
 
 % Registration-specific parameters
+elastix_params = config.elastix_params;
 max_chunk_size = config.max_chunk_size; 
 chunk_pad = config.chunk_pad;
 mask_int_threshold = config.mask_int_threshold;
@@ -54,13 +55,43 @@ assert(length(y) == 1, "More than 1 tile row detected in path_table.")
 
 % Paths to elastix parameter files
 parameter_path = fullfile(home_path,'data','elastix_parameter_files','channel_alignment');
-transform_path = cell(length(markers)-1,3); outputDir = cell(1,length(markers)-1);
+transform_path = repmat({''},length(markers)-1,3); outputDir = cell(1,length(markers)-1);
+
+% Set defaults parameters if empty
+if isempty(elastix_params)
+    elastix_params = repmat("",1,length(markers)-1);
+    for i = 1:length(markers)-1
+        if lowerThresh(i+1)/upperThresh(i+1) <=0.1 && isequal(config.pre_align,"true")
+            % 32 bins prealign
+            elastix_params(i) = "32_prealign";
+            max_chunk_size = length(unique(path_table.z))+100;
+            chunk_pad = 10;
+        elseif lowerThresh(i+1)/upperThresh(i+1) >0.1 && isequal(config.pre_align,"true")
+            % 16 bins prealign
+            elastix_params(i) = "16_prealign";
+            max_chunk_size = length(unique(path_table.z))+100;
+            chunk_pad = 10;
+        elseif lowerThresh(i+1)/upperThresh(i+1) <=0.1 && isequal(config.pre_align,"false")
+            % 32 bins
+            elastix_params(i) = "32_bins";
+            max_chunk_size = 300;
+            chunk_pad = 30;
+        else
+            % 16 bins
+            elastix_params(i) = "16_bins";
+            max_chunk_size = 300;
+            chunk_pad = 30;
+        end
+    end
+end
+
+% Create cell array containing parameters
 for i = 1:length(markers)-1
     parameter_dir = dir(parameter_path);
-    idx = find({parameter_dir.name} == config.elastix_params(i), 1);
+    idx = find({parameter_dir.name} == elastix_params(i), 1);
     if ~isempty(idx)
         % Detect which transform is in the parameter file
-        parameterSub = dir(fullfile(parameter_path,config.elastix_params(i)));
+        parameterSub = dir(fullfile(parameter_path,elastix_params(i)));
         parameterSub = parameterSub(arrayfun(@(s) endsWith(s.name,'.txt'),parameterSub));
         for j = 1:length(parameterSub)
             file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
@@ -74,9 +105,10 @@ for i = 1:length(markers)-1
                 transform_path{i,3} = file_path;
             end
         end
+        fprintf('Using parameters %s for marker %s \n', transform_path{i,3}, config.markers(i+1))
     else
         error("Could not locate elastix parameter folder %s "+...
-            "in %s",config.elastix_params(i),parameter_path)
+            "in %s",elastix_params(i),parameter_path)
     end
     % Create empty tmp directory for saving images/transforms
     outputDir{i} = string(fullfile(config.output_directory,sprintf('tmp%d',i)));
@@ -143,7 +175,6 @@ if isequal(config.channel_alignment,"update")
 end
 
 % Subset z positions or use all
-nslices = height(path_table(path_table.markers == markers(1),:));
 if update_stack && ~isempty(config.align_slices)
     if ~iscell(config.align_slices)
         config.align_slices = {config.align_slices};
@@ -246,11 +277,17 @@ for i = 1:length(markers)
     
     % If using pre-aligned, account for a shift in z by reading images from
     % alignment table and noting shifts   
-    if using_loaded_parameters && isfield(out,markers(i)) && isfield(out.(markers(i)),'pre_alignment')
-        % Load from alignment parameters
+    if ~update_stack && using_loaded_parameters &&...
+            isfield(out,markers(i)) && isfield(out.(markers(i)),'pre_alignment')
+        % Load pre-alignment from alignment parameters
         pre_align_params.(markers(i)) = out.(markers(i)).pre_alignment;
         path_sub = pre_align_params.(markers(i)).file;
         
+        % Check that files exist
+        if ~all(cellfun(@(s) isfile(s) | isempty(s), path_sub))
+            error("Files in loaded alignment table do not exist")
+        end
+
     elseif ~isempty(alignment_table) && i>1
         % Load from alignment table
         path_sub = path_table(path_table.markers == markers(1),:).file;
@@ -299,7 +336,7 @@ if any(arrayfun(@(s) isequal(s,"true"),config.adjust_intensity)) &&...
         else
             fprintf('Applying intensity adjustments for marker %s\n',markers(i));
         end
-        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, adj_params{i}, adj_ref);
+        I_raw{i} = apply_intensity_adjustments_tile(I_raw{i}, adj_params{i}, adj_ref, z_range_adj);
     end
 end
 
@@ -336,6 +373,7 @@ if ~using_loaded_parameters || update_stack
     I = cell(1,length(I_raw));
     for i = [1, align_channels]
         I{i} = I_raw{i};
+        
         % Smooth blobs using Guassian filter to reduce effects of
         % noise. Not a big impact if resampling
         if isequal(smooth_blobs,"true")
@@ -347,6 +385,12 @@ if ~using_loaded_parameters || update_stack
         % Set the mask to zero at border regions if pre-aligned
         if ~isempty(alignment_table) && i>1
             mask(I{i} == 0) = 0;                    
+        end
+        
+        % Set the mask to zero at bright regions if aligning slices
+        if update_stack && ~isempty(config.align_slices) && i==1
+           upperThresh1 = upperThresh(1)*65535*0.9;
+           mask(I{1}>upperThresh1) = 0;
         end
         
         % Adjust intensity 
@@ -364,7 +408,6 @@ if ~using_loaded_parameters || update_stack
     
     % Resize the mask 
     mask = imresize3(single(mask),dim_adj,'nearest');
-    
     if update_stack && ~isempty(config.align_slices)
         mask(:,:,z_range_save) = 1;
         fprintf('Using masked ROI for slices \n')
@@ -415,10 +458,11 @@ if ~using_loaded_parameters || update_stack
     init_tform = cell(1,length(markers)-1);
     if update_stack && using_loaded_parameters && ~isempty(config.align_slices)
         % Load initial tform it exists
-        for i = align_channels
-            if isfield(out.(align_markers(i-1)),'init_tform')
-                fprintf("Loading intial whole stack registration for marker %s\n", align_markers(i-1))
-                init_tform{align_channels-1} = out.(align_markers(i-1)).init_tform;
+        for i = 1:length(align_markers)
+            if isfield(out.(align_markers(i)),'init_tform')
+                fprintf("Loading intial whole stack registration for marker %s\n", align_markers(i))
+                init_tform{align_channels(i)-1} = out.(align_markers(i)).init_tform;
+                transform_path{align_channels(i)-1,1} = '';
             end
         end
     else
@@ -453,7 +497,7 @@ if ~using_loaded_parameters || update_stack
     
     % Save tile positions
     out.x = x; out.y = y;
-    out.ncols = ncols; out.nrows = nrows; out.total_images = nslices;
+    out.ncols = ncols; out.nrows = nrows; out.nslices = nslices;
     
     fprintf('Performing chunk-wise registration \n')
     for i = 1:length(align_chunks)
@@ -476,11 +520,7 @@ if ~using_loaded_parameters || update_stack
         
         % Take chunk images from reference channel
         I_ref = I{1}(:,:,chunk_start:chunk_end);
-        
-        % Chain transform parameters
-        transforms = [transform_path(:,2), transform_path(:,3)];
-        transforms = transforms(cellfun(@(s) ~isempty(s),transforms));
-        
+
         % Create cell array for storing chunk registration parameters
         chunk_out = cell(1,length(markers)-1);
         
@@ -492,16 +532,20 @@ if ~using_loaded_parameters || update_stack
                 pause(1)
            end
            
+            % Remove empty transform
+            transforms = transform_path(j,:);
+            transforms_sub = transforms(cellfun(@(s) ~isempty(s),transforms));
+                        
             if ~isempty(init_tform{j})
                 % Take initial transform of whole stack and save it as an
                 % elastix parameters file
                 init_tform{j}.TransformParameters{1}.Size(3) = size(mask_chunk,3);
-                init_tform_path = sprintf('%s/init_transform_C%d_%d_%d_%d_%s.txt',outputDir{j},j,y,x,i,sample_name);
+                init_tform_path = sprintf('%s/init_transform_C%d_%d_%d_%d_%s.txt',outputDir{j},j,y,x,i,sample_id);
                 elastix_paramStruct2txt(init_tform_path,init_tform{j}.TransformParameters{1})
 
                 % Perform registration on the chunk for this channel
                 chunk_out{j} = elastix(I{j+1}(:,:,chunk_start:chunk_end),I_ref,...
-                    outputDir{j},transforms(j,:),'fMask', mask_chunk,...
+                    outputDir{j},transforms_sub,'fMask', mask_chunk,...
                     't0',init_tform_path,'s',s,'threads',[]);
 
                 % Save initial transform filename into structure
@@ -510,16 +554,19 @@ if ~using_loaded_parameters || update_stack
             else
                 % Perform registration on the chunk for this channel
                 chunk_out{j} = elastix(I{j+1}(:,:,chunk_start:chunk_end),I_ref,...
-                    outputDir{j},transforms(j,:),'fMask', mask_chunk,'s',s,'threads',[]);
+                    outputDir{j},transforms_sub,'fMask', mask_chunk,'s',s,'threads',[]);
             end
             
             % Reset temporary directory
-            rmdir(outputDir{j},'s')
-            mkdir(outputDir{j})
+            %rmdir(outputDir{j},'s')
+            %mkdir(outputDir{j})
         end
 
         % Save registration parameters into structure
         for j = 1:length(markers)-1
+           if c_idx(j+1) == 0
+                continue
+           end
             chunk_out{j}.chunk_ranges = chunk_ranges(i,:);
             out.(markers(j+1)).chunk_tform{i} = chunk_out{j};
         end
@@ -528,7 +575,7 @@ if ~using_loaded_parameters || update_stack
     end
     
     % Cleanup temporary directories
-    cellfun(@(s) rmdir(s,'s'), outputDir)
+    %cellfun(@(s) rmdir(s,'s'), outputDir)
 end
 
 % Return if not aplying transformations
@@ -558,30 +605,32 @@ for i = 1:length(align_markers)
 end
 
 %% Save the images
-% Create directory to store images
-if exist(fullfile(output_directory,'aligned'),'dir') ~= 7
-    mkdir(fullfile(output_directory,'aligned'));
-end
+if isequal(config.save_images,"true")
+    % Create directory to store images
+    if exist(fullfile(output_directory,'aligned'),'dir') ~= 7
+        mkdir(fullfile(output_directory,'aligned'));
+    end
 
-if update_stack && ~isempty(config.align_slices)
-    z_range_save = unique([config.align_slices{:}]);
-    fprintf("%s\t Saving only slices between %d and %d \n",datetime('now'),min(z_range_save),max(z_range_save))
-end
+    if update_stack && ~isempty(config.align_slices)
+        z_range_save = unique([config.align_slices{:}]);
+        fprintf("%s\t Saving only slices between %d and %d \n",datetime('now'),min(z_range_save),max(z_range_save))
+    end
 
-% Save aligned images
-for i = 1:length(markers)
-   if i > 1 && c_idx(i) == 0
-        continue
-   end
-    markers1 = markers(i);
-    I = I_raw{i}(:,:,z_range_save);
-    fprintf("%s\t Writing aligned images for marker %s\n",datetime('now'),markers1)
-    parfor j = 1:length(z_range_save)
-        img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',...
-            sample_name,num2str(z_range_save(j),'%04.f'),i,markers1,y,x);
-        img_path = fullfile(output_directory,'aligned',img_name);        
-        %fprintf("%s\t Writing aligned image %s\n",datetime('now'),img_name)
-        imwrite(I(:,:,j),img_path)
+    % Save aligned images
+    for i = 1:length(markers)
+       if i > 1 && c_idx(i) == 0
+            continue
+       end
+        markers1 = markers(i);
+        I = I_raw{i}(:,:,z_range_save);
+        fprintf("%s\t Writing aligned images for marker %s\n",datetime('now'),markers1)
+        parfor j = 1:length(z_range_save)
+            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',...
+                sample_id,num2str(z_range_save(j),'%04.f'),i,markers1,y,x);
+            img_path = fullfile(output_directory,'aligned',img_name);        
+            %fprintf("%s\t Writing aligned image %s\n",datetime('now'),img_name)
+            imwrite(I(:,:,j),img_path)
+        end
     end
 end
 
@@ -611,7 +660,7 @@ function I_raw = apply_transformations(I_raw,out)
 % I_raw should just be 3D matrix for 1 channel
 % out should contain fields for chunk transforms and initial transforms
 
-[nrows, ncols, total_images] = size(I_raw);
+[nrows, ncols, nslices] = size(I_raw);
 nchunks = length(out.chunk_tform);
 
 % Get chunk sizes and locations in the stack with/without padding
@@ -627,7 +676,7 @@ bottom_trim = zeros(1,nchunks);
 I_chunk = cell(1,nchunks);
 chunk_tforms = cell(1,nchunks);
 for i = 1:nchunks
-    if i == nchunks && chunk_end(i) == total_images
+    if i == nchunks && chunk_end(i) == nslices
         a = 0;
     else
         a = 1;
@@ -760,7 +809,7 @@ chunk_ranges(:,4) = min(chunk_ranges(:,4),total_images);
 end
 
 
-function I_raw = apply_intensity_adjustments_tile(I_raw, params, adj_ref)
+function I_raw = apply_intensity_adjustments_tile(I_raw, params, adj_ref,z_range)
 % Apply intensity adjustments prior to aligning images
 
 % Crop y_adj and flatfield to match reference
@@ -769,7 +818,7 @@ params.flatfield = crop_to_ref(adj_ref.flatfield,params.flatfield);
 params.darkfield = crop_to_ref(adj_ref.darkfield,params.darkfield);
 
 % Adjust intensities
-for j = 1:size(I_raw,3)
+for j = z_range
    if sum(I_raw(:,:,j) == 0)
        continue
    end

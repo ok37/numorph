@@ -69,7 +69,10 @@ function img = read_img_worker(filepath,tiff_flag)
 
 switch ext
     case {'.tif','.tiff'}
-        if tiff_flag || imfinfo(filepath).FileSize >1E7
+        if ~tiff_flag
+            info = imfinfo(filepath);
+        end
+        if tiff_flag || info.FileSize >1E7
             img = loadtiff(filepath);
         else
             img = imread(filepath);

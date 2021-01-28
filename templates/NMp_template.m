@@ -3,10 +3,10 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-stitch_images = "true";                    % true, update, false; 2D iterative stitching
+stitch_images = "update";                    % true, update, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
-ignore_markers = "Auto";                % completely ignore marker from processing steps. 
+ignore_markers = "Auto";                % completely ignore marker from processing steps. Important: places these markers at the end marker list for sample
 save_images = "true";                   % true or false; Save images during processing. Otherwise only parameters will be calculated and saved
 save_samples = "true";                  % true, false; Save sample results for each major step
 
@@ -34,7 +34,7 @@ z_window = 5;                           % integer; Search window for finding cor
 z_initial = 0;                          % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
-align_method = "elastix";               % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+align_method = "translation";           % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
 align_tiles = [];                       % Option to align only certain stacks and not all stacks. Row-major order
 align_channels = [];                    % Option to align only certain channels (set to >1)
 align_slices = {};                      % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
@@ -44,23 +44,24 @@ align_stepsize = 10;                    % interger; Only for alignment by transl
 only_pc = "false";                      % true, false; Use only phase correlation for registration. This gives only a quick estimate for channel alignment. 
 
 % Specific to elastix method
+elastix_params = [];                    % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
+pre_align = "false";                    % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
+
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
-elastix_params = "16_prealign";         % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
-pre_align = "true";                     % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
-max_chunk_size = 1500;                  % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
-chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
+max_chunk_size = 300;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
+chunk_pad = 30;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
-hist_match = 64;                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
+hist_match = 64;                        % 1xn_channels-1 interger; Specify histogram bins to match with reference channel. Otherwise leave empty or set to 0. This can be useful for low contrast images
 
 %% Stitching Parameters
 % Parameters for running iterative 2D stiching
 sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-load_alignment_params = "false";        % true, false; True: apply previously calculated parameters to align individual tiles during stitching
+load_alignment_params = "true";         % true, false; True: apply previously calculated parameters to align individual tiles during stitching
 overlap = 0.10;                         % 0:1; overlap between tiles as fraction
 
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
-stitch_sub_channel = [];                % channel index; If only stitching certain channels
+stitch_sub_channel = 1;                % channel index; If only stitching certain channels
 stitch_start_slice = [];                % integer >0; Recommended: leave empty. Start stitching from specific slice. Otherwise optimize based on image features
 
 blending_method = "sigmoid";            % sigmoid, linear, max
@@ -70,7 +71,7 @@ border_pad = 25;                        % integer >= 0; Crops borders during sti
 %% Additional Post-processing Filters and Adjustments That May Be Useful But Are Not Required
 % These all currently occur during stitching step after the completed image
 % has been merged.
-% Parameters for rescale_intensities
+% Rescaling intensities
 rescale_intensities = "false";          % true, false; Rescaling intensities and applying gamma
 lowerThresh = [];                       % 1xn_channels numeric; Lower intensity for rescaling
 signalThresh = [];                      % 1xn_channels numeric; Rough estimate for minimal intensity for features of interest

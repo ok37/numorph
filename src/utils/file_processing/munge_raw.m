@@ -31,6 +31,11 @@ else
     all_files = all_files(arrayfun(@(s) ~contains(s.folder,config.output_directory,'IgnoreCase',true),all_files));
 end
 
+% Remove marker names specified to ignore
+for i = 1:length(config.ignore_markers)
+    all_files = all_files(arrayfun(@(s) ~contains(s.name,config.ignore_markers),all_files));
+end
+
 % Get which image extensions are present and subset these images
 idx = false(length(ext),length(all_files));
 for i = 1:length(ext)
@@ -40,7 +45,7 @@ ext_here = ext(any(idx,2));
 
 % Read nifiti file formats if present
 nifti_ext = ext_here(~ismember(ext_here,[".tif",".tiff"]));
-if ~isempty(nifti_ext)
+if ~isempty(nifti_ext) && isfield(config,'mri_markers')
     nifti_files = all_files(any(idx(3:end,:)));
     path_table_nii = munge_nifti_raw(nifti_files,config);
 else
@@ -63,6 +68,7 @@ if isfield(config,'channel_num') && ~isempty(config.channel_num)
     c_idx = cell(1,length(config.channel_num));
     for i = 1:length(config.channel_num)
         a = arrayfun(@(s) contains(s.name,config.channel_num(i)),tiff_files);
+        a = a & arrayfun(@(s) contains(s.name,config.markers(i)),tiff_files);
         if ~isempty(a)
             c_idx{i} = a;
             idx = idx | a;

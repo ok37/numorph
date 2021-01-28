@@ -11,6 +11,7 @@ function [z_displacement,q,low_flag] = z_align_stitch(path_mov,path_ref,overlap,
 peaks = 3;
 usfac = 1;
 min_overlap = 50;
+min_signal = 0.1;       % Minimum fraction of signal pixels for registering
 
 % Adjust signalThresh to 16 bit
 if signalThresh<1
@@ -94,7 +95,7 @@ cc(isnan(cc))=0;
 
 if sum(cc(:)) > 0
     [~,a1] = max(cc');
-    f_num = length(f(f>0.005)); 
+    f_num = length(f(f>min_signal)); 
 else
     f_num = 0;
 end

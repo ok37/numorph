@@ -1,4 +1,4 @@
-function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,channel_idx,verbose)
+function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,channel_idx)
 %--------------------------------------------------------------------------
 % Align .tif series from 2 channels along z dimension.
 %--------------------------------------------------------------------------
@@ -7,11 +7,7 @@ function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,c
 peaks = 3;              % Phase correlation peaks to test
 usfac = 1;              % Precision of phase correlation
 max_shift = 0.1;        % Max shift as fraction of longest image dimension
-min_signal = 0.01;     % Minimum fraction of signal pixels for registering
-
-if nargin<5
-    verbose = false;
-end
+min_signal = 0.2;       % Minimum fraction of signal pixels in reference for registering
 
 % Unpack variables
 z_positions = config.z_positions;
@@ -44,7 +40,7 @@ nb_ref = height(path_ref);
 
 % Adjust z_positions if less than 1
 if z_positions<1
-    z_positions = round(nb_ref*z_positions);
+    z_positions = ceil(nb_ref*z_positions);
 end
 
 % Adjust z_positions if specified number is too high
@@ -109,7 +105,6 @@ for i = 1:length(z)
 
         %Check results
         %[pc_img,ref_img2,~,type,cc(a,b)] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac,shift_threshold);
-        %disp(cc)
         %if i == 1
             %figure
             %imshowpair(ref_img2*30,uint16(pc_img)*25)
@@ -118,9 +113,7 @@ for i = 1:length(z)
 end
 
 % Display cross-correlation matrix
-if verbose
-    disp(cc)
-end
+disp(mean(cc,1))
 
 % Generate score by multiplying intensity value by cross-correlation. This
 % will lower effect caused by noise in images with no features

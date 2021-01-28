@@ -15,7 +15,7 @@ function [config, path_table] = NM_config(stage, sample, run)
 %
 %--------------------------------------------------------------------------
 % Outputs:
-% config: Parameter configuration structure
+% config: Parameter configuration structure.
 %
 %--------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ switch stage
     case {'process','stitch','align','intensity'}
         NMp_template
         main_stage = 'process';
-    case 'analyze'
+    case {'analyze','resample','register','count','classify'}
         NMa_template
         main_stage = 'analyze';
     case 'evaluate'
@@ -53,7 +53,7 @@ save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
 if nargin > 1 && ~isequal(main_stage,'evaluate')
-    [~, output_directory] = NM_samples(sample, true);
+    [img_directory, output_directory] = NM_samples(sample, true);
     load(fullfile('templates', 'NM_variables.mat'),'-mat')
     
 elseif nargin > 1 && isequal(main_stage,'evaluate')
@@ -81,6 +81,10 @@ if ~isequal(use_processed_images,"false")
         error("Could not locate processed image directory %s\n",img_directory)
     else
         save(fullfile('templates','NM_variables.mat'),'img_directory','-mat','-append')
+    end
+else
+    if ~isfolder(img_directory)
+        error("Could not find image directory %s\n",img_directory)
     end
 end
 
@@ -125,10 +129,8 @@ if ~(exist('vl_version','file') == 3)
 end
 
 % Reload config
-if nargout > 0
-    config = load(fullfile('templates','NM_variables.mat'));
-    config = orderfields(config);
-end
+config = load(fullfile('templates','NM_variables.mat'));
+config = orderfields(config);
 
 % Run
 if run
@@ -149,17 +151,21 @@ if run
     % Run pipeline
     switch stage
         case 'process'
-            NM_process(var_directory)
+            NM_process(config)
         case 'analyze'
-            NM_analyze(var_directory)
+            NM_analyze(config)
         case 'evaluate'
-            NM_evaluate(var_directory)
+            NM_evaluate(config)
         case 'stitch'
-            NM_process(var_directory,'stitch',true)
+            NM_process(config,'stitch',true)
         case 'align'
-           NM_process(var_directory,'align',true)
+           NM_process(config,'align',true)
         case 'intensity'
-           NM_process(var_directory,'intensity',true)
+           NM_process(config,'intensity',true)
+       case 'resample'
+           NM_analyze(config,'resample')
+        case 'register'
+           NM_analyze(config,'register')
     end
 elseif nargout >= 1
     % Update img_directory if using processed images
@@ -272,13 +278,11 @@ switch stage
     case 'analyze'
         % Variables to check
         variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
-            'resample_channels','resample_resolution','direction'};
+            'resample_channels','direction'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
         
         if exist('resample_channels','var') == 1 && isempty(resample_channels)
             resample_channels = 1:length(markers);end
-        if exist('resample_resolution','var') == 1 && length(resample_resolution) == 1
-            resample_resolution = repmat(resample_resolution,1,3);end
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
         if exist('direction','var') ~= 1

@@ -4,7 +4,7 @@ function save_samples(config, process, path_table)
 %--------------------------------------------------------------------------
 
 % Defaults
-spacing = [3,3,10]; % Downsampling for alignment check
+spacing = [3,3,20]; % Downsampling for alignment check
 
 % Read image filename information if not provided
 if nargin<3
@@ -112,12 +112,32 @@ switch process
         % Run alignment check for each tile position present
         x = unique(path_table.x);
         y = unique(path_table.y);
-
-        for i = 1:length(x)
-            for j = 1:length(y)
-                check_alignment(config, {y(i), x(i)}, [], spacing);
+        n_tiles = length(x)*length(y);
+        
+        if n_tiles == 1
+            check_alignment(config, {y, x}, [], spacing);
+        else
+            spacing(3) = spacing(3)*5;
+            
+            I_adj2 = cell(length(y),1);
+            for i = 1:length(y)
+                I_adj = cell(1,length(x));
+                for j = 1:length(x)
+                    I_adj{j} = check_alignment(config, {y(i), x(j)}, [], spacing);
+                end
+                I_adj2{i} = cat(2,I_adj{:});
             end
-        end 
+            I_adj = cat(1,I_adj2{:});
+            
+            % Save multi-tile
+            save_directory = fullfile(config.output_directory,'samples','alignment');
+            for i = 1:size(I_adj,4)
+                fname = fullfile(save_directory,sprintf('%s_full.tif',config.markers(i)));
+                options.overwrite = true;
+                options.message = false;
+                saveastiff(squeeze(I_adj(:,:,:,i)),char(fname),options);
+            end
+        end
 end
 
 end

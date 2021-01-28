@@ -35,7 +35,7 @@ tiff_files = all_files(any(idx(1:2,:)));
 % Fill in table
 path_table_series = table('Size',[length(tiff_files), 7],...
     'VariableTypes',{'cell','string','string','string','double','double','double'},...
-    'VariableNames',{'file','sample_name','markers','channel_num','x','y','z'});
+    'VariableNames',{'file','sample_id','markers','channel_num','x','y','z'});
 path_table_series.file = arrayfun(@(s) fullfile(s.folder,s.name),tiff_files,'UniformOutput',false);
 names = {tiff_files.name};
 
@@ -75,7 +75,7 @@ path_table_series.y = path_table_series.y - min(path_table_series.y) + 1;
 path_table_series.z = path_table_series.z - min(path_table_series.z) + 1;
 
 % Fill in remainig columns
-path_table_series.sample_name = repmat("SAMPLE",height(path_table_series),1);
+path_table_series.sample_id = repmat("SAMPLE",height(path_table_series),1);
 path_table_series.markers = "marker"+num2str(path_table_series.channel_num);
 
 end

@@ -85,7 +85,7 @@
 // The number of resolutions. 1 Is only enough if the expected
 // deformations are small. 3 or 4 mostly works fine. For large
 // images and large deformations, 5 or 6 may even be useful.
-(NumberOfResolutions 2)
+(NumberOfResolutions 3)
 
 // The downsampling/blurring factors for the image pyramids.
 // By default, the images are downsampled by a factor of 2
@@ -120,7 +120,7 @@
 // With an AdaptiveStochasticGradientDescent optimizer,
 // in combination with the two options below, around 2000
 // samples may already suffice.
-(NumberOfSpatialSamples 4000)
+(NumberOfSpatialSamples 1000 2000 4000)
 
 // Refresh these spatial samples in every iteration, and select
 // them randomly. See the manual for information on other sampling

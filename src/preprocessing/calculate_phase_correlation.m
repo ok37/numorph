@@ -39,7 +39,7 @@ if nargin<4 || isempty(usfac)
 end
 
 % No max shift threshold if left unspecified
-if nargin <5
+if nargin <5 || isnan(shift_threshold)
     shift_threshold = Inf;
 end
 

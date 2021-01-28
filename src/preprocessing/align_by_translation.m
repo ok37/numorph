@@ -53,11 +53,12 @@ optimizer.MaximumIterations = 50;
 optimizer.RelaxationFactor = 0.5;
 
 % Use only phase correlation
-
-if narging<4
-    only_pc = false;
-elseif isequal(config.only_pc,"true")
-    only_pc = true;
+if nargin<4
+    if isequal(config.only_pc,"true")
+        only_pc = true;
+    else
+        only_pc = false;
+    end
 end
 
 % Unpack variables from config structure
@@ -106,10 +107,10 @@ end
 if ~isempty(align_channels)
     assert(all(ismember(markers(align_channels),markers)),"Align channels "+...
         "are outside of range for the number of markers present")
-    align_markers = [markers(1), markers(align_channels)];
-    align_channels = [1, align_channels];
-    path_table = path_table(ismember(path_table.markers, align_markers),:);
+    align_markers = markers(align_channels);
+    %path_table = path_table(ismember(path_table.markers, align_markers),:);
 else
+    align_channels = 1:length(markers);
     align_markers = markers;
 end
 
@@ -123,11 +124,11 @@ end
 
 % Get z displacement
 z_displacement = zeros(1,length(markers));
-if nargin<4
-    for i = 2:length(align_markers)
-        z_displacement(i) = z_displacement_align.(align_markers(i))(row,col);
+if nargin >2 && ~isempty(z_displacement_align)
+    for i = 1:length(align_markers)
+        z_displacement(align_channels(i)) = z_displacement_align.(align_markers(i))(row,col);
         fprintf("%s\t Using z_displacement %d for marker %s\n", datetime('now'),...
-            z_displacement(i),markers(i));
+            z_displacement(i),align_markers(i));
     end
 end
 
@@ -136,9 +137,9 @@ z_list = zeros(length(ref_slices),length(markers));
 z_list(:,1) = ref_slices;
 
 % Creat new table
-path_new = path_table(path_table.markers == align_markers(1),:);
-for i = 2:length(align_markers)  
-    table_sub = path_table(path_table.markers == align_markers(i),:);
+path_new = path_table(path_table.markers == markers(1),:);
+for i = 2:length(markers)  
+    table_sub = path_table(path_table.markers == markers(i),:);
     z_list(:,i) = table_sub.z - z_displacement(i);
     table_sub.z = z_list(:,i);
     path_new = cat(1,path_new,table_sub);
@@ -172,7 +173,6 @@ else
     z = ref_slices;
 end
 path_new = path_new(ismember(path_new.z,z),:);
-
 
 % Create a matrix for recording information. This info will get saved in
 % structure array later
@@ -208,13 +208,13 @@ for i = 1:size(order_m,1)
     ref_img = read_img(path_new,[1,z_idx]);
    
     % For each non-reference channel, perform registration using translation
-    for j = 2:length(align_markers)
+    for j = align_channels
         if order_m(i,j) > min_signal
             % Index within order matrix
             idx = 2+length(markers)+4*(j-2);
 
             % Read moving image
-            mov_img = read_img(path_new,[align_channels(j),z_idx]);
+            mov_img = read_img(path_new,[j,z_idx]);
             
             % Continue if out of range
             if isempty(mov_img)
@@ -251,7 +251,7 @@ for i = 1:size(order_m,1)
 
            % Check for big translations in phase correlation. It's very important to use
            % a good initial translation before intensity-based registration
-           if i>1
+           if i > length(z)*0.1
                % Take median of translations calculated so far            
                x_med = median(order_m(1:i-1,idx+1));
                y_med = median(order_m(1:i-1,idx+2));
@@ -274,7 +274,7 @@ for i = 1:size(order_m,1)
                % Use MATLAB's intensity-based registration to refine registration
                % Calculate transform
                tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
-                   'PyramidLevels',2,'InitialTransformation',tform);
+                   'PyramidLevels',2,'InitialTransformation',tform);               
            end
            order_m(i,idx)=order_m(i,idx)+1; % Save translation method
 
@@ -299,7 +299,7 @@ end
 order_m = order_m(sort_idx,:);
 
 % Check for outliers and fill in 'no signal' images
-for j = 2:length(markers)
+for j = align_channels
     % Index within order matrix
     idx = 2+length(markers)+4*(j-2);
     
@@ -378,8 +378,10 @@ end
 coreg_table = array2table(order_m,'VariableNames',vars);
 
 % Replace transform type index with specified registration procedure
-tvars = {'Registered','PC_Outlier','Low_Signal','Interpolated'}';
+tvars = {'Not_Aligned','Registered','PC_Outlier','Low_Signal','Interpolated'}';
 idxs = 1 + length(markers) + 4*((2:length(markers))-2);
+order_m(:,idxs) = order_m(:,idxs)+1;
+order_m(:,idxs(any(order_m(:,idxs) == 1,1))) = 1;
 
 % Add transform type to coreg_table
 t_table = cell2table(tvars(order_m(:,idxs)),'VariableNames',coreg_table(:,idxs).Properties.VariableNames);
@@ -396,8 +398,8 @@ for i = fliplr(1:length(markers))
    coreg_table{ismember(coreg_table.Reference_Z,file_paths.z),1} = file_paths.file;
 end
 
-% Save images if needed
-if isequal(save_images,"true")   
+% Write image
+if isequal(save_images,"true")
    fprintf("%s\t Writing aligned images \n", datetime('now'));
    
     % Create directory to store images
@@ -419,9 +421,8 @@ if isequal(save_images,"true")
     end
     
     % For each image in table
-    tform = affine2d;
     for i = save_z
-        path_sub = coreg_table(coreg_table.Reference_Z == i,:);        
+        path_sub = coreg_table(coreg_table.Reference_Z == i,:);    
         for j = 1:length(markers)
             filepath = string(table2cell(coreg_table(i,j)));
             if filepath == ""
@@ -455,13 +456,11 @@ if isequal(save_images,"true")
                 end
 
                 % Translate
-                tform.T(3) = path_sub{1,t_idx(j)};
-                tform.T(6) = path_sub{1,t_idx(j)+1};
-                mov_img = imwarp(mov_img,tform,'FillValues',0);
+                mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
             end
             
             % Write aligned images
-            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_name,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
+            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_id,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
             img_path = fullfile(output_directory,'aligned',img_name);
             imwrite(uint16(mov_img),img_path)
         end

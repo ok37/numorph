@@ -58,24 +58,20 @@ if isequal(config.load_alignment_params,"true") && ~isempty(config.alignment_tab
 end
 
 %Start parallel pool
+% Start parallel pool
 try
     p = gcp('nocreate');
 catch
-    warning("Could not load Parallel Computing Toolbox. It's recommended "+...
-        "that this toolbox is installed to speed up stitching and subsequent "+...
-        "analysis.")
-    p = 1;
+    p = false;
 end
 
-if isempty(p) && length(z_range)>1
+if isempty(p) && nb_sections > 20
     parpool
-elseif isfield(p,'NumWorkers') && p.NumWorkers == 2
-    delete(p)
-    parpool
+    p = true;
 end
 
 % Begin stitching
-if ~isempty(p)
+if p
     parfor i = z_range
         % Print image being stitched
         fprintf('%s\t Stitching image %d \n',datetime('now'),i);
@@ -155,8 +151,8 @@ for i = 1:nrows
         end
         
         % Rescale non-cropped areas
-        min_w_h_adj = min(w_h_adj(w_h_adj>0));
-        w_h_adj(w_h_adj>=min_w_h_adj) = (w_h_adj(w_h_adj>=(min_w_h_adj)) - min_w_h_adj)./(1-min_w_h_adj);
+        h_idx = w_h_adj>0 & w_h_adj<1;
+        w_h_adj(h_idx) = (w_h_adj(h_idx) - min(w_h_adj(h_idx)))/(max(w_h_adj(h_idx)) - min(w_h_adj(h_idx)));
 
         % Transform and merge images (faster to for loop on each channel)
         for k = 1:nchannels
@@ -209,9 +205,9 @@ for i = 1:length(B)-1
     end
     
     % Rescale non-cropped areas
-    min_w_v_adj = min(w_v_adj(w_v_adj>0));
-    w_v_adj(w_v_adj>=min_w_v_adj) = (w_v_adj(w_v_adj>=(min_w_v_adj)) - min_w_v_adj)./(1-min_w_v_adj);
-        
+    v_idx = w_v_adj>0 & w_v_adj<1;
+    w_v_adj(v_idx) = (w_v_adj(v_idx) - min(w_v_adj(v_idx)))/(max(w_v_adj(v_idx)) - min(w_v_adj(v_idx)));
+    
     for k = 1:nchannels
         reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed,'FillValues',0,'SmoothEdges',true);
         %Adjust intensity again?
@@ -238,7 +234,7 @@ I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',
 %Save images as individual channels (will be large)
 for i = 1:length(c_idx)
     img_name = sprintf('%s_%s_C%d_%s_stitched.tif',...
-        config.sample_name,num2str(z_idx,'%04.f'),c_idx(i),config.markers(c_idx(i)));
+        config.sample_id,num2str(z_idx,'%04.f'),c_idx(i),config.markers(c_idx(i)));
     img_path = fullfile(char(config.output_directory),'stitched',img_name);
     imwrite(uint16(I{i}),img_path)
 end
