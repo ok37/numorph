@@ -30,11 +30,11 @@ channel_num = cellfun(@(s) str2double(s(2)),components(:,2),'UniformOutput',fals
 [paths_sub.channel_num] = channel_num{:,1};
 
 % Set x,y tiles as 1 and save z positions
-positions = cellfun(@(s) str2double(s),components(:,[4,5,6]),'UniformOutput',false);
+positions = cellfun(@(s) str2double(s),components(:,4),'UniformOutput',false);
 
 [paths_sub.y_res] = positions{:,1};
-[paths_sub.x_res] = positions{:,2};
-[paths_sub.z_res] = positions{:,3};
+[paths_sub.x_res] = positions{:,1};
+[paths_sub.z_res] = positions{:,1};
 
 path_table_nii = struct2table(rmfield(paths_sub,{'name'}));
 

@@ -1,4 +1,4 @@
-function [path_table_series, path_table_nii] = munge_raw(config)
+function [table_series_final, path_table_nii] = munge_raw(config)
 %--------------------------------------------------------------------------
 % Read filename information from raw image directories. Can contain .tif
 % files from light-sheet or multiple .nii file formats for MRI images. 
@@ -15,25 +15,31 @@ function [path_table_series, path_table_nii] = munge_raw(config)
 % Outputs:
 % path_table_series: Table with munged .tif series.
 %
-% Path_table_nii: Table with munged .nii files.
+% path_table_nii: Table with munged .nii files.
 %--------------------------------------------------------------------------
 
 % These are all possible image extensions we're able to read
 ext = [".tif",".tiff",".nii",".nrrd",".nhdr",".mhd"];
 
+
 % Get list of all files in all sub_directories
-all_files = dir(fullfile(config.img_directory,'**/*.*'));
+if length(config.img_directory) == 1
+    all_files = dir(fullfile(config.img_directory,'**/*.*'));
+else
+    assert(length(config.img_directory)<=length(config.markers),"More image "+...
+        "directories specified than there are markers")
+    all_files = cell(1,length(config.img_directory));
+    for i = 1:length(config.img_directory)
+        all_files{i} = dir(fullfile(config.img_directory(i),'**/*.*'));
+    end
+    all_files = cat(1,all_files{:});
+end
 
 % Remove output directory folder
 if config.img_directory == config.output_directory
     error("Input image directory cannot match output directory")
 else
     all_files = all_files(arrayfun(@(s) ~contains(s.folder,config.output_directory,'IgnoreCase',true),all_files));
-end
-
-% Remove marker names specified to ignore
-for i = 1:length(config.ignore_markers)
-    all_files = all_files(arrayfun(@(s) ~contains(s.name,config.ignore_markers),all_files));
 end
 
 % Get which image extensions are present and subset these images
@@ -58,6 +64,7 @@ tiff_files = all_files(any(idx(1:2,:)));
 
 % Return if no .tif files present
 if isempty(tiff_files)
+    warning("No raw .tif files detected in %s", config.img_directory) 
     path_table_series = [];
     return
 end
@@ -111,6 +118,8 @@ if length(tiff_folders) == length(config.markers)
     files_read = true;
 end
 
+% More complicated scenario
+% Different number of folders and markers present
 if ~files_read && isfield(config,'channel_num') && ~isempty(config.channel_num)
     % Channel numbers provided to read multiple channels in the same folder
     for i = 1:length(c_idx)
@@ -119,19 +128,22 @@ if ~files_read && isfield(config,'channel_num') && ~isempty(config.channel_num)
         % Use regular expressions to extract information and save 
         path_table_series{i} = get_table_struct(path_idx, config.sample_id, config.markers(i), i, config.position_exp);
     end    
-else
+elseif ~files_read
     % Finally check if each folder and/or filename has unique marker, 
     % otherwise give error
+    
+    % Check files for marker name in the filename
     c_idx = zeros(length(config.markers),length(tiff_files));
     f_idx = zeros(1,length(config.markers));
     for i = 1:length(config.markers)
         c_idx(i,:) = arrayfun(@(s) contains(s.name,config.markers(i)),tiff_files);
-        f_idx = f_idx + cellfun(@(s) contains(s,config.markers(i)),tiff_folders);
+        f_idx(i) = f_idx(i) + cellfun(@(s) contains(s,config.markers(i)),tiff_folders);
     end
     
     if ~any(sum(c_idx) > 1)
+        % If unqiue marker present in each filename
         for i = 1:length(config.markers)
-            path_idx = tiff_files(c_idx(i,:)');
+            path_idx = tiff_files(logical(c_idx(i,:)));
             
             % Use regular expressions to extract information and save 
             path_table_series{i} = get_table_struct(path_idx, config.sample_id, config.markers(i), i, config.position_exp);
@@ -149,17 +161,26 @@ else
     end
 end
 
-% Create table
-path_table_series = struct2table(cat(1,path_table_series{:}));
+% Create table for each marker
+for i = 1:length(path_table_series)
+   table_series = struct2table(path_table_series{i});
 
-% Check for duplicate files
-assert(length(unique(path_table_series.file)) == height(path_table_series),"Duplicate files added to multiple channels. "+...
-    "Channel number indexes or unique folders for each marker are needed to import these images")
-
-% Set x,y,z positions to start at 1
-path_table_series.y = path_table_series.y - min(path_table_series.y)+1;
-path_table_series.x = path_table_series.x - min(path_table_series.x)+1;
-path_table_series.z = path_table_series.z - min(path_table_series.z)+1;
+    % Set x,y,z positions to start at 1
+    if ~iscell(table_series.y)
+        table_series.y = table_series.y - min(table_series.y)+1;
+    else
+        table_series.y = ones(height(table_series),1);
+    end
+    if ~iscell(table_series.x)
+        table_series.x = table_series.x - min(table_series.x)+1;
+    else
+        table_series.x = ones(height(table_series),1);
+    end
+        
+    table_series.z = table_series.z - min(table_series.z)+1; 
+    
+    table_series_final.(config.markers(i)) = table_series;
+end
 
 end
 

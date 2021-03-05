@@ -77,7 +77,7 @@ if x_tiles*y_tiles>1 && isequal(config.adjust_tile_position(channel_idx),"true")
     t_adj = adjust_tile_multi(config,stack,defaults);
 else
     if x_tiles*y_tiles == 1
-        fprintf('%s\t Only 1 tile detected for marker %d \n',...
+        fprintf('%s\t Only 1 tile detected for marker %s \n',...
             datetime('now'),config.markers(channel_idx));
     end
     % Store default tile adjustments

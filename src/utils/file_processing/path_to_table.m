@@ -26,16 +26,16 @@ if nargin<2
         else
             [path_table_series, path_table_nii] = munge_string(paths);
             return
-        end
-    elseif isequal(config.img_directory,fullfile(config.output_directory,'aligned'))
+        end    
+    elseif isequal(config.use_processed_images,"aligned")
         % Start from after multi-channel alignment    
         fprintf("%s\t Reading image filename information from aligned directory \n",datetime('now'))
         location = "aligned";
-    elseif isequal(config.img_directory, fullfile(config.output_directory,'stitched'))
+    elseif isequal(config.use_processed_images,"stitched")
         % Start from after stitching
         fprintf("%s\t Reading image filename information from stitched directory \n",datetime('now'))
         location = "stitched";
-    elseif isequal(config.img_directory, fullfile(config.output_directory,'resampled'))
+    elseif isequal(config.use_processed_images,"resampled")
         % Start from after resampled
         fprintf("%s\t Reading image filename information from resampled directory \n",datetime('now'))
         location = "resampled";
@@ -65,14 +65,12 @@ if nargin<4
 end
 
 % Load table if variable exists
+location = char(location);
 path_table = [];
-if isstruct(config) && exist(fullfile(config.output_directory,'variables','path_table.mat'),'file') == 2
+if isstruct(config) && isfile(fullfile(config.output_directory,'variables','path_table.mat'))
     var_location = fullfile(config.output_directory,'variables','path_table.mat');  
     load(var_location,'path_table')
-    if ~isfield(path_table,location)
-        quick_load = false;
-        save_table = true;
-    elseif length(unique(path_table.(location).markers)) ~= length(config.markers)
+    if ~isequal(location,"raw") && ~isfield(path_table,location) 
         quick_load = false;
         save_table = true;
     end
@@ -83,14 +81,28 @@ end
 % Munge paths or read filename information from previously saved variable
 switch location
     case 'raw'
-        if ~isempty(path_table) && quick_load
-            fprintf("%s\t Quick loading from table \n",datetime('now'))
-            path_table_series = path_table.raw;
-            if all(ismember(path_table_series.markers,config.markers))
+        markers = config.markers;
+        if isfield(config,'ignore_markers') && ~isempty(config.ignore_markers)
+            markers = markers(~ismember(markers,config.ignore_markers));
+            if isempty(markers)
+                path_table_series = [];
                 return
             end
-        end        
-        [path_table_series, path_table_nii] = munge_raw(config);
+        end
+        if isempty(path_table) || ~quick_load
+            [path_table_raw, path_table_nii] = munge_raw(config);
+        else
+            f = string(fieldnames(path_table));
+            if ~all(ismember(markers,f))
+                [path_table_raw, path_table_nii] = munge_raw(config);
+                save_table = true;
+            else
+                fprintf("%s\t Quick loading from table \n",datetime('now'))
+                for i = 1:length(markers)
+                   path_table_raw.(markers(i)) = path_table.(markers(i)); 
+                end
+            end
+        end 
     case 'aligned'
         if ~isempty(path_table) && quick_load
             fprintf("%s\t Quick loading from table \n",datetime('now'))
@@ -119,19 +131,54 @@ switch location
         error("Unrecognized location selected")
 end
 
-
 % Save path_table for quicker loading next time
 if save_table
-    var_location = fullfile(config.output_directory,'variables','path_table.mat');  
+    var_folder = fullfile(config.output_directory,'variables');  
+    if ~isfolder(var_folder)
+        mkdir(var_folder)
+    end
+    var_location = fullfile(var_folder,'path_table.mat');  
+    
     fprintf("%s\t Saving path table \n",datetime('now'))
     if isequal(location,"raw")
-        path_table.tif_series = path_table_series;
+        for i = 1:length(config.markers)
+            path_table.(config.markers(i)) = path_table_raw.(config.markers(i)); 
+        end
         if ~isempty(path_table_nii)
             path_table.nii = path_table_nii;
         end
+    else
+        path_table.(location) = path_table_series;
     end
-    path_table.(location) = path_table_series;
     save(var_location,'path_table')
+end
+
+if isequal(location,"raw")  
+    % Merge tables
+    path_table_series = path_table_raw.(markers(1));
+    z1 = unique(path_table_series.z)';
+    y1 = unique(path_table_series.y)';
+    x1 = unique(path_table_series.x)';
+    for i = 2:length(markers)
+        path_table_sub = path_table_raw.(markers(i));
+        if ~all(x1 == unique(path_table_sub.x)')
+            warning("Number of tile columns detected for marker %s does not "+...
+                "match number of tile columns in reference channel.",markers(i))
+        end
+        if ~all(y1 == unique(path_table_sub.y)')
+            warning("Number of tile rows detected for marker %s does not "+...
+                "match number of tile columns in reference channel.",markers(i))
+        end
+        if ~all(z1 == unique(path_table_sub.z)')
+            warning("Number of slices per tile detected for marker %s does not "+...
+                "match number of tile columns in reference channel.",markers(i))
+        end
+        path_table_series = vertcat(path_table_series,path_table_sub);
+    end
+    
+    % Check for duplicate files
+    assert(length(unique(path_table_series.file)) == height(path_table_series),"Duplicate files added to multiple channels. "+...
+        "Channel number indexes or unique folders for each marker are needed to import these images")
 end
 
 end

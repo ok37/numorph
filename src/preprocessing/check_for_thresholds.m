@@ -18,7 +18,7 @@ function config = check_for_thresholds(config,path_table)
 var_file = fullfile(config.output_directory,'variables','thresholds.mat');
 
 % First check if adj_params exists in variables folder
-if exist(var_file,'file') == 2
+if isfile(var_file)
     load(var_file,'thresholds')
     if all(thresholds.markers == config.markers) && all(thresholds.img_directory == config.img_directory)
         % Save into config

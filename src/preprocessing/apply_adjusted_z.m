@@ -1,11 +1,12 @@
-function z_adj = apply_adjusted_z(path_table, z_disp_matrix)
+function path_table = apply_adjusted_z(path_table, z_disp_matrix)
 %--------------------------------------------------------------------------
 % Calculated adjusted z positions from adjustment matrix.
 %--------------------------------------------------------------------------
 
 % Start from lowest z position 
-c = min(path_table.z)-1;
-path_table.z_adj = path_table.z-c;
+%c = min(path_table.z)-1;
+%path_table.z_adj = path_table.z-c;
+path_table.z_adj = path_table.z;
 
 % Apply z adjustments from adjustment matrix
 [nrows, ncols] = size(z_disp_matrix);
@@ -21,5 +22,10 @@ v = sum(path_table.z_adj==path_table.z_adj');
 path_table(v ~= max(v),:) = [];
 path_table.z_adj = path_table.z_adj-min(path_table.z_adj)+1;
 z_adj = [path_table(:,1) path_table(:,end)];
+
+% Attach to path_table
+[~,z_idx] = setdiff(path_table.file,z_adj.file);
+path_table(z_idx,:) = []; 
+path_table.z_adj = z_adj.z_adj;
 
 end

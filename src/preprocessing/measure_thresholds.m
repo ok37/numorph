@@ -27,7 +27,7 @@ nb_slices = length(unique(stack.z));
 
 % Get image positions
 s = round(image_sampling*nb_slices);
-img_range = round(linspace(1,nb_slices,s));
+img_range = round(linspace(min(stack.z),max(stack.z),s));
 if isempty(img_range)
     img_range = round(nb_slices/2);
 end 

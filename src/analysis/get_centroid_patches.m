@@ -1,4 +1,4 @@
-function [patches, ftable, cen_sub, cen_idx] = get_centroid_patches(centroids, path_table_stitched, config, patch_size, k, low_thresh)
+function [patches, ftable, cen_sub, cen_idx] = get_centroid_patches(centroids, path_table, config)
 %--------------------------------------------------------------------------
 % Get 2D image pacthes around centroid positions
 %--------------------------------------------------------------------------
@@ -26,30 +26,18 @@ function [patches, ftable, cen_sub, cen_idx] = get_centroid_patches(centroids, p
 %
 %--------------------------------------------------------------------------
 
-% Defaults
-if nargin < 4
-    p = 50;
-    s = 6;
-    fprintf('%s\t Using default sampling window of %d pixels\n',datetime('now'),s)
-elseif length(patch_size)<2
-    s = 6;
-    fprintf('%s\t Using default sampling window of %d pixels\n',datetime('now'),s)
-else
-    p = patch_size(1);
-    s = patch_size(2);
-end
+% Get params from config structure
+patch_size = config.patch_size(1);                      
+class_size = config.patch_size(2);
+k = config.n_patches;
+low_thresh = config.min_class_thresh;
 
-if nargin < 5
-    k = 1000;
-end
-
-if nargin < 6
-    low_thresh = 0.5;
-end
+fprintf('\t Using sampling window of %d pixels\n',patch_size)
+fprintf('\t Using classification window of %d pixels\n',class_size)
 
 % Make an output directory
 save_directory = fullfile(config.output_directory,'classifier');
-if exist(save_directory,'dir') ~= 7
+if ~isfolder(save_directory)
     mkdir(save_directory);
 end
 
@@ -66,14 +54,14 @@ if ~isequal(centroids,'load')
        thresh = prctile(centroids(:,idx),low_thresh*100);
        k_idx = k_idx | centroids(:,idx)>thresh;
     end
-    fprintf('%s\t Retaining %d from %d that are above the threshold %f \n',...
-        datetime('now'),sum(k_idx),length(k_idx),low_thresh)
+    fprintf('\t Retaining %d from %d that are above the threshold %f \n',...
+        sum(k_idx),length(k_idx),low_thresh)
     cen_sub = centroids(k_idx,:);
     cen_idx = find(k_idx)';
 
     % Take random sample from indexes
     s_idx = randsample(size(cen_sub,1),k);
-    fprintf('%s\t Selecting %d random patches \n',datetime('now'),k)
+    fprintf('\t Selecting %d random patches \n',k)
 
     cen_sub = cen_sub(s_idx,:);
     cen_idx = cen_idx(s_idx);
@@ -83,72 +71,72 @@ if ~isequal(centroids,'load')
     cen_idx = cen_idx(i)';
 else
    % Load previous patch info list
-   fprintf('%s\t Loading previous patch info \n',datetime('now'))
-   patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_name));
+   fprintf('\t Loading previous patch info \n')
+   patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_id));
    patch_info = readmatrix(patch_name); 
    cen_idx = patch_info(:,1);
    cen_sub = patch_info(:,2:end);
 end
 
-% Get intensity thresholds for rescaling
-adj1 = zeros(3,2);
-adj1(:,1) = 90/65535;
-for i = 1:length(markers)
-   idx = i + 4;
-   adj1(i,2) = prctile(cen_sub(:,idx),95)/65535;
-end
-
 % Get layer and structure info
-structures = string(bin_annotation_structures(cen_sub(:,4),'cortex_large'));
+structures = string(bin_annotation_structures(cen_sub(:,4),'cortex'));
 layers = string(bin_annotation_structures(cen_sub(:,4),'layers'));
 
-patches = zeros([2*p+1,2*p+1,3,k],'uint8');
-ftable = cell(1,length(markers));
+patches = zeros([2*patch_size+1,2*patch_size+1,k],'uint16');
+patches = repmat({patches},1,3);
+ftable = cell(size(cen_sub,1),length(markers));
+
 for i = 1:size(cen_sub,1)
-    % Get 
+    % Get positions
     z = cen_sub(i,3)+1;
     pos = cen_sub(i,1:2)+1;
     
-    file = path_table_stitched(path_table_stitched.z == z,1).file;
-    ranges = {[pos(1)-p,pos(1)+p], [pos(2)-p,pos(2)+p]};
+    % Get file
+    file = path_table(path_table.z == z,1).file;
+    ranges = {[pos(1)-patch_size,pos(1)+patch_size], [pos(2)-patch_size,pos(2)+patch_size]};
     for j = 1:length(markers)
+        % Read patch
         img = imread(file{j},'PixelRegion',ranges);
 
         % Get features from patch
-        f = measure_patch_features(img, s, true, config.markers(j));
-        if i == 1
-            ftable{j} = f;
-        else
-            ftable{j} = vertcat(ftable{j},f);
-        end
-        
-        % Adjust patch intensity and add to stack
-        idx = img>adj1(j,2);
-        img = im2uint8(imadjust(img,[adj1(j,1) adj1(j,2)]));
-        patches(:,:,j,i) = img;
+        ftable{i,j} = measure_patch_features(img, class_size, true, config.markers(j));
+
+        % Add to stack
+        patches{j}(:,:,i) = img;
     end
 end
 
-% Save
+% Adjust intensity
+for i = 1:length(markers)    
+    patches{i} = im2uint8(imadjustn(patches{i}));
+end
+
+patches = cat(4,patches{:});
+patches = permute(patches,[1,2,4,3]);
+
+ftable1 = cell(1,length(markers));
+for i = 1:length(markers)
+   ftable1{i} = cat(1,ftable{:,i});
+end
+ftable = cat(2,ftable1{:});
+
+% Save patch
 options.overwrite = true;
 options.color = true;
-img_name = fullfile(save_directory,sprintf('%s_patches.tif',config.sample_name));
+img_name = fullfile(save_directory,sprintf('%s_patches.tif',config.sample_id));
 saveastiff(patches,char(img_name),options)
 
-% Save
+% Save patch info
 if ~isequal(centroids,'load')
     patch_info = horzcat(cen_idx,cen_sub);
-    patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_name));
+    patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_id));
     writematrix(patch_info,patch_name)
 end
 
-% Save
+% Save patch features
 feature_table = array2table([layers,structures],'VariableNames',{'Layer', 'Structure'});
-for i = 1:length(ftable)
-   feature_table = horzcat(feature_table,ftable{i});
-end
-
-table_name = fullfile(save_directory,sprintf('%s_patch_features.csv',config.sample_name));
+feature_table = horzcat(feature_table,ftable);
+table_name = fullfile(save_directory,sprintf('%s_patch_features.csv',config.sample_id));
 writetable(feature_table,table_name)
 
 end

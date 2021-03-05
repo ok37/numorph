@@ -1,0 +1,57 @@
+index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
+8,667,1073,184,7,/997/8/567/688/695/315/184/667/,268F45,Frontal pole layer 2/3,FRP2/3
+14,219,1017,500,7,/997/8/567/688/695/315/500/219/,1F9D5A,Somatomotor areas Layer 2/3,MO2/3
+20,943,966,985,8,/997/8/567/688/695/315/500/985/943/,1F9D5A,Primary motor area Layer 2/3,MOp2/3
+26,962,1110,993,8,/997/8/567/688/695/315/500/993/962/,1F9D5A,Secondary motor area layer 2/3,MOs2/3
+32,12994,,453,7,/997/8/567/688/695/315/453/12994/,188064,Somatosensory areas layer 2/3,SS2/3
+39,346,1033,322,8,/997/8/567/688/695/315/453/322/346/,188064,Primary somatosensory area layer 2/3,SSp2/3
+46,838,953,353,9,/997/8/567/688/695/315/453/322/353/838/,188064,Primary somatosensory area nose layer 2/3,SSp-n2/3
+53,201,1015,329,9,/997/8/567/688/695/315/453/322/329/201/,188064,Primary somatosensory area barrel field layer 2/3,SSp-bfd2/3
+60,480149210,,480149202,10,/997/8/567/688/695/315/453/322/329/480149202/480149210/,188064,Rostrolateral lateral visual area layer 2/3,VISrll2/3
+67,113,1004,337,9,/997/8/567/688/695/315/453/322/337/113/,188064,Primary somatosensory area lower limb layer 2/3,SSp-ll2/3
+74,657,1072,345,9,/997/8/567/688/695/315/453/322/345/657/,188064,Primary somatosensory area mouth layer 2/3,SSp-m2/3
+81,854,955,369,9,/997/8/567/688/695/315/453/322/369/854/,188064,Primary somatosensory area upper limb layer 2/3,SSp-ul2/3
+88,670,649,361,9,/997/8/567/688/695/315/453/322/361/670/,188064,Primary somatosensory area trunk layer 2/3,SSp-tr2/3
+95,182305697,,182305689,9,/997/8/567/688/695/315/453/322/182305689/182305697/,188064,Primary somatosensory area unassigned layer 2/3,SSp-un2/3
+102,806,949,378,8,/997/8/567/688/695/315/453/378/806/,188064,Supplemental somatosensory area layer 2/3,SSs2/3
+109,180,729,1057,7,/997/8/567/688/695/315/1057/180/,009C75,Gustatory areas layer 2/3,GU2/3
+116,1106,1128,677,7,/997/8/567/688/695/315/677/1106/,11AD83,Visceral area layer 2/3,VISC2/3
+124,600,923,1011,8,/997/8/567/688/695/315/247/1011/600/,19399,Dorsal auditory area layer 2/3,AUDd2/3
+131,480149238,,480149230,9,/997/8/567/688/695/315/247/1011/480149230/480149238/,19399,Laterolateral anterior visual area layer 2/3,VISlla2/3
+138,251,1021,1002,8,/997/8/567/688/695/315/247/1002/251/,19399,Primary auditory area layer 2/3,AUDp2/3
+145,643,1070,1027,8,/997/8/567/688/695/315/247/1027/643/,19399,Posterior auditory area layer 2/3,AUDpo2/3
+152,755,1084,1018,8,/997/8/567/688/695/315/247/1018/755/,19399,Ventral auditory area layer 2/3,AUDv2/3
+159,561,1060,669,7,/997/8/567/688/695/315/669/561/,08858C,Visual areas layer 2/3,VIS2/3
+166,905,1103,402,8,/997/8/567/688/695/315/669/402/905/,08858C,Anterolateral visual area layer 2/3,VISal2/3
+173,1066,1123,394,8,/997/8/567/688/695/315/669/394/1066/,08858C,Anteromedial visual area layer 2/3,VISam2/3
+180,973,687,409,8,/997/8/567/688/695/315/669/409/973/,08858C,Lateral visual area layer 2/3,VISl2/3
+187,821,951,385,8,/997/8/567/688/695/315/669/385/821/,08858C,Primary visual area layer 2/3,VISp2/3
+194,269,882,425,8,/997/8/567/688/695/315/669/425/269/,08858C,Posterolateral visual area layer 2/3,VISpl2/3
+201,41,995,533,8,/997/8/567/688/695/315/669/533/41/,08858C,posteromedial visual area layer 2/3,VISpm2/3
+208,312782582,,312782574,8,/997/8/567/688/695/315/669/312782574/312782582/,08858C,Laterointermediate area layer 2/3,VISli2/3
+222,1053,1121,31,7,/997/8/567/688/695/315/31/1053/,40A666,Anterior cingulate area layer 2/3,ACA2/3
+228,211,1016,39,8,/997/8/567/688/695/315/31/39/211/,40A666,Anterior cingulate area dorsal part layer 2/3,ACAd2/3
+234,296,885,48,8,/997/8/567/688/695/315/31/48/296/,40A666,Anterior cingulate area ventral part layer 2/3,ACAv2/3
+241,304,886,972,7,/997/8/567/688/695/315/972/304/,2FA850,Prelimbic area layer 2/3,PL2/3
+248,556,1059,44,7,/997/8/567/688/695/315/44/556/,59B363,Infralimbic area layer 2/3,ILA2/3
+254,492,1051,714,7,/997/8/567/688/695/315/714/492/,248A5E,Orbital area layer 2/3,ORB2/3
+260,412,1041,723,8,/997/8/567/688/695/315/714/723/412/,248A5E,Orbital area lateral part layer 2/3,ORBl2/3
+266,524,1055,731,8,/997/8/567/688/695/315/714/731/524/,248A5E,Orbital area medial part layer 2,ORBm2
+267,582,638,731,8,/997/8/567/688/695/315/714/731/582/,248A5E,Orbital area medial part layer 2/3,ORBm2/3
+274,288,884,746,8,/997/8/567/688/695/315/714/746/288/,248A5E,Orbital area ventrolateral part layer 2/3,ORBvl2/3
+281,328,889,104,8,/997/8/567/688/695/315/95/104/328/,219866,Agranular insular area dorsal part layer 2/3,AId2/3
+287,163,1010,111,8,/997/8/567/688/695/315/95/111/163/,219866,Agranular insular area posterior part layer 2/3,AIp2/3
+293,694,652,119,8,/997/8/567/688/695/315/95/119/694/,219866,Agranular insular area ventral part layer 2/3,AIv2/3
+300,965,969,894,8,/997/8/567/688/695/315/254/894/965/,1AA698,Retrosplenial area lateral agranular part layer 2/3,RSPagl2/3
+306,480149266,,480149258,9,/997/8/567/688/695/315/254/894/480149258/480149266/,1AA698,Mediomedial anterior visual area layer 2/3,VISmma2/3
+313,480149294,,480149286,9,/997/8/567/688/695/315/254/894/480149286/480149294/,1AA698,Mediomedial posterior visual area layer 2/3,VISmmp2/3
+320,480149322,,480149314,9,/997/8/567/688/695/315/254/894/480149314/480149322/,1AA698,Medial visual area layer 2/3,VISm2/3
+327,434,761,879,8,/997/8/567/688/695/315/254/879/434/,1AA698,Retrosplenial area dorsal part layer 2/3,RSPd2/3
+334,606,641,886,8,/997/8/567/688/695/315/254/886/606/,1AA698,Retrosplenial area ventral part layer 2,RSPv2
+335,430,619,886,8,/997/8/567/688/695/315/254/886/430/,1AA698,Retrosplenial area ventral part layer 2/3,RSPv2/3
+341,241,454,22,7,/997/8/567/688/695/315/22/241/,009FAC,Posterior parietal association areas layer 2/3,PTLp2/3
+348,312782554,,312782546,8,/997/8/567/688/695/315/22/312782546/312782554/,009FAC,Anterior area layer 2/3,VISa2/3
+355,312782608,,417,8,/997/8/567/688/695/315/22/417/312782608/,009FAC,Rostrolateral area layer 2/3,VISrl2/3
+362,1127,706,541,7,/997/8/567/688/695/315/541/1127/,15B0B3,Temporal association areas layer 2/3,TEa2/3
+369,888,959,922,7,/997/8/567/688/695/315/922/888/,0E9684,Perirhinal area layer 2/3,PERI2/3
+375,427,1043,895,7,/997/8/567/688/695/315/895/427/,0D9F91,Ectorhinal area/Layer 2/3,ECT2/3

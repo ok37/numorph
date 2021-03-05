@@ -1,4 +1,4 @@
-function I_mask = gen_mask(hemisphere, structures_of_interest, res_adj)
+function I_mask = gen_mask(hemisphere, structures, res_adj)
 % -------------------------------------------------------------------------
 %This function generates a mask from Allen atlas based on CCF ids in a csv
 %file
@@ -11,10 +11,12 @@ load(annotation_path,'annotationVolume')
 
 % Default annotations in .mat file are in 'sra' orientation
 % Permute to default orientation for registration which is 'air'
-annotationVolume = permute_orientation(annotationVolume, 'sra', 'air');
+%annotationVolume = permute_orientation(annotationVolume, 'sra', 'air');
 
 % Use if no structures provided
-if nargin < 2
+if nargin < 2 || isequal(structures,"structure_template.csv") ||...
+        isequal(structures,"structure_template") ||...
+        isempty(structures)
     I_mask = annotationVolume;
     return
 end
@@ -25,17 +27,48 @@ if nargin > 2
     annotationVolume = imresize3(annotationVolume,new_size,'Method','nearest');
 end
 
-
 % Read structure ids
-id = cell(1,length(structures_of_interest));
-for i = 1:length(structures_of_interest)
-    if endsWith(structures_of_interest,'.csv')
-        file = structures_of_interest(i);
-    else
-        file = sprintf("%s.csv",structures_of_interest(i));
+files = dir(fullfile('annotations/**'));
+
+% Get bw structure masks for major structures
+mat_files = files(arrayfun(@(s) endsWith(s.name,'.mat'),files));
+major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
+idx = ismember(major_structures,structures);
+if any(idx)
+    if sum(idx) < length(structures)
+        error("Structure names not specified correctly")
     end
-    path_to_id = fullfile(home_path,'annotations',file);
-    id{i} = readtable(path_to_id);
+    
+    % Load binary mask
+    bw = false(size(annotationVolume));
+    s = mat_files(idx);
+    for i = 1:length(s)
+       load(fullfile(s(i).folder,s(i).name),'bw_mask')
+       bw = bw | bw_mask;
+    end
+    
+    % Apply maks and return
+    annotationVolume(~bw) = 0;
+    I_mask = annotationVolume;
+    return
+end
+
+% Custom annotations, this may take a while
+id = cell(1,length(structures));
+for i = 1:length(structures)
+    if endsWith(structures,'.csv')
+        file = structures(i);
+    else
+        file = sprintf("%s.csv",structures(i));
+    end
+    
+    idx = files(arrayfun(@(s) s.name == file,files));
+    if length(idx)>1
+        error("Multiple annotation files with the same name in the annotations directory")
+    elseif isempty(idx)
+        error("Could not locate annotation file")
+    end
+    id{i} = readtable(fullfile(idx.folder,idx.name));
 end
 id = cat(1,id{:});
 

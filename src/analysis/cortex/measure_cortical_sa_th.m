@@ -1,4 +1,4 @@
-function  tblSATH = measure_cortical_sa_th(I_img,res,use_l1_border)
+function tblSATH = measure_cortical_sa_th(input,res,use_l1_border,flatview)
 %--------------------------------------------------------------------------
 % Calculate the volume, surface area, and thickness of each major structure
 % in the cortex (according to Harris et al, Nature 2019. Input is a
@@ -6,9 +6,9 @@ function  tblSATH = measure_cortical_sa_th(I_img,res,use_l1_border)
 % layer-specific annotations. Output measurements are in mm.
 %--------------------------------------------------------------------------
 
-% Default resolution 10um/voxel
+% Default resolution 25um/voxel
 if nargin<2
-    res = 10;
+    res = 25;
 end
 
 % Whether to use L1 surface for SA calculations. Otherwise, entire cortical
@@ -17,22 +17,43 @@ if nargin<3
     use_l1_border = 'true';
 end
 
+% Use 17 or 43 cortical structures
+if nargin<4
+    flatview = 'harris';
+end
+
 % If string, find all mask files in directory
-if ischar(I_img)
-    files = dir(I_img);
+if ischar(input)
+    files = dir(input);
     files = files(arrayfun(@(s) contains(s.name,"mask.mat"),files));
     n_samples = length(files);
-    if length(n_samples) == 0
-        error("First input should be a single 3D image of ARA annotations or" +...
-            " a string containing location of multiple annotation files")
+    if isempty(n_samples)
+        error("First input should be a single 3D image of ARA annotations or " +...
+            " a config structure from NM_evaluate to measure multiple samples")
     end
+    if isfolder(input)
+        files = arrayfun(@(s) string(fullfile(input,s.name)),files);
+    end
+elseif isstruct(input)
+    if ~isfield(input,'main_stage') || ~isequal(input.main_stage,'evaluate')
+        error("If providing structure, call NM_config('evaluate',group) to generate "+...
+            "correct configuration structure for running multiple samples")
+    end
+    files = fullfile(input.centroids_directory,'variables',strcat(input.samples','_mask.mat'));
+    n_samples = length(files);
 else
     n_samples = 1;
+    sample_name = 'SAMPLE';
 end
 
 % Read cortical structure indexes
-all_struct = readtable(fullfile('supplementary_data','structure_template.csv'));
-ctx_harris = readtable(fullfile('annotations','harris_cortical_groupings.csv'));
+all_struct = readtable(fullfile(fileparts(which('NM_config')),'annotations','structure_template.csv'));
+if isequal(flatview,'seventeen')
+    ctx_harris = readtable(fullfile(fileparts(which('NM_config')),'annotations','cortex_17regions.xls'));
+elseif isequal(flatview,'harris')
+   ctx_harris = readtable(fullfile(fileparts(which('NM_config')),'annotations','harris_cortical_groupings.csv'));
+end
+
 
 % Get cortex ids from structure path 
 all_ids = all_struct.structure_id_path;
@@ -45,13 +66,14 @@ harris_ids = ctx_harris.id;
 n_structures = length(harris_ids);
 
 for i = 1:n_samples
-    if ischar(I_img)
-        fprintf("Reading sample %s\n",files(i).name)
-        img = load(fullfile(files(i).folder,files(i).name));
-        I_mask = img.I_mask;
-        sample_name = extractBefore(files(i).name,"_");
+    if ischar(input) || isstruct(input)
+        [~,sample_name] = fileparts(files(i));
+        sample_name = extractBefore(sample_name,"_");
+        fprintf("Reading sample %s\n",sample_name)
+        I_mask = load(files(i),'I_mask');
+        I_mask = I_mask.I_mask;
     else
-        I_mask = I_img;
+        I_mask = input;
     end
 
     % Unique indexes in volume
@@ -142,16 +164,18 @@ for i = 1:n_samples
        c6 = all_cen(l6_idx,:);
        [x,y,z] = ind2sub(size(I_border),find(I_border == l6_idx));
        idx = dsearchn([y,x,z],c6);
-       c(3,:) = [y(idx), x(idx), z(idx)];
+       %c(3,:) = [y(idx), x(idx), z(idx)];
+       c(2,:) = [y(idx), x(idx), z(idx)];
 
        % Calculate arc length
        th(j) = arclength(c(:,1),c(:,2),c(:,3),'spline');
+       th(j) = pdist(c,'euclidean');
     end
 
     % Apply scaling
-    th = th*res/1E3;
-    sa = sa*(res.^2)/1E6;
-    vol = vol*(res.^3)/1E9;
+    th = th*(res/1E3);
+    sa = sa*(res/1E3)^2;
+    vol = vol*(res/1E3)^3;
     
     % Save results to table
     tbl = table();

@@ -1,24 +1,20 @@
-function [centroids_new, centroids_back] = remeasure_centroids(centroids,path_table_stitched,config)
+function [m_int, m_back] = remeasure_centroids(centroids,path_table,config,markers)
 %--------------------------------------------------------------------------
 % Remeasure centroid intensities from centroid list.
 %--------------------------------------------------------------------------
-res = config.resolution; % Voxel resolution
+res = config.resolution{1}(1); % Voxel resolution
 method = 'mean';        % How to measure centroids. mean or max
 s = 1;  % Sampling neighbors. If set to 1, this will sample the centroid + 8 neighbors
 sub_back = 'false';  % Option to subtract background
-measure_markers = [2,3];  % Which markers to measure
 
-markers = config.markers(measure_markers);
-
-tempI = loadtiff(path_table_stitched.file{1});
+tempI = loadtiff(path_table.file{1});
 [nrows, ncols] = size(tempI);
 
 % +1 to go from python indexing
 z_pos = unique(centroids(:,3))+1;
 
-new_vals1 = zeros(length(markers),size(centroids,1));
-new_vals2 = zeros(length(markers),size(centroids,1));
-
+m_int = zeros(length(markers),size(centroids,1));
+m_back = zeros(length(markers),size(centroids,1));
 
 parfor i = 1:length(z_pos)
     fprintf('%s\t Remeasuring image %d \n',datetime('now'),z_pos(i));
@@ -46,11 +42,11 @@ parfor i = 1:length(z_pos)
     % Linearize
     idxs = cellfun(@(a,b) sub2ind([nrows,ncols],a,b),y1,x1,...
         'UniformOutput',false);
-    
+
     % Read image and measure intensity
     for j = 1:length(markers)
-        img_file = path_table_stitched(path_table_stitched.z == z_pos(i) &...
-            path_table_stitched.markers == markers(j),:);  
+        img_file = path_table(path_table.z == z_pos(i) &...
+            path_table.markers == markers(j),:);  
     
         I = loadtiff(img_file.file{1});
     
@@ -66,8 +62,8 @@ parfor i = 1:length(z_pos)
         
         % Optional: measure background
         if isequal(sub_back,'true')
-            [~, B] = smooth_background_subtraction(I,'false',80);
-	    B = imgaussfilt(B,20);
+            [~, B] = smooth_background_subtraction(I,'false',res*50);
+            B = imgaussfilt(B,20);
             vals_back = cellfun(@(k) mean(B(k)),idxs);
             % Save values
             new_back_vals(j,idx) = vals_back';
@@ -75,26 +71,20 @@ parfor i = 1:length(z_pos)
     end
     
     % Add to final matrix
-    new_vals1 = new_vals1 + new_vals;
+    m_int = m_int + new_vals;
     if isequal(sub_back,'true')
-        new_vals2 = new_vals2 + new_back_vals;
+        m_back = m_back + new_back_vals;
     end
 end
 
-% Update measurements
-centroids_new = centroids;
-col_idx = 4+measure_markers;
-centroids_new(:,col_idx) = new_vals1';
+m_int = m_int';
 
 if isequal(sub_back,'true')
-    centroids_back = new_vals2';
     save_path = fullfile(config.output_directory, 'background');
     if exist(save_path,'dir') ~= 7
         mkdir(save_path);
     end
-    writematrix(centroids_back,fullfile(save_path,'back_values.csv'))
-else
-    centroids_back = [];
+    writematrix(m_back',fullfile(save_path,'back_values.csv'))
 end
 
 end

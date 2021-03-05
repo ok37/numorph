@@ -35,8 +35,21 @@ tempI = loadtiff(path_sub.file{1});
 I = zeros([size(tempI), n_images],'single');
 
 files = path_sub.file;
-parfor i = 1:n_images
-    I(:,:,i) = loadtiff(files{i});
+
+if n_images>200
+    try
+        parfor i = 1:n_images
+            I(:,:,i) = loadtiff(files{i});
+        end
+    catch
+        for i = 1:n_images
+            I(:,:,i) = loadtiff(files{i});
+        end
+    end
+else
+    for i = 1:n_images
+        I(:,:,i) = loadtiff(files{i});
+    end
 end
 
 fprintf('%s\t Running BaSIC on %d images \n',datetime('now'),height(path_sub))

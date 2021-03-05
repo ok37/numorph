@@ -1,64 +1,49 @@
-function df_results = measure_structure_volumes(files, results_path, sum_child_structures)
+function measure_structure_volumes(config)
 % Take a registered annotation volume and calculate structure voxel
 % volumes. Input is a string array of fullfile locations
-resolution = [10,10,10]; % Assumes 10um/voxel resolution
-results_path = fullfile(results_path,"TCe_summary_volumes.csv");
-new_template_path = './supplementary_data/structure_template.csv';
-
-% Read annotation indexes
-df_template = readtable(new_template_path);
-annotation_indexes = df_template.index;
 
 % Calculate volume per voxel in mm^3
+resolution = repmat(config.resample_resolution,1,3);
 mm = prod(resolution)/(1E3^3);
 
-% Create matrix for storing volumes
-df_volumes = zeros(length(files),length(annotation_indexes));
-sample_names = strings(1,length(files));
+% Read structure template file
+df_template = readtable(fullfile(fileparts(which('NM_config')),'annotations','structure_template.csv'));
+indexes = df_template.index;
 
-% Iterate over all f
-for i = 1:length(files)
-    [~,s] = fileparts(files(i));
-    s = strsplit(s,'_');
-    sample_names(i) = s(1);
-    fprintf(strcat(char(datetime('now')),"\t Loading %s...\n"), sample_names(i));
+% Measure number of voxels for each structure
+load(fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat')),'I_mask')
+total_volume = sum(I_mask(:)>0)*mm;
 
-    load(files(i),'I_mask')
-    sums = zeros(1,length(annotation_indexes));
-    counted = histcounts(I_mask(:),'BinMethod','integers');
-    sums(1:length(counted)) = counted;
-    df_volumes(i,:) = sums*mm;
-    %for j = 1:length(annotation_indexes)
-    %    df_volumes(i,j) = sum(I_mask(:)==annotation_indexes(j))*mm;
-    %end
-end
-
-df_volumes = df_volumes';
+sums = zeros(1,length(indexes));
+counted = histcounts(I_mask(:),'BinMethod','integers');
+sums(1:length(counted)) = counted;
+df_volumes = sums*mm';
 
 % Set top row equal to 0 as this is the background
-df_volumes(1,:) = 0;
+df_volumes(1) = 0;
 
-if isequal(sum_child_structures,'true')
-    % Sum according to structure level order, except for background
-    ids = df_template.id;
-    path = df_template.structure_id_path;
-    df_new = zeros(size(df_volumes));
-    for i = 2:length(ids)
-        idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
-        df_new(i,:) = sum(df_volumes(idx,:),1);
-    end
-    df_volumes = df_new;
+% Sum according to structure level order, except for background
+ids = df_template.id;
+path = df_template.structure_id_path;
+df_new = zeros(size(df_volumes));
+for i = 2:length(ids)
+    idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
+    df_new(i) = sum(df_volumes(idx));
 end
+df_volumes = df_new';
 
 % Create header name
-df_header = sample_names + "_" + "Volume";
+df_header = config.sample_id + "_" + "Volume";
 
 % Convert to table
 volumes_table = array2table(df_volumes,'VariableNames',df_header);
 
 % Concatenate counts to results table
-df_results = horzcat(df_template, volumes_table);
+df_results = horzcat(df_template(:,[1,end-1,end]), volumes_table);
 
 % Write new results file
-writetable(df_results,results_path)
+save_name = fullfile(config.output_directory,strcat(config.sample_id,'_volumes.csv'));
+writetable(df_results,save_name)
+fprintf('%s\t Total structure volume: %.2f mm^3\n',datetime('now'),total_volume)
+
 end

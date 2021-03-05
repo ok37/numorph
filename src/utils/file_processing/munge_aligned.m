@@ -17,7 +17,7 @@ C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput'
 paths_sub = rmfield(paths_sub,fields_to_remove);
 
 % Generate table components
-components = arrayfun(@(s) strsplit(s.name,{'_','.'}), paths_sub, 'UniformOutput', false);
+components = arrayfun(@(s) strsplit(s.name,{char(config.sample_id),'_','.'}), paths_sub, 'UniformOutput', false);
 components = vertcat(components{:});
 
 assert(size(components,1) > 0, "Could not recognize any aligned files by filename structure")
@@ -25,7 +25,7 @@ assert(length(unique(components(:,1))) == 1, "Multiple sample ids found in image
 
 %Take image information
 for i = 1:length(paths_sub)
-    paths_sub(i).sample_id = string(components{i,1});
+    paths_sub(i).sample_id = string(config.sample_id);
     paths_sub(i).markers = string(components{i,4});
 end
 

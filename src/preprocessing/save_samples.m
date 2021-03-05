@@ -4,11 +4,11 @@ function save_samples(config, process, path_table)
 %--------------------------------------------------------------------------
 
 % Defaults
-spacing = [3,3,20]; % Downsampling for alignment check
+spacing = [2,2,20]; % Downsampling for alignment check
 
-% Read image filename information if not provided
-if nargin<3
-    path_table = path_to_table(config, [], false);
+% Get config if string
+if isstring(config) || ischar(config)
+    config = NM_config('process',config);
 end
         
 % Create samples directory
@@ -19,6 +19,11 @@ end
 
 switch process
     case 'intensity'
+        % Read image filename information if not provided
+        if nargin<3
+            path_table = path_to_table(config, 'raw', false, false);
+        end
+        
         % Check for adjustment parameters or try loading
         if ~isfield(config,'adj_params') || isempty(config.adj_params)
             try
@@ -109,35 +114,73 @@ switch process
             end
         end
     case 'alignment'
-        % Run alignment check for each tile position present
-        x = unique(path_table.x);
-        y = unique(path_table.y);
-        n_tiles = length(x)*length(y);
+        % Read image filename information if not provided
+        if nargin<3
+            if isfolder(fullfile(config.output_directory,'aligned'))
+                fprintf("%s\t Reading images from aligned directory \n",datetime('now'));
+                path_table = path_to_table(config, 'aligned', false, true);
+            else
+                path_table = path_to_table(config, 'raw', false, true);
+            end
+        end
         
-        if n_tiles == 1
-            check_alignment(config, {y, x}, [], spacing);
+        % Run alignment check for each tile position present
+        y = unique(path_table.y)';
+        x = unique(path_table.x)';
+        c = unique(path_table.channel_num)';
+        tiles = unique([path_table.y,path_table.x],'rows');
+        
+        if size(tiles,1) == 1
+            % Saves by default
+            check_alignment(config, {y, x}, spacing);
+        elseif min(x)~=1 || min(y)~=1
+            for i = 1:size(tiles,1)
+                disp(tiles(i,:))
+                check_alignment(config, {tiles(i,1), tiles(i,2)}, spacing);
+            end            
         else
+            % Increase default spacing to reduce file size
             spacing(3) = spacing(3)*5;
             
+            % Get alignment results for each tile
             I_adj2 = cell(length(y),1);
             for i = 1:length(y)
                 I_adj = cell(1,length(x));
                 for j = 1:length(x)
-                    I_adj{j} = check_alignment(config, {y(i), x(j)}, [], spacing);
+                    I_adj{j} = check_alignment(config, {y(i), x(j)}, spacing);
                 end
                 I_adj2{i} = cat(2,I_adj{:});
             end
-            I_adj = cat(1,I_adj2{:});
             
-            % Save multi-tile
+            % Combine to multi-tile image and save
+            I_adj = cat(1,I_adj2{:});
             save_directory = fullfile(config.output_directory,'samples','alignment');
-            for i = 1:size(I_adj,4)
-                fname = fullfile(save_directory,sprintf('%s_full.tif',config.markers(i)));
+            for i = 1:length(c)
+                fname = fullfile(save_directory,sprintf('%s_%s_full.tif',config.sample_id,...
+                    config.markers(c(i))));
                 options.overwrite = true;
                 options.message = false;
                 saveastiff(squeeze(I_adj(:,:,:,i)),char(fname),options);
             end
         end
+        
+    case 'stitching'
+        % Read image filename information if not provided
+        if nargin<3
+            if isfolder(fullfile(config.output_directory,'stitched'))
+                fprintf("%s\t Reading images from stitched directory \n",datetime('now'));
+                path_table = path_to_table(config, 'stitched', false, true);
+            end
+        end
+        spacing(3) = spacing(3)*10;
+        sample_stack(path_table,spacing,config);
+        
+    case 'processing'
+        % Read image filename information if not provided
+        if nargin<3 
+            error("path_table variable required to check full ''processing''")
+        end
+        
 end
 
 end

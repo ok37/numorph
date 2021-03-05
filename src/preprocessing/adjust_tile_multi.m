@@ -35,7 +35,7 @@ nb_slices = height(path_table)/(x_tiles*y_tiles);
 
 % Get image positions
 s = round(image_sampling*nb_slices);
-img_range = round(linspace(1,nb_slices,s));
+img_range = round(linspace(min(path_table.z),max(path_table.z),s));
 
 % Read image size and get padding
 tempI = imread(path_table.file{1});

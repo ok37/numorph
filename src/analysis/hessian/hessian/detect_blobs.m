@@ -6,7 +6,7 @@ function [pixel_idx_list, box_range] = detect_blobs(path_table,I_mask, nuc_diame
 factor = 0.175;
 ave_diameter = 10; %mean(nuc_diameter_range);
 scales = linspace(0.8*ave_diameter*factor, 1.25*ave_diameter*factor, 2);
-threshold = -0.05; %-0.05,-0.01, -0.005
+threshold = -0.05;
 thresholds = threshold*(1:3);
 
 resolution_test = [1 1 2.5];

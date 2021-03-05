@@ -24,12 +24,15 @@ if nargin<3
 end
     
 % Elastix paths
-% Uncomment and specify your path to elastix bin and library
- elastix_path_bin = '/Users/Oleh/Programs/elastix-5.0.0-mac/bin';
- elastix_path_lib = '/Users/Oleh/Programs/elastix-5.0.0-mac/lib'; 
+% Swicth from 'default' and specify complete path for custom location
+elastix_path_bin = 'default';
+elastix_path_lib = 'default';
+conda_path = 'default';
 
 % Make sure path is set
-addpath(genpath('.'))
+home_path = fileparts(which('NM_config'));
+addpath(genpath(home_path))
+cd(home_path)
 
 % Load variables
 switch stage
@@ -47,8 +50,6 @@ switch stage
 end
 
 % Save config structure
-home_path = fileparts(which('NM_config.m'));
-cd(home_path)
 save(fullfile('templates', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
@@ -59,14 +60,61 @@ if nargin > 1 && ~isequal(main_stage,'evaluate')
 elseif nargin > 1 && isequal(main_stage,'evaluate')
     fid = fopen('./templates/NM_samples.m');
     c = textscan(fid,'%s');
-    sample_idx = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
-    for i = 1:length(sample_idx)
-        [~, centroids_directory(i), group(i)] = NM_samples(sample_idx{i}(2:end-1),false);
-    end
     fclose(fid);
+    
+    % Define output directory
+    if isempty(results_directory)
+        reults_directory = home_path;
+    end
+
+    % Get samples in group
+    samples = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
+    samples = cellfun(@(s) string(s(2:end-1)),samples);
+    groups = cell(1,length(samples));
+    for i = 1:length(samples)
+        [~, centroids_directory(i), groups{i}] = NM_samples(samples(i),false);
+    end
+    idx = cellfun(@(s) any(contains(s,sample)),groups);
+    centroids_directory = centroids_directory(idx);
+    samples = samples(idx);
+    groups = groups(idx);
+    
+    % Check if cell counts are present
+    idx = true(1,length(samples));
+    for i = 1:length(samples)
+        if ~isfolder(centroids_directory(i))
+            warning("Could not locate directory %s for sample %s",...
+                centroids_directory(i),samples(i))
+            idx(i) = false;
+        end
+        files = dir(centroids_directory(i));
+        if isequal(use_classes,"true")
+            cen_name = strcat(samples{i},'_classes');
+            if ~any(arrayfun(@(s) contains(s.name,cen_name),files))
+                warning("Could not locate classes file for sample %s",...
+                    samples(i))
+                idx(i) = false;            
+            end
+        else
+            cen_name = strcat(samples{i},'_centroids');
+            if ~any(arrayfun(@(s) contains(s.name,cen_name),files))
+                warning("Could not locate centroids file for sample %s",...
+                    samples(i))
+                idx(i) = false;            
+            end
+        end
+    end
+    centroids_directory = centroids_directory(idx);
+    %samples = samples(idx);
+    %groups = groups(idx);
+    
+    if isempty(samples)
+        warning("No samples present to evaluate")
+    end
     output_directory = results_directory;
     use_processed_images = "false";
-    save('./templates/NM_variables.mat','centroids_directory','group','output_directory','-mat','-append')
+    clear sample;
+    save('./templates/NM_variables.mat','samples','centroids_directory','groups','output_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
@@ -76,40 +124,35 @@ check_variable_lengths(main_stage)
 
 % Update image directory if using processed or analyzed images
 if ~isequal(use_processed_images,"false")
-    img_directory = fullfile(output_directory,use_processed_images);
-    if ~exist(img_directory,'dir')
-        error("Could not locate processed image directory %s\n",img_directory)
+    process_directory = fullfile(output_directory,use_processed_images);
+    if ~exist(process_directory,'dir')
+        error("Could not locate processed image directory %s\n",process_directory)
     else
-        save(fullfile('templates','NM_variables.mat'),'img_directory','-mat','-append')
+        save(fullfile('templates','NM_variables.mat'),'process_directory','-mat','-append')
     end
-else
+elseif ~isequal(main_stage,'evaluate')
     if ~isfolder(img_directory)
         error("Could not find image directory %s\n",img_directory)
     end
 end
 
-% Add elastix paths if present
-if exist('elastix_path_bin','var')
-    path1 = getenv('PATH');
-    if ~contains(path1,'elastix')
-        path1 = [path1, ':', elastix_path_bin];
-        setenv('PATH',path1)
-    end
+% Add elastix to PATH
+if isequal(elastix_path_bin,'default')
+    elastix_path_bin = fullfile(home_path,'src','external','elastix','bin');
 end
-if exist('elastix_path_lib','var')
-    if ismac
-        path2 = getenv('DYLD_LIBRARY_PATH');
-        if ~contains(path2,'elastix')
-            path2 = [path2, ':', elastix_path_lib];
-            setenv('DYLD_LIBRARY_PATH',path2)
-        end
-    else
-        path2 = getenv('LD_LIBRARY_PATH');
-        if ~contains(path2,'elastix')
-            path2 = [path2, ':', elastix_path_lib];
-            setenv('LD_LIBRARY_PATH',path2)
-        end
-    end
+
+if isequal(elastix_path_lib,'default')
+    elastix_path_bin = fullfile(home_path,'src','external','elastix','lib');
+end
+add_elastix_to_path(elastix_path_bin,elastix_path_lib)
+
+% Add conda to PATH
+PATH = getenv('PATH');
+if isequal(conda_path,'default')
+    add_conda_to_path;
+elseif ~contains(PATH,'conda3')
+    PATH = conda_path + ":" + PATH; 
+    setenv('PATH',PATH);
 end
 
 % Check if MATLAB toolboxes exist
@@ -153,7 +196,7 @@ if run
         case 'process'
             NM_process(config)
         case 'analyze'
-            NM_analyze(config)
+            NM_analyze(config,'analyze')
         case 'evaluate'
             NM_evaluate(config)
         case 'stitch'
@@ -162,15 +205,14 @@ if run
            NM_process(config,'align',true)
         case 'intensity'
            NM_process(config,'intensity',true)
-       case 'resample'
+        case 'resample'
            NM_analyze(config,'resample')
         case 'register'
            NM_analyze(config,'register')
-    end
-elseif nargout >= 1
-    % Update img_directory if using processed images
-    if ~isequal(config.use_processed_images,"false")
-        config.img_directory = fullfile(config.output_directory,config.use_processed_images);
+        case 'count'
+           NM_analyze(config,'count')
+        case 'classify'
+           NM_analyze(config,'classify')
     end
 end
 
@@ -188,27 +230,23 @@ function check_variable_lengths(stage)
 switch stage
     case 'process'
         % Variables to check
-        variable_names = {'markers','ignore_markers','channel_num','single_sheet','ls_width','laser_y_displacement','blending_method',...
+        variable_names = {'markers','ignore_markers','channel_num','single_sheet','blending_method',...
             'elastix_params','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
             'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'resolution','z_initial',...
-            'adjust_tile_shading','adjust_tile_position','lowerThresh','upperThresh','signalThresh'};
+            'lowerThresh','upperThresh','signalThresh'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
         
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
         if exist('ignore_markers','var') == 1  && ~isempty(ignore_markers)
-            idx = ismember(markers,ignore_markers);
-            markers = markers(~idx);   
+            ig_idx = ismember(markers,ignore_markers);
+            markers = markers(~ig_idx);   
             if exist('channel_num') == 1 && ~isempty(channel_num)
-                channel_num = channel_num(~idx);
+                channel_num = channel_num(~ig_idx);
             end
         end
         if exist('single_sheet','var') == 1 && length(single_sheet) == 1
             single_sheet = repmat(single_sheet,1,length(markers));end
-        if exist('ls_width','var') == 1 && length(ls_width) == 1
-            ls_width = repmat(ls_width,1,length(markers));end
-        if exist('laser_y_displacement','var') == 1 && length(laser_y_displacement) == 1
-            laser_y_displacement = repmat(laser_y_displacement,1,length(markers));end
         if exist('blending_method','var') == 1 && length(blending_method) == 1
             blending_method = repmat(blending_method,1,length(markers));end
         if exist('elastix_params','var') == 1 && length(elastix_params) == 1
@@ -237,7 +275,10 @@ switch stage
             if ~iscell(resolution)
                 resolution = {resolution};
             end
-            resolution = repmat(resolution,1,length(markers));
+            if length(resolution) == 1
+                resolution = repmat(resolution,1,length(markers));
+            end
+            resolution = resolution(~ig_idx);
         end
         if exist('z_initial','var') == 1 
             if isempty(z_initial) 
@@ -246,10 +287,6 @@ switch stage
                 z_initial = [0,repmat(z_initial,1,length(markers)-1)];
             end
         end
-        if exist('adjust_tile_shading','var') == 1 && length(adjust_tile_shading) == 1
-            adjust_tile_shading = repmat(adjust_tile_shading,1,length(markers));end
-        if exist('adjust_tile_position','var') == 1 && length(adjust_tile_position) == 1
-            adjust_tile_position = repmat(adjust_tile_position,1,length(markers));end
         if exist('lowerThresh','var') == 1 && ~isempty(lowerThresh)
             assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...
                 "specified for all markers or left empty")
@@ -278,11 +315,9 @@ switch stage
     case 'analyze'
         % Variables to check
         variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
-            'resample_channels','direction'};
+            'direction'};
         load(fullfile('templates','NM_variables.mat'),variable_names{:});
         
-        if exist('resample_channels','var') == 1 && isempty(resample_channels)
-            resample_channels = 1:length(markers);end
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
         if exist('direction','var') ~= 1
@@ -293,10 +328,10 @@ switch stage
                 "Invalid option for registration direction")
         end
         if exist('resolution','var') == 1
-            if ~iscell(resolution)
+            if ~iscell(resolution) && length(resolution) == 3
                 resolution = {resolution};
+                resolution = repmat(resolution,1,length(markers));
             end
-            resolution = repmat(resolution,1,length(markers));
         end
         if exist('lowerThresh','var') == 1 && ~isempty(lowerThresh)
             assert(length(lowerThresh) == length(markers),"Lower threshold values need to be "+...

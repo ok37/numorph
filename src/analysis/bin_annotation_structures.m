@@ -4,11 +4,13 @@ function [output,index] = bin_annotation_structures(input, struct_table, keep_id
 % larger lower level structures defined .csv file structure_path
 %-------------------------------------------------------------------------
 
+home_path = fileparts(which('NM_config'));
+
 % Default read harris cortical groupings
-if nargin<2 || isequal(struct_table,'cortex')
-    struct_table = readtable(fullfile('annotations','harris_cortical_groupings.csv'));
+if isequal(struct_table,'cortex')
+    struct_table = readtable(fullfile(home_path,'annotations','harris_cortical_groupings.csv'));
 elseif isequal(struct_table,'cortex_large')
-    struct_table = readtable(fullfile('annotations','harris_cortical_groupings_large.xls'));
+    struct_table = readtable(fullfile(home_path,'annotations','cortex_17regions.xls'));
 elseif isequal(struct_table,'layers')
     [output,index] = bin_annotation_layers(input);
     return
@@ -20,7 +22,7 @@ if nargin<3
 end
 
 % Get full list of structures
-full = readtable(fullfile('supplementary_data','structure_template.csv'));
+full = readtable(fullfile(home_path,'annotations','structure_template.csv'));
 
 % Get structure tree paths
 paths = cellfun(@(s) strsplit(s,'/'),full.structure_id_path,...

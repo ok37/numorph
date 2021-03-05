@@ -10,6 +10,11 @@ paths_sub = dir(fullfile(config.output_directory,'stitched'));
 % Check .tif in current folder
 paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.tif'),paths_sub));
 
+% Check if any files present
+if isempty(paths_sub)
+    error("No proper images found in stitched directory")
+end
+
 % Create new field for file location
 C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
 [paths_sub.file] = C{:};

@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import cc3d
 import argparse
+import mat73
 
 from datetime import datetime
 from scipy.io import loadmat
@@ -28,18 +29,32 @@ parser.add_argument('--g', metavar='g', type=str, nargs='+',
                     help='GPU tag')
 args = parser.parse_args()
 
-# Parse arguments
-#if not args.i and not args.mat:
-#    raise NameError("Must provide path to (1) input image directory or (2) 'config.mat' matlab structure")
-
 if args.g:
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.g)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.g[0])
 else:
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
+################################
+## Extra options for running model on GPU with limited memory
+import tensorflow as tf
+from keras import backend as k
+ 
+config = tf.ConfigProto()
+ 
+# Don't pre-allocate memory; allocate as-needed
+config.gpu_options.allow_growth = True
+ 
+# Only allow a total of half the GPU memory to be allocated
+config.gpu_options.per_process_gpu_memory_fraction = 0.5
+ 
+# Create a session with the above options specified.
+k.tensorflow_backend.set_session(tf.Session(config=config))
+################################
+
+##### Set parameters
 # Not called from matlab these are default parameters
 # Otherwise parameters are overwritten by a matlab 'config.mat' structure
-input_img_directory = '/media/SteinLab4/TOP16R/output/stitched'
+input_img_directory = '/nas/longleaf/home/ok37/pine/NF1/NF1R4M3R'
 acquired_img_resolution = [1.21, 1.21, 4]  # Resolution of acquired images in um/pixel
 
 output_directory = '/media/SteinLab4/TOP16R/output'
@@ -65,44 +80,40 @@ tree_radius = 2     # Pixel radius for removing centroids near each other
 measure_coloc = False  # Measure intensity of co-localizaed channels
 n_channels = 3  # Total number of channels
 
-###############
-# Load parameters from config.mat matlab structure
+##### Load parameters from config.mat matlab structure
 if args.mat:
     # Load parameters from matlab structure
-    config = loadmat(args.mat[0], variable_names='config', squeeze_me=True)
+    config = mat73.loadmat(args.mat[0])
 
-    input_img_directory = config['config']['img_directory'].item()
-    output_directory = config['config']['output_directory'].item()
+    input_img_directory = config['config']['img_directory']
+    output_directory = config['config']['output_directory']
 
-    model_file = os.path.join(os.getenv('PYTHONPATH'), 'nuclei', 'models', config['config']['model_file'].item())
+    model_file = os.path.join(os.getenv('PYTHONPATH'), 'nuclei', 'models', config['config']['model_file'])
 
-    chunk_size = config['config']['chunk_size'].item()
-    overlap = config['config']['chunk_overlap'].item()
+    chunk_size = [int(s) for s in config['config']['chunk_size']]
+    overlap = [int(s) for s in config['config']['chunk_overlap']]
 
-    acquired_img_resolution = list(config['config']['resolution'].item())
-    trained_img_resolution = list(config['config']['trained_resolution'].item())
+    acquired_img_resolution = list(config['config']['resolution'])
+    trained_img_resolution = list(config['config']['trained_resolution'])
 
-    int_threshold = config['config']['min_intensity'].item()
+    int_threshold = config['config']['min_intensity']
 
-    use_mask = config['config']['use_mask']
+    use_mask = config['config']['use_annotation_mask']
     if use_mask == 'true':
         use_mask = True
-        mask_file = os.path.join(output_directory, 'variables', 'I_mask.mat')
-        mask_resolution = config['config']['resample_res'].item()
+        mask_file = config['config']['mask_file']
+        mask_resolution = config['config']['resample_resolution']
     else:
         use_mask = False
 
-    resample_chunks = config['config']['resample_chunks'].item()
+    resample_chunks = config['config']['resample_chunks']
     if resample_chunks == 'true':
         resample_chunks = True
     else:
         resample_chunks = False
 
-    gpu = config['config']['gpu']
-    if gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-
-    save_name = config['config']['sample_name'].item() + "_centroids33.csv"
+    save_name = config['config']['path_save']
+#####
 
 save_name = os.path.join(output_directory, save_name)
 print('Saving results to: ', save_name)
@@ -114,7 +125,8 @@ model = load_old_model(model_file)
 # Load mask
 if use_mask:
     print('Loading mask...')
-    mask = loadmat(mask_file)
+    #mask = loadmat(mask_file)
+    mask = mat73.loadmat(mask_file)
     mask = mask['I_mask']
 else:
     mask = np.ones((1, 1, 1))
@@ -174,12 +186,10 @@ else:
 tempI = cv2.imread(img_list[0][0], -1)
 [rows, cols] = tempI.shape
 
-## Take mask index 84 for testing
-# mask = mask == 84
+# Begin cell counting
 total_cells = 0
 total_time = datetime.now()
 
-# Begin cell counting
 for n in range(n_chunks):
     print('Working on chunk', n + 1, 'out of', n_chunks)
     startTime = datetime.now()
@@ -341,10 +351,14 @@ for n in range(n_chunks):
 
     total_cells += cent.shape[0]
     print('Total nuclei counted: ', total_cells)
+    
+    # Continue if no nuclei present
+    if total_cells == 0:
+        continue
 
     # Get mask structure id's
     if use_mask:
-        structure_idx = [mask[tuple(np.round(cent[c] * mask_res).astype(int))] for c, cents in enumerate(cent)]
+        structure_idx = [mask[tuple(np.floor(cent[c] * mask_res).astype(int))] for c, cents in enumerate(cent)]
     else:
         structure_idx = np.ones(cent.shape[0])
     cent = np.append(cent, np.array(structure_idx)[:, None], axis=1)
@@ -355,9 +369,15 @@ for n in range(n_chunks):
     total_cells += -sum(rm_idx)
     print('Removed ' + str(sum(rm_idx)) + ' empty nuclei')
 
+    # Continue if no nuclei present
+    if not cent.any():
+        continue
+
     # Remove touching cells
     cent_rm = remove_touching_df(cent, radius=tree_radius)
-    print('Removed ' + str(cent.shape[0] - cent_rm.shape[0]) + ' touching nuclei')
+    ncent_rm = cent.shape[0] - cent_rm.shape[0]
+    total_cells += -ncent_rm
+    print('Removed ' + str(ncent_rm) + ' touching nuclei')
     cent = cent_rm
 
     # Measure intensities in other channels

@@ -1,4 +1,4 @@
-function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, mov_img, reg_params, direction)
+function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, mov_img, reg_params, direction,inverse_params)
 %--------------------------------------------------------------------------
 % Calculates the inverse of image_to_atlas transforms to go atlas_to_image or
 % vice versa using elastix's DisplacementMagnitudePenalty metric. This
@@ -24,6 +24,11 @@ function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, mov
 % attemp to load from variables if left empty.
 %
 % direction: ('atlas_to_image','image_to_atlas') Direction of registration.
+%
+% inverse_params: (string) Folder location containing elastix parameters
+% in /data/elastix_parameter_files/atlas_registration to calculate inverse. 
+% (default: "inverse")
+%
 %--------------------------------------------------------------------------
 % Outputs:
 % reg_params: (structure) Update elastix registration parameters with
@@ -33,10 +38,14 @@ function [reg_params_inv,reg_img] = get_inverse_transform_from_atlas(config, mov
 % calculated inverse parameters.
 %--------------------------------------------------------------------------
 
+if nargin<5
+    inverse_params = "inverse";
+end
+
 % Note: this is the default parameter file for calculating the inverse
 home_path = fileparts(which('NM_config'));
 parameter_path{1} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration','inverse', 'ElastixParameterAffineInverse.txt');
+                'atlas_registration',inverse_params, 'ElastixParameterAffineInverse.txt');
 
 % Load registration parameters if not provided
 if isempty(reg_params)

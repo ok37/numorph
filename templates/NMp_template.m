@@ -3,7 +3,7 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-stitch_images = "update";                    % true, update, false; 2D iterative stitching
+stitch_images = "true";                 % true, update, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
 ignore_markers = "Auto";                % completely ignore marker from processing steps. Important: places these markers at the end marker list for sample
@@ -24,7 +24,7 @@ laser_y_displacement = 0;               % [-0.5,0.5]; Displacement of light-shee
 % Parameters for BaSIC shading_correction (i.e. adjust_tile_shading = "basic") 
 sampling_frequency = 0.2;               % [0,1]; Fraction of images to read and sample from. Setting to 1 means use all images
 shading_correction_tiles = [];          % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
-shading_smoothness = 2;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
+shading_smoothness = 1;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
@@ -58,14 +58,14 @@ hist_match = 64;                        % 1xn_channels-1 interger; Specify histo
 % Parameters for running iterative 2D stiching
 sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
 load_alignment_params = "true";         % true, false; True: apply previously calculated parameters to align individual tiles during stitching
-overlap = 0.10;                         % 0:1; overlap between tiles as fraction
+overlap = 0.10;                         % 0:1; overlap between tiles as fraction. Normally set for each individual sample
 
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = 1;                % channel index; If only stitching certain channels
 stitch_start_slice = [];                % integer >0; Recommended: leave empty. Start stitching from specific slice. Otherwise optimize based on image features
 
 blending_method = "sigmoid";            % sigmoid, linear, max
-sd = 0.05;                              % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
+sd = 0.2;                              % 0:1; Recommended: 0.01-0.5. Steepness of sigmoid-based blending. Larger values give more block-like blending
 border_pad = 25;                        % integer >= 0; Crops borders during stitching. Increase if images shift significantly between channels to prevent zeros values from entering stitched image
 
 %% Additional Post-processing Filters and Adjustments That May Be Useful But Are Not Required

@@ -8,7 +8,7 @@ function reg_params = register_to_atlas(config, mov_img_path, num_points, only_i
 % Defaults
 high_prct = 99;                 % Max intensity adjustment percentile for images
 Gamma = 0.9;                    % Gamma to apply for intensity adjustment
-inverse_folder = "inverse";     % Location of elastix parameter for calculating the inverse
+inverse_params = "inverse";     % Location of elastix parameter for calculating the inverse
 
 % Unpack config variables
 params = config.registration_parameters;
@@ -20,7 +20,6 @@ mask_coordinates = config.mask_coordinates;
 direction = config.direction;
 calc_inverse = config.calculate_inverse;
 points_file = config.points_file;
-save_registered_image = config.save_registered_image;
 atlas_file = config.atlas_file;
 perm = [0,0];
 home_path = fileparts(which('NM_config.m'));
@@ -28,6 +27,10 @@ home_path = fileparts(which('NM_config.m'));
 % Unless testing, use all points
 if nargin == 2
     num_points = 'all';
+end
+
+if nargin<4
+    only_inverse = false;
 end
 
 % Location of parameters
@@ -46,9 +49,9 @@ end
 
 % Check atlas files
 if iscell(atlas_file)
-    atlas_path = cellfun(@(s) fullfile(config.home_path,'data','atlas',s),atlas_file);
+    atlas_path = cellfun(@(s) fullfile(config.home_path,'data','atlas',s),atlas_file,'UniformOutput',false);
 else
-    atlas_path = fullfile(config.home_path,'data','atlas',atlas_file);
+    atlas_path = arrayfun(@(s) {char(fullfile(config.home_path,'data','atlas',s))},atlas_file);
 end
 assert(all(isfile(atlas_path)), "Could not locate Allen Reference Atlas .nii file specified")
 
@@ -97,7 +100,7 @@ for i = 1:length(atlas_path)
 end
 
 % Resize
-native_img_size = size(mov_img);
+native_img_size = size(mov_img_array{1});
 atlas_res = cellfun(@(s) repmat(str2double(regexp(s,'\d*','Match')),1,3),atlas_file,'UniformOutput',false);
 % Rule: all atlas file must be at the same resolution
 assert(all(atlas_res{1} == atlas_res{end}),"All loaded atlas file must be at the same resolution")
@@ -160,16 +163,18 @@ if ~only_inverse
     end
 
     % Add mask if coordinates are specified
-    mask = [];
-    if ~isempty(mask_coordinates)
-        mask = zeros(size(mov_img));
-        mask(mask_coordinates(1):mask_coordinates(2),:,:) = 1;
-    end
+    %mask = [];
+    %if ~isempty(mask_coordinates)
+    %    mask = zeros(size(mov_img));
+    %    mask(mask_coordinates(1):mask_coordinates(2),:,:) = 1;
+    %end
+    load(fullfile(home_path,'data','atlas','olf_cer.mat'),'bw_mask')
+    mask = single(~bw_mask);
 
     % Perform registration
     % Single channel, pairwise registration
     [reg_params,reg_img] = elastix_registration(atlas_img_array,mov_img_array,...
-        parameter_paths,points,mask,config.output_directory,direction);
+        parameter_paths,points,mask,config.output_directory,direction,config.register_channels);
 else
     % Load registration parameters from file
     if isfile(reg_file) 
@@ -187,12 +192,12 @@ if isequal(calc_inverse,"true")
     if isequal(direction, "atlas_to_image")
         inv_direction = "image_to_atlas";
         reg_params.atlas_to_image = get_inverse_transform_from_atlas(config,...
-            mov_img_array{1},reg_params,inv_direction);
+            mov_img_array{1},reg_params,inv_direction,inverse_params);
         reg_params.atlas_to_image.TransformParameters{1}.Size = size_atlas([2 1 3]);
     else
         inv_direction = "atlas_to_image";
         reg_params.atlas_to_image = get_inverse_transform_from_atlas(config,...
-            atlas_img_array{1},reg_params,inv_direction);
+            atlas_img_array{1},reg_params,inv_direction,inverse_params);
         reg_params.atlas_to_image.TransformParameters{1}.Size = size_mov([2 1 3]);
     end
 end
@@ -219,39 +224,39 @@ reg_params.mov_img_size = size_mov([2 1 3]);
 reg_params.atlas_img_size = size_atlas([2 1 3]);
 
 % Write registered image
-if isequal(save_registered_image, 'true')
-    fprintf('\t Saving registered image\n'); 
-    reg_img = uint16(reg_img);
-    reg_img = imadjustn(reg_img);
-    reg_img = im2uint8(reg_img);
+%if isequal(save_registered_image, 'true')
+%    fprintf('\t Saving registered image\n'); 
+%    reg_img = uint16(reg_img);
+%    reg_img = imadjustn(reg_img);
+%    reg_img = im2uint8(reg_img);
     
     % Create temporary directory for saving images
-    outputDir = fullfile(config.output_directory,'registered');
-    if ~exist(outputDir,'dir')
-        mkdir(outputDir)
-    end
+%    outputDir = fullfile(config.output_directory,'registered');
+%    if ~exist(outputDir,'dir')
+%        mkdir(outputDir)
+%    end
     
     % Save copy of completementary image
-    if isequal(direction,"atlas_to_image")
-        % Save registered image
-        [~,name] = fileparts(mov_img_path{1});
-        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
-        imwrite(reg_img(:,:,1), save_path)
-        for i = 2:size(reg_img,3)
-            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
-        end
+%    if isequal(direction,"atlas_to_image")
+%        % Save registered image
+%        [~,name] = fileparts(mov_img_path{1});
+%        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
+%        imwrite(reg_img(:,:,1), save_path)
+%        for i = 2:size(reg_img,3)
+%            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
+%        end
 
         % Save copy of moving image
-        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
-        imwrite(reg_img(:,:,1), save_path)
-        for i = 2:size(reg_img,3)
-            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
-        end
-    else
-        
-        
-    end
-end
+%        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
+%        imwrite(reg_img(:,:,1), save_path)
+%        for i = 2:size(reg_img,3)
+%            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
+%        end
+%    else
+%        
+%        
+%    end
+%end
 
 end
 
@@ -270,15 +275,9 @@ end
 
 
 function [reg_params, reg_img] = elastix_registration(atlas_img,mov_img,...
-    parameter_paths,points,mask,outputDir,direction)
+    parameter_paths,points,mask,outputDir,direction,reg_channels)
 
 % Single channel, pairwise registration
-
-% Create temporary directory for saving images
-outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
-if ~exist(outputDir,'dir')
-    mkdir(outputDir)
-end
 
 % Here mask is assumed to be only on the true atlas image
 if isequal(direction,'atlas_to_image') 
@@ -290,9 +289,42 @@ if ~isempty(points)
     use_points = true;
 end
 
+% If multiple moving channels, apply rigid registration to pre-align
+if length(mov_img)>1
+    fprintf('\t Pre-aligning multiple input image channels prior to registration\n');
+    
+    % Create temporary directory for saving images
+    outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
+    if ~isfolder(outputDir)
+        mkdir(outputDir)
+    end
+    
+    home_path = fileparts(which('NM_config'));
+    pre_align_path = {fullfile(home_path,'data','elastix_parameter_files','atlas_registration',...
+        'pre-align','ElastixParameterAffine.txt')};
+    for i = 2:length(mov_img)
+        [~,mov_img{i}]=elastix(mov_img{i},mov_img{1},outputDir,pre_align_path,'threads',[]);
+    end
+    
+    % Remove temporary directory
+    rmdir(outputDir,'s')
+    
+    if length(reg_channels) <length(mov_img)
+        mov_img = mov_img(2:end);
+    end
+end
+
+
+% Create temporary directory for saving images
+outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
+if ~isfolder(outputDir)
+    mkdir(outputDir)
+end
+
 % Perform registration
 reg_params = struct('image_to_atlas',[],'atlas_to_image',[]);
 if isequal(direction,'atlas_to_image')
+    fprintf('\t Registering atlas to input image\n');
     if isempty(mask)
         % Register atlas to image with or without corresponding points
         if ~use_points
@@ -308,16 +340,17 @@ if isequal(direction,'atlas_to_image')
         % with a mask
         if ~use_points
             [reg_params.atlas_to_image,reg_img]=elastix(atlas_img,mov_img,...
-                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
+                outputDir,parameter_paths,'mMask',mask,'threads',[]);
         else
             [reg_params.atlas_to_image,reg_img]=elastix(atlas_img,mov_img,...
                 outputDir,parameter_paths,'fp',mov_points,'mp',atlas_points,...
-                'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
+                'mMask',mask,'threads',[]);
         end
         % Remove transformed image from structure
         reg_params.atlas_to_image.transformedImages = [];
     end
 else
+    fprintf('\t Registering input image to atlas\n');
     if isempty(mask)
         % Register image to atlas with or without corresponding points
         if ~use_points
@@ -333,10 +366,10 @@ else
         % with a mask
         if ~use_points
             [reg_params.image_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,'threads',[]);
+                outputDir,parameter_paths,'fMask',mask,'threads',[]);
         else
             [reg_params.image_to_atlas,reg_img]=elastix(mov_img,atlas_img,...
-                outputDir,parameter_paths,'mMask',mov_mask,'fMask',atlas_mask,...
+                outputDir,parameter_paths,'fMask',mask,...
                 'fp',points.atlas_points,'mp',points.mov_points,'threads',[]);
         end
     end

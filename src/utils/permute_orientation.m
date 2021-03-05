@@ -39,13 +39,22 @@ yxz_in = 1:3;
 for i = 1:3
     if ismember({or_out(i)},{'a','p'})
         yxz_in(i) = find(or_in == 'a' | or_in == 'p');
-        if ismember({or_in(3)},{'a','p'}); idx = i; end
+        if ismember({or_in(3)},{'a','p'})
+            idx = i; 
+            s = 'ap';
+        end
     elseif ismember({or_out(i)},{'i','s'})
         yxz_in(i) = find(or_in == 'i' | or_in == 's');
-        if ismember({or_in(3)},{'i','s'}); idx = i; end
+        if ismember({or_in(3)},{'i','s'}) 
+            idx = i; 
+            s = 'is';
+        end
     elseif ismember({or_out(i)},{'l','r'})
         yxz_in(i) = find(or_in == 'l' | or_in == 'r');
-        if ismember({or_in(3)},{'l','p'}); idx = i; end
+        if ismember({or_in(3)},{'l','r'})
+            idx = i; 
+            s = 'lr';
+        end
     else
         error("Unrecognized orientation character specified")
     end
@@ -56,14 +65,19 @@ assert(length(unique(yxz_in)) == 3,"All 3 axes not specified correctly")
 img = permute(img,yxz_in);
 
 % Flip last axis
-if sum(yxz_in == 1:3)==2
+if ismember(or_in(idx),s)
     img = flip(img,idx);
 end
 
 % Flip if opposite axis
+idx = 0;
 for i = 1:3
     if or_in(yxz_in(i)) ~= or_out(i)
         img = flip(img,i);
+        idx = idx+1;
+    end
+    if idx == 3
+        %img = flip(img,1);
     end
 end
 

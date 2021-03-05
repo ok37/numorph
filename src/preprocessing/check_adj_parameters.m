@@ -37,6 +37,7 @@ function [adj_params_full, config, lowerThresh, upperThresh, signalThresh] = che
 lowerThresh = config.lowerThresh;
 signalThresh = config.signalThresh;
 upperThresh = config.upperThresh;
+ntiles = nrows.*ncols;
 
 % If given is 16-bit integer, rescale to unit interval
 if lowerThresh>1
@@ -64,6 +65,23 @@ if isempty(adj_params)
     end
     adj_params_full = [];
     return
+end
+
+% Check tile shading
+flatfield = []; darkfield = [];
+if any(ismember(config.adjust_tile_shading,"basic"))
+    if isequal(config.use_processed_images,"aligned")
+        warning("Flatfield correction has already been applied to saved aligned images. Skipping flatfield correction")
+    else
+        flat_file = fullfile(config.output_directory,'variables','flatfield.mat');
+        dark_file = fullfile(config.output_directory,'variables','darkfield.mat');
+        if isfile(flat_file)
+            load(flat_file,'flatfield')
+        end
+        if isfile(dark_file)
+            load(dark_file,'darkfield')
+        end
+    end
 end
 
 % Get measured thresholds from adj_params structure
@@ -112,21 +130,29 @@ for i = 1:length(config.markers)
     end
 
     % Check img directories
-    if ~any(adj_params.img_directory == config.img_directory) && a==1
-        warning("Intensity adjustment parameters were calculated from %s "+...
-            "and not the input image directory. Some adjustments may have been "+...
-            "already applied. Consider updating adjustment parameters.",...
-            adj_params.img_directory)
-        pause(5)
-        a=0;
-    end
+    %if ~any(adj_params.img_directory == config.img_directory) && a==1
+    %    warning("Intensity adjustment parameters were calculated from %s "+...
+    %        "and not the input image directory. Some adjustments may have been "+...
+    %        "already applied. Consider updating adjustment parameters.",...
+    %        adj_params.img_directory)
+    %    pause(5)
+    %    a=0;
+    %end
     
     % Update which adjustment to apply based on current configs
     adj_params.adjust_tile_shading = config.adjust_tile_shading(i);
     adj_params.adjust_tile_position = config.adjust_tile_position(i);
     
+    % Check tile shading
+    if ~isempty(flatfield) && isfield(flatfield,config.markers(i))
+        adj_params.flatfield = flatfield.(config.markers(i));
+    end
+    if ~isempty(darkfield) && isfield(darkfield,config.markers(i))
+        adj_params.darkfield = darkfield.(config.markers(i));
+    end
+    
     % Check tile position
-    if isequal(adj_params.adjust_tile_position,'true')
+    if isequal(adj_params.adjust_tile_position,'true') && ntiles(i)>1
         assert(~isempty(adj_params.t_adj), "No tile position adjustments found for "+...
             "marker %s",config.markers(i))
         assert(size(adj_params.t_adj,1) == nrows(i), "Incorrect numner of rows "+...

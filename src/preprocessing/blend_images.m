@@ -1,14 +1,14 @@
-function comp_img = blend_images(mov_img,ref_img,overlay,blending_method,w)
+function comp_img = blend_images(mov_img,ref_img,pseudo,blending_method,w)
 %--------------------------------------------------------------------------
 % Blend multi-tile images during stitching.
 %--------------------------------------------------------------------------
 
 % Option to create pseudocolored overlay
 if nargin<3
-    overlay = true;
+    pseudo = true;
 end
 
-if ~overlay && nargin<5
+if ~pseudo && nargin<5
     error("Please provide blending method and weight vector")
 end
 
@@ -23,7 +23,7 @@ else
     overlap_max = ncols-length(w)+1:ncols;
 end
 
-if overlay
+if pseudo
     % Create pseudocolored overlay
     comp_img = create_overlay(mov_img, ref_img, overlap_max, direction);
 else

@@ -32,7 +32,7 @@ function coreg_table = align_by_translation(config,path_table,z_displacement_ali
 
 % Default displacement threshold for comparing to previous translation in
 % pixels.
-shift_threshold = 5;    % Max shift difference between z positions
+shift_threshold = 3;    % Max shift difference between z positions
 max_shift = 100;        % Max overall shift thershold for pc
 min_signal = 0.005;     % Minimum fraction of signal pixels for registering
 peaks = 3;              % Phase correlation peaks to test
@@ -43,7 +43,7 @@ usfac = 10;              % Precision of phase correlation
 metric = registration.metric.MattesMutualInformation;
 optimizer = registration.optimizer.RegularStepGradientDescent;
        
-metric.NumberOfSpatialSamples = 100;
+metric.NumberOfSpatialSamples = 200;
 metric.NumberOfHistogramBins = 50;
        
 optimizer.GradientMagnitudeTolerance = 1.00000e-04;
@@ -62,7 +62,6 @@ if nargin<4
 end
 
 % Unpack variables from config structure
-output_directory = config.output_directory;
 signalThresh = config.signalThresh;
 align_stepsize = config.align_stepsize;
 save_images = config.save_images;
@@ -73,35 +72,13 @@ align_channels = config.align_channels;
 % Get relevant tile information
 channel_num = unique(path_table.channel_num);
 markers = config.markers(channel_num);
-col = unique(path_table.x);
+col = unique(path_table.x); 
 row = unique(path_table.y);
 ref_slices = unique(path_table.z);
 
 % Make sure there's only 1 tile
 assert(length(row) == 1 & length(col) ==1 ,...
     "Image path table should contain only 1 unique tile position")
-
-% If only aligning certain channels or slices, load the alignment table
-update_table = false;
-alignment_table = [];
-if isequal(config.channel_alignment,"update")
-    update_table = true;
-    save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
-    if exist(save_path,'file') == 2
-        load(save_path,'alignment_table')
-        alignment_table = alignment_table{row,col};
-        
-        % Check height and width of loaded table. Otherwise clear table and
-        % make a new one
-        if isempty(config.align_slices) || ~isempty(config.align_channels)
-            assert(height(alignment_table) == max(ref_slices), "Loaded alignment table height "+...
-                "does not match the number of z slices present.")
-            assert(width(alignment_table) == length(markers) + (length(markers)-1)*5 + 1,"Number of "+...
-                "channels in the alignment table does not match the number of channels in the input "+...
-                "image directory.")
-        end
-    end
-end
 
 % Subset channels if not doing all 
 if ~isempty(align_channels)
@@ -114,6 +91,29 @@ else
     align_markers = markers;
 end
 
+% If only aligning certain channels or slices, load the alignment table
+update_table = true;
+if isequal(config.channel_alignment,"true")
+    save_path = fullfile(config.output_directory,'variables','alignment_table.mat');
+    if isfile(save_path)
+        load(save_path,'alignment_table')
+        alignment_table = alignment_table{row,col};
+        if ~isempty(alignment_table)
+            update_table = false;
+        end
+        
+        % Check height and width of loaded table. Otherwise clear table and
+        % make a new one
+        %if ~isempty(config.align_slices) || ~isempty(config.align_channels)
+        %    assert(height(alignment_table) == max(ref_slices), "Loaded alignment table height "+...
+        %        "does not match the number of z slices present.")
+        %    assert(width(alignment_table) == length(markers) + (length(markers)-1)*5 + 1,"Number of "+...
+        %        "channels in the alignment table does not match the number of channels in the input "+...
+        %        "image directory.")
+        %end
+    end
+end
+
 % Adjust for resolution
 res_adj = cell(1,length(align_markers)-1); res_equal = true(1,length(align_markers)-1);
 for i = 2:length(markers)
@@ -122,13 +122,20 @@ for i = 2:length(markers)
     res_equal(i-1) = all(config.resolution{1}(1:2) == config.resolution{i}(1:2));
 end
 
+% If not updating, save images and return
+if ~update_table
+    write_aligned_images(config,alignment_table,res_equal,res_adj,row,col)
+    coreg_table = alignment_table;
+   return 
+end
+
 % Get z displacement
 z_displacement = zeros(1,length(markers));
 if nargin >2 && ~isempty(z_displacement_align)
     for i = 1:length(align_markers)
         z_displacement(align_channels(i)) = z_displacement_align.(align_markers(i))(row,col);
         fprintf("%s\t Using z_displacement %d for marker %s\n", datetime('now'),...
-            z_displacement(i),align_markers(i));
+            z_displacement(align_channels(i)),align_markers(i));
     end
 end
 
@@ -149,6 +156,7 @@ path_full = path_new;
 % Subset slices
 if ~isempty(align_slices)    
     align_slices = [align_slices{:}];
+    align_slices = align_slices(align_slices<=max(ref_slices));
     for i = 1:length(align_slices)
         path_new = path_new(ismember(path_new.z,align_slices),:);
     end
@@ -233,7 +241,7 @@ for i = 1:size(order_m,1)
 
            % Register using phase correlation. Record 1,cross correlation,error
            [~,~,tform] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac,max_shift);
-           
+                      
            % If tform is empty, use nearest translation
            if isempty(tform)
                m_subset = order_m(order_m(:,idx)~=0,:);
@@ -274,7 +282,7 @@ for i = 1:size(order_m,1)
                % Use MATLAB's intensity-based registration to refine registration
                % Calculate transform
                tform = imregtform(mov_img,ref_img,'translation',optimizer,metric,...
-                   'PyramidLevels',2,'InitialTransformation',tform);               
+                   'PyramidLevels',1,'InitialTransformation',tform);               
            end
            order_m(i,idx)=order_m(i,idx)+1; % Save translation method
 
@@ -398,73 +406,96 @@ for i = fliplr(1:length(markers))
    coreg_table{ismember(coreg_table.Reference_Z,file_paths.z),1} = file_paths.file;
 end
 
-% Write image
+% Write images
 if isequal(save_images,"true")
-   fprintf("%s\t Writing aligned images \n", datetime('now'));
-   
-    % Create directory to store images
-    if exist(fullfile(output_directory,'aligned'),'dir') ~= 7
-        mkdir(fullfile(output_directory,'aligned'));
-    end
-    
-    % Get table index for translations for each marker
-    t_idx = zeros(1,length(markers));
-    for i = 2:length(markers)
-        t_idx(i) = find(contains(coreg_table.Properties.VariableNames,'X') & contains(coreg_table.Properties.VariableNames,markers(i)));
-    end
-    
-    % Subset images to save
-    if ~isempty(align_slices)
-        save_z = align_slices;
-    else
-        save_z = 1:height(coreg_table);
-    end
-    
-    % For each image in table
-    for i = save_z
-        path_sub = coreg_table(coreg_table.Reference_Z == i,:);    
-        for j = 1:length(markers)
-            filepath = string(table2cell(coreg_table(i,j)));
-            if filepath == ""
-                mov_img = zeros(size(tempI),'uint16');
-            else
-                mov_img = imread(filepath);
-    
-                % Apply intensity adjustments
-                if isequal(config.adjust_intensity,"true")
-                   if isequal(config.adj_params.(markers(j)).adjust_tile_shading,'basic')
-                       mov_img = apply_intensity_adjustment(mov_img,...
-                           'flatfield', config.adj_params.(markers(j)).flatfield,...
-                           'darkfield', config.adj_params.(markers(j)).darkfield);
-                   elseif isequal(config.adj_params.(markers(j)).adjust_tile_shading,'manual')
-                      mov_img = apply_intensity_adjustment(mov_img,...
-                          'y_adj',config.adj_params.(markers(j)).y_adj);
-                   end
-                end
-            end
-            
-            % Apply translations to non-reference image
-            if j > 1
-                % Adjust resample resolution if necessary
-                if ~res_equal(j-1)
-                    mov_img = imresize(mov_img,res_adj{j-1},'bicubic');
-                end
-                
-                % Crop or pad to reference image
-                if any(size(ref_img) ~= size(mov_img))
-                    mov_img = crop_to_ref(ref_img, mov_img);
-                end
+    write_aligned_images(config,coreg_table,res_equal,res_adj,row,col)
+end
 
-                % Translate
-                mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
-            end
-            
-            % Write aligned images
-            img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_id,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
-            img_path = fullfile(output_directory,'aligned',img_name);
-            imwrite(uint16(mov_img),img_path)
+end
+
+
+function write_aligned_images(config,coreg_table,res_equal,res_adj,row,col)
+
+% Write image
+fprintf("%s\t Writing aligned images \n", datetime('now'));
+
+markers = config.markers;
+save_dir = fullfile(config.output_directory,'aligned');
+
+% Create directory to store images
+if ~isfolder(save_dir)
+    mkdir(save_dir);
+end
+    
+% Get table index for translations for each marker
+t_idx = zeros(1,length(markers));
+for i = 2:length(markers)
+    if i>1 && any(~ismember(config.align_channels,i))
+        continue
+    end
+    t_idx(i) = find(contains(coreg_table.Properties.VariableNames,'X') &...
+        contains(coreg_table.Properties.VariableNames,markers(i)));
+end
+    
+% Subset images to save
+if ~isempty(config.align_slices)
+    save_z = config.align_slices{:};
+    save_z = save_z(save_z<=height(coreg_table));
+else
+    save_z = 1:height(coreg_table);
+end
+
+ref_img = imread(coreg_table.file_1{save_z(1)});
+    
+% For each image in table
+for i = save_z
+    path_sub = coreg_table(coreg_table.Reference_Z == i,:);    
+    for j = 1:length(markers)
+        if j>1 && ~any(ismember(config.align_channels,j))
+            continue
         end
+        
+        filepath = string(table2cell(coreg_table(i,j)));
+        if filepath == ""
+            mov_img = zeros(size(ref_img),'uint16');
+        else
+            mov_img = imread(filepath);
+
+            % Apply intensity adjustments
+            if isequal(config.adjust_intensity,"true")
+               if isequal(config.adj_params.(markers(j)).adjust_tile_shading,'basic')
+                   mov_img = apply_intensity_adjustment(mov_img,...
+                       'flatfield', config.adj_params.(markers(j)).flatfield,...
+                       'darkfield', config.adj_params.(markers(j)).darkfield);
+               elseif isequal(config.adj_params.(markers(j)).adjust_tile_shading,'manual')
+                  mov_img = apply_intensity_adjustment(mov_img,...
+                      'y_adj',config.adj_params.(markers(j)).y_adj);
+               end
+            end
+        end
+
+        % Apply translations to non-reference image
+        if j > 1
+            % Adjust resample resolution if necessary
+            if ~res_equal(j-1)
+                mov_img = imresize(mov_img,res_adj{j-1},'bicubic');
+            end
+
+            % Crop or pad to reference image
+            if any(size(ref_img) ~= size(mov_img))
+                mov_img = crop_to_ref(ref_img, mov_img);
+            end
+
+            % Translate
+            mov_img = imtranslate(mov_img,[path_sub{1,t_idx(j)} path_sub{1,t_idx(j)+1}]);
+        end
+
+        % Write aligned images
+        img_name = sprintf('%s_%s_C%d_%s_0%d_0%d_aligned.tif',config.sample_id,num2str(coreg_table.Reference_Z(i),'%04.f'),j,markers(j),row,col);
+        img_path = fullfile(save_dir,img_name);
+        imwrite(uint16(mov_img),img_path)
     end
 end
+
 
 end

@@ -1,4 +1,4 @@
-function resampled_image = resample_path_table(path_table, config, resolution, resample_res, channels)
+function resampled_image = resample_path_table(path_table, config, channels, resolution, resample_res)
 %--------------------------------------------------------------------------
 % Resample image to specific resolution. 
 %--------------------------------------------------------------------------
@@ -21,26 +21,33 @@ if isempty(config) && nargin<3
     error("Must provide config structure or specify resolutions.")
 end
 
-% Default resample resolution
-if nargin<4
-    resample_res = config.resample_resolution;
+% Default do all channels in path_table
+if nargin<3
+    channels = unique(path_table.channel_num);
 end
 
-% Default do all channels in path_table
-if nargin<5
-    channels = unique(path_table.channel_num);
+% Default resample resolution
+if nargin<4
+    resolution = config.resolution;
+    resample_res = config.resample_resolution;
 end
     
 % Check resolution
-if nargin>3 && ~iscell(resolution)
+if ~iscell(resolution)
     resolution = repmat({resolution},1,length(channels));
+end
+
+% Resample image name resolution
+if length(resample_res) == 1
+    resample_res = repmat(resample_res,1,3);
+    res_name = string(resample_res(1));
 else
-    resolution = config.resolution;
+    res_name = string(resample_res);
 end
 
 % Create resampled directory
 resample_path = fullfile(config.output_directory,'resampled');
-if exist(resample_path,'dir') ~= 7
+if ~isfolder(resample_path)
     mkdir(resample_path)
 end
 
@@ -48,6 +55,7 @@ end
 nchannels = length(channels);
 resampled_image = cell(1,nchannels);
 for i = 1:nchannels
+    fprintf('%s\t Resampling channel %d\n',datetime('now'),channels(i))            
     path_sub = path_table(path_table.channel_num == channels(i),:);
     nb_images = height(path_sub);
 
@@ -56,33 +64,39 @@ for i = 1:nchannels
     [nrows,ncols] = size(tempI);
 
     % Calculate image dimensions for target resolution
-    re_v = resample_res./resolution{i};
+    re_v = resample_res./resolution{channels(i)};
     re_height = round(nrows/re_v(1));
     re_width = round(ncols/re_v(2));
     re_z = round(nb_images/re_v(3));
 
-    % Intialize matrix for resampled image
-    re_I = zeros(re_height,re_width,re_z,'uint16');
-
     % Resample first only in x,y to decrease memory demands
     fprintf('Reading and resampling XY\n')            
+    re_I = repmat({zeros(re_height,re_width,'uint16')},1,nb_images);
     for j = 1:nb_images
-        I = loadtiff(path_table.file{i});
-        re_I(:,:,j) = imresize(I,[re_height,re_width]);
+        I = loadtiff(path_sub.file{j});
+        re_I{j} = imresize(I,[re_height,re_width]);
     end
+    re_I = cat(3,re_I{:});
 
     % Then resample in z 
     fprintf('Resampling Z\n')            
     re_I = imresize3(re_I,[re_height,re_width,re_z]);
+    
+    % Change the orientation
+    if isequal(config.normalize_orientation,"true")
+        or_out = config.orientation{1};
+        or_in = config.orientation{channels(i)};
+        re_I = permute_orientation(re_I,or_in,or_out);
+    end    
 
     % Save as nii series
     marker = path_table(path_table.channel_num == channels(i),:).markers{1};
-    if ~isempty(config) && isfield(config,'sample_name')
-        filepath = fullfile(resample_path,sprintf('%s_C%d_%s_%d_%d_%d.nii',config.sample_name,...
-            channels(i),marker,resample_res(1),resample_res(2),resample_res(3)));
+    if ~isempty(config) && isfield(config,'sample_id')
+        filepath = fullfile(resample_path,sprintf('%s_C%d_%s_%s.nii',config.sample_id,...
+            channels(i),marker,res_name));
     else
-        filepath = fullfile(resample_path,sprintf('C%d_%s_%d_%d_%d.nii',...
-            channels(i),marker,resample_res(1),resample_res(2),resample_res(3)));
+        filepath = fullfile(resample_path,sprintf('C%d_%s_%s.nii',...
+            channels(i),marker,res_name));
     end
     niftiwrite(re_I, filepath)
     

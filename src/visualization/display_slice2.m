@@ -2,7 +2,7 @@ function [p1,p2] = display_slice2(vs,key)
 % User defined keys
 % z: z_position
 % marker: which marker
-% category: counts, volume, density
+% category: Counts, volume, Density
 % stat: which stat
 % key: [z_positition, marker, stat];
 
@@ -20,21 +20,23 @@ ud.category = [key{1}(3),key{2}(3)];
 ud.stat = [key{1}(4),key{2}(4)];
 ud.pos = 1;
 ud.alpha = 'false';
-ud.alpha_val = 1;
+ud.alpha_val = 0.9;
 ud.init = 'true';
 ud.imgL = zeros(size(vs.av(:,:,1)));
 ud.imgR = zeros(size(vs.av(:,:,1)));
 
 f = figure;
-f.Position = [5,600,855,600]; %AR = 1.425
+%f.Position = [5,600,855,600]; %AR = 1.425
+f.Position = [5,600,684,480];
+f.Position = [5,600,741,520];
 
-[p1,cmin,cmax] = display_plot(ud,vs,f);
-ud.cmin(1) = cmin; ud.cmax(1) = cmax;
+[p1,cmin,cmax,adj] = display_plot(ud,vs,f);
+ud.cmin(1) = cmin; ud.cmax(1) = cmax; ud.cmin(1) = cmin; ud.adj(1) = adj;
 p1 = sanitize_plot(p1,1);
 
 ud.pos = 2;
-[p2,cmin,cmax] = display_plot(ud,vs,f);
-ud.cmin(2) = cmin; ud.cmax(2) = cmax;
+[p2,cmin,cmax,adj] = display_plot(ud,vs,f);
+ud.cmin(2) = cmin; ud.cmax(2) = cmax; ud.adj(2) = adj;
 p2 = sanitize_plot(p2,2);
 
 linkaxes([p1 p2],'xy')
@@ -63,22 +65,14 @@ ud.p2text = annotation('textbox', [0.6 0.9 0.4 0.05], ...
 
 set(ud.ptext, 'String', sprintf('Slice:%d/%d \t %.2f AP', ud.z,size(vs.av,3),vs.ap(ud.z)));
 
-fprintf(1, '\nControls: \n');
-fprintf(1, '--------- \n');
-fprintf(1, 'scroll: move between slices \n');
-fprintf(1, 'click: print structure data \n');
-fprintf(1, 'l/r: toggle left(l) or right(r) plot to update \n');
-fprintf(1, 'b: toggle viewing boundaries \n');
-fprintf(1, 'a: toggle highlight regions \n');
-fprintf(1, 'm: switch marker \n');
-fprintf(1, 'c: switch data type (i.e. volume, counts, density) \n');
-fprintf(1, 's: switch data (i.e. mean, st. dev., %% change, p value) \n');
-
 ud.init = 'false';
 set(f, 'UserData', ud);
 set(f, 'WindowButtonDownFcn',@(f,k)fh_wbmfcn(f, vs)) % Set click detector.
 set(f, 'WindowScrollWheelFcn', @(src,evt)updateSlice(f, evt, vs)) % Set wheel detector. 
 set(f, 'KeyPressFcn', @(f,k)hotkeyFcn(f, k, vs)); % Hot keys
+f.PaperOrientation = 'landscape';
+
+display_help
 end
 
 function hotkeyFcn(f, keydata, vs)
@@ -86,6 +80,10 @@ function hotkeyFcn(f, keydata, vs)
 ud = get(f, 'UserData');
 
 switch lower(keydata.Key)    
+    case 'h' % display help
+        display_help
+        return
+    
     case 'l' % swtich to left plot
         fprintf('Left plot selected \n');
         ud.pos = 1;
@@ -127,9 +125,7 @@ switch lower(keydata.Key)
             else
                 f.Children(2).Children(2).Visible = 'on';
             end
-        end
-        disp(state)
-        
+        end        
     case 'm' % switch marker
         prompt = sprintf('Select marker number (1-%d): ',length(vs.markers));
         input1 = input(prompt,'s');
@@ -163,10 +159,12 @@ switch lower(keydata.Key)
             add_colorbar(p2,vs,ud);
         end
         
-        if new_marker > 0
-            fprintf('Displaying marker %s\n',vs.marker_names(new_marker));
+        if new_marker == 0
+            fprintf('Displaying annotation volume');
+        elseif new_marker>length(vs.marker_names)
+            fprintf('Displaying custom calculation %d\n',new_marker-length(vs.marker_names));            
         else
-            fprintf('Displaying annotation volume\n');
+            fprintf('Displaying marker %s\n',vs.marker_names(new_marker));
         end
 
     case 'c' % switch stats category
@@ -179,7 +177,7 @@ switch lower(keydata.Key)
     
         switch input1
             case 'v'
-                if ~isfield(vs.markers(ud.marker(ud.pos)),'volumes')
+                if ~isfield(vs.markers(ud.marker(ud.pos)),'Volumes')
                     fprintf('Volume data not present \n');
                     return
                 else 
@@ -187,7 +185,7 @@ switch lower(keydata.Key)
                     prompt = "volume data";
                 end
             case 'c'
-                if ~isfield(vs.markers(ud.marker(ud.pos)),'counts')
+                if ~isfield(vs.markers(ud.marker(ud.pos)),'Counts')
                     fprintf('Count data not present \n');
                     return
                 else
@@ -195,12 +193,12 @@ switch lower(keydata.Key)
                     prompt = "count data";
                 end
             case 'd'
-                if ~isfield(vs.markers(ud.marker(ud.pos)),'density')
+                if ~isfield(vs.markers(ud.marker(ud.pos)),'Density')
                     fprintf('Density data not present \n');
                     return
                 else
                     new_cat = 3;
-                    prompt = "density data";
+                    prompt = "Density data";
                 end
             otherwise
                 fprintf('Wrong category selection \n');
@@ -258,7 +256,7 @@ switch lower(keydata.Key)
             add_colorbar(p2,vs,ud);
         end
         
-        prompt = retrieve_data(vs,ud);        
+        [~,~,prompt] = retrieve_data(vs,ud);        
         fprintf('Displaying %s\n',prompt);
 end
 
@@ -266,8 +264,7 @@ set(f, 'UserData', ud);
 
 end
 
-function [p,cmin,cmax] = display_plot(ud,vs,f)
-
+function [p,cmin,cmax,adj] = display_plot(ud,vs,f)
 
 if isequal(ud.init,'true')
     p = subplot(1,2,ud.pos);
@@ -281,36 +278,43 @@ else
 end
 
 [slice,colors,title] = retrieve_slice(ud,vs);
+if isequal(ud.alpha,'true') && ud.marker(ud.pos) == 0
+    a = ~ismember(single(vs.av(:,:,ud.z)),single(vs.indexes));
+    slice(a) = 1;
+    colors = colors(vs.indexes(vs.av_stat_idx{ud.z}),:);
+    [~,~,z] = unique(slice);
+    x = 1:length(colors)+1;
+    slice(:) = x(z);
+end
 h1 = imagesc(single(slice));
 
 % Set caxis mappings
 if ud.marker(ud.pos) == 0
-    cmin = 0; cmax = length(colors)+1;
+    cmin = 0; cmax = length(colors); adj = 1;
     h1.CDataMapping = 'direct';
-    %h1.CDataMapping = 'scaled';
-    caxis([cmin cmax])
+    colormap(p,[[1,1,1];colors;[0.2,0.2,0.2]])
+    cmax_adj = cmax+2;
+    caxis([cmin cmax_adj])
+        
 else
-    [~,~,~,cmin,cmax] = retrieve_data(vs,ud);
-    h1.CDataMapping = 'scaled';    
-    if cmin<0
-        cmin = -100;
-        cmax = 0;
-        colors = colors(1:123,:);
-        colormap(p,[[0.25,0.25,0.25];colors;])
-
-        
-        %h1.CData = round(h1.CData);        
-        %cmin = -abs(cmax);        
-    else
-        cmin = -0.05;
-        cmax = 5;
-        colors = colors(123:end,:);
-        %cmin = -cmax/254;
-        
-        colormap(p,[[0.25,0.25,0.25];colors;])
-
+    [cmin,cmax] = retrieve_data(vs,ud);
+    h1.CDataMapping = 'scaled';  
+    if ismember(ud.stat(ud.pos),1:8)
+        % Mean, St.Dev. Counts, Volumes, Density....
+        colormap(p,[[1,1,1];colors;[0.2,0.2,0.2]])
     end
-    caxis([cmin cmax])
+    
+    if ud.pos == 1
+       cmin = -100;cmax=100; 
+    else
+        cmin = 0; cmax = 5;
+    end
+
+    
+    adj = (cmax-cmin)/205;
+    h1.CData(~vs.binMask(:,:,ud.z)) = cmin-adj;
+    cmax_adj = cmax+(adj*2.01);
+    caxis([cmin cmax_adj])
 end
 
 % Add title
@@ -322,62 +326,25 @@ hold on
 
 % Add alpha to annotation volume
 a = ~ismember(single(vs.av(:,:,ud.z)),single(vs.indexes));
-h3 = image(a);
-h1.CDataMapping = 'scaled'; 
-
+h3 = image(vs.binMask(:,:,ud.z));
+h1.CDataMapping = 'scaled';
 if ud.marker(ud.pos) == 0
     set(h3,'AlphaData',a*ud.alpha_val)
 else
     set(h3,'AlphaData',a)
 end
+%h3.Visible = 'off';
 
-h3.Visible = 'off';
-%if ud.marker(ud.pos) ~= 0
-%    h3.Visible  = 'on';
-%elseif ~isequal(ud.alpha,'true')    
-%    h3.Visible  = 'off';
-%end
-
-boundaries = vs.boundaries(:,:,ud.z)*-1;
-h2 = image(boundaries);
-boundaries = boundaries<0;
-set(h2,'AlphaData',boundaries)
+boundaries = vs.boundaries(:,:,ud.z)*cmax_adj;
+if ud.marker(ud.pos) == 0
+    h2 = image(boundaries);
+else
+    h2 = imagesc(boundaries);
+end
+set(h2,'AlphaData',vs.boundaries(:,:,ud.z))
 hold off
 
 end
-
-function [title,name,values,cmin,cmax] = retrieve_data(vs,ud)
-
-% Get axis
-a = ud.pos;
-
-if isequal(ud.category(a),1)
-    % Do volume
-    values = vs.markers(ud.marker(a)).volumes.values(:,ud.stat(a));
-    title = vs.markers(ud.marker(a)).volumes.title(ud.stat(a));
-    name = vs.markers(ud.marker(a)).volumes.name;
-    cmin = vs.markers(ud.marker(a)).volumes.cmin(:,ud.stat(a));
-    cmax = vs.markers(ud.marker(a)).volumes.cmax(:,ud.stat(a));
-elseif isequal(ud.category(a),2)
-    % Do counts
-    values = vs.markers(ud.marker(a)).counts.values(:,ud.stat(a));
-    title = vs.markers(ud.marker(a)).counts.title(ud.stat(a));
-    name = vs.markers(ud.marker(a)).counts.name;
-    cmin = vs.markers(ud.marker(a)).counts.cmin(:,ud.stat(a));
-    cmax = vs.markers(ud.marker(a)).counts.cmax(:,ud.stat(a));
-        
-elseif isequal(ud.category(a),3)
-    % Do density
-    values = vs.markers(ud.marker(a)).density.values(:,ud.stat(a));
-    title = vs.markers(ud.marker(a)).density.title(ud.stat(a));   
-    name = vs.markers(ud.marker(a)).density.name;
-    cmin = vs.markers(ud.marker(a)).density.cmin(:,ud.stat(a));
-    cmax = vs.markers(ud.marker(a)).density.cmax(:,ud.stat(a));
-end
-
-end
-
-
 
 function [slice,colors,title] = retrieve_slice(ud,vs)
 
@@ -389,79 +356,139 @@ if ud.marker(a) == 0
     slice = vs.av(:,:,ud.z);
     colors = vs.av_colors;
     title = "Annotation Volume";
-else
-    % Displaying some statistics
-    slice = double(vs.av(:,:,ud.z));
-    idxs = vs.av_idx{ud.z};
-    if isequal(ud.category(a),1)
-        % Do volume
-        stats = vs.markers(ud.marker(a)).volumes.values(:,ud.stat(a));
-        title = vs.markers(ud.marker(a)).volumes.title(ud.stat(a));
-        
-    elseif isequal(ud.category(a),2)
-        % Do counts
-        stats = vs.markers(ud.marker(a)).counts.values(:,ud.stat(a));
-        title = vs.markers(ud.marker(a)).counts.title(ud.stat(a));
-        
-    elseif isequal(ud.category(a),3)
-        %  Do density
-        stats = vs.markers(ud.marker(a)).density.values(:,ud.stat(a));
-        title = vs.markers(ud.marker(a)).density.title(ud.stat(a));
-        
-    else
-        error("Invalid stats category selected")
-    end
-
-    for i = 1:length(idxs)
-        slice(slice == idxs(i)) = stats(idxs(i));
-    end
+    return
+elseif ud.marker(a) > length(vs.marker_names)
+    ud.category(a) = 4;
+end
     
-    colors = vs.markers(ud.marker(a)).colors{ud.stat(a)};
+% Displaying some statistics
+slice = double(vs.av(:,:,ud.z));
+idxs = vs.av_idx{ud.z};
+
+if isequal(ud.category(a),1)
+    % Do volume
+    stats = vs.markers(ud.marker(a)).Volumes.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Volumes.title(ud.stat(a));
+
+elseif isequal(ud.category(a),2)
+    % Do Counts
+    stats = vs.markers(ud.marker(a)).Counts.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Counts.title(ud.stat(a));
+
+elseif isequal(ud.category(a),3)
+    %  Do Density
+    stats = vs.markers(ud.marker(a)).Density.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Density.title(ud.stat(a));
+
+elseif isequal(ud.category(a),4)
+    %  Do Custom
+    stats = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Custom.title(ud.stat(a));
+
+else
+    error("Invalid stats category selected")
+end
+
+for i = 1:length(vs.indexes)
+    if ismember(vs.indexes(i),vs.av_idx{ud.z})
+        slice(slice == vs.indexes(i)) = stats(i);
+    end
+end
+colors = vs.markers(ud.marker(a)).colors{ud.stat(a)};
+
+end
+
+function [cmin,cmax,title,name,values] = retrieve_data(vs,ud)
+
+% Get axis
+a = ud.pos;
+
+if ud.marker(a) > length(vs.marker_names)
+    ud.category(a) = 4;
+end
+
+if isequal(ud.category(a),1)
+    % Do volume
+    cmin = vs.markers(ud.marker(a)).Volumes.cmin(:,ud.stat(a));
+    cmax = vs.markers(ud.marker(a)).Volumes.cmax(:,ud.stat(a));
+elseif isequal(ud.category(a),2)
+    % Do Counts
+    cmin = vs.markers(ud.marker(a)).Counts.cmin(:,ud.stat(a));
+    cmax = vs.markers(ud.marker(a)).Counts.cmax(:,ud.stat(a));
+        
+elseif isequal(ud.category(a),3)
+    % Do Density
+    cmin = vs.markers(ud.marker(a)).Density.cmin(:,ud.stat(a));
+    cmax = vs.markers(ud.marker(a)).Density.cmax(:,ud.stat(a));
+    
+elseif isequal(ud.category(a),4)
+    % Do Density
+    cmin = vs.markers(ud.marker(a)).Custom.cmin(:,ud.stat(a));
+    cmax = vs.markers(ud.marker(a)).Custom.cmax(:,ud.stat(a));
+end
+
+if nargout<3
+    return
+end
+
+if isequal(ud.category(a),1)
+    % Do volume
+    values = vs.markers(ud.marker(a)).Volumes.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Volumes.title(ud.stat(a));
+    name = vs.markers(ud.marker(a)).Volumes.name;
+elseif isequal(ud.category(a),2)
+    % Do Counts
+    values = vs.markers(ud.marker(a)).Counts.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Counts.title(ud.stat(a));
+    name = vs.markers(ud.marker(a)).Counts.name;
+elseif isequal(ud.category(a),3)
+    % Do Density
+    values = vs.markers(ud.marker(a)).Density.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Density.title(ud.stat(a));   
+    name = vs.markers(ud.marker(a)).Density.name;
+elseif isequal(ud.category(a),4)
+    % Do Density
+    values = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Custom.title(ud.stat(a));   
+    name = vs.markers(ud.marker(a)).Custom.name;
+    
 end
 
 end
 
 function p = add_colorbar(p,vs,ud)
 
+% Set colorbar
+c = colorbar(p);
+
 if ud.pos == 1
-% Set colorbar
-c = colorbar(p);
-c.Limits = [ud.cmin(1) ud.cmax(1)];
-
-% Set colorbar positions
-c.Position(1) = 0.0550;
-c.Position(3) = 0.015;
-
-% If annotation volume, add tick labels with acronyms for major areas
-if ud.marker(1) == 0
-    c.Ticks = vs.av_cmap_pos;
-    c.TickLabels = vs.av_cmap_labels;
-    
-        
-    
-    %idxs = ismember(vs.indexes,vs.av_idx{ud.z});
-    %idxs = vs.av_idx{ud.z}(idxs);
-    %c.Ticks = 1:length(idxs);
-    %c.Limits = [min(idxs) max(idxs)];  
-    %c.Ticks = round((idxs(1:end-1)+idxs(2:end))/2);
-    %c.Ticks = unique(idxs)-1;
-end 
+    % Set colorbar positions
+    c.Position(1) = 0.0550;
+    c.Position(3) = 0.015;
+else
+    % Set colorbar positions
+    c.Position(1) = 0.93;
+    c.Position(3) = 0.015;
 end
-
-if ud.pos == 2
-% Set colorbar
-c = colorbar(p);
-
-% Set colorbar positions
-c.Position(1) = 0.93;
-c.Position(3) = 0.015;
-c.Limits = [ud.cmin(2) ud.cmax(2)];
-
+    
 % If annotation volume, add tick labels with acronyms for major areas
-if ud.marker(2) == 0
-    c.Ticks = vs.av_cmap_pos;
-    c.TickLabels = vs.av_cmap_labels;
-end
+if ud.marker(ud.pos) == 0
+    if isequal(ud.alpha,'false')
+        % Set colorbar range
+        c.Limits = [ud.cmin(ud.pos) - ud.adj(ud.pos) ud.cmax(ud.pos) + ud.adj(ud.pos)];
+
+        c.Ticks = vs.av_cmap_pos;
+        c.TickLabels = vs.av_cmap_labels;
+    else
+        % Set colorbar range
+        idxs = vs.indexes(ismember(vs.indexes,vs.av_idx{ud.z}));
+        c.Limits = [2, length(vs.av_stat_idx{ud.z})+1];
+        c.Ticks = (2:length(vs.av_stat_idx{ud.z}))+0.5;
+        acr = {vs.info.acronym};
+        c.TickLabels = acr(idxs);
+    end
+else
+    c.Limits = [0 ud.cmax(ud.pos)];
 end
 
 end
@@ -497,25 +524,28 @@ else
 end
 
 % Add values to left and right text boxes
-if ~isempty(idx)
+if ~isempty(idx) && ismember(idx,vs.indexes)
+   idx2 = find(vs.indexes == idx);
    if ud.marker(1) ~= 0 
        if ud.category(2) == 1 % Volume
-         set(ud.p2text, 'String', vs.markers(ud.marker(1)).volumes.values(idx,ud.stat(1)))
+         set(ud.p2text, 'String', vs.markers(ud.marker(1)).Volumes.values(idx2,ud.stat(1)))
         elseif ud.category(2) == 2 % Count
-         set(ud.p2text, 'String', vs.markers(ud.marker(1)).counts.values(idx,ud.stat(1)))
+         set(ud.p2text, 'String', vs.markers(ud.marker(1)).Counts.values(idx2,ud.stat(1)))
         elseif ud.category(2) == 3 % Density
-        set(ud.p2text, 'String', vs.markers(ud.marker(1)).density.values(idx,ud.stat(1)))
+        set(ud.p2text, 'String', vs.markers(ud.marker(1)).Density.values(idx2,ud.stat(1)))
         end
    end
    if ud.marker(2) ~= 0
        if ud.category(2) == 1 % Volume
-         set(ud.p2text, 'String', vs.markers(ud.marker(2)).volumes.values(idx,ud.stat(2)))
+         set(ud.p2text, 'String', vs.markers(ud.marker(2)).Volumes.values(idx2,ud.stat(2)))
        elseif ud.category(2) == 2 % Count
-           set(ud.p2text, 'String', vs.markers(ud.marker(2)).counts.values(idx,ud.stat(2)))
+           set(ud.p2text, 'String', vs.markers(ud.marker(2)).Counts.values(idx2,ud.stat(2)))
        elseif ud.category(2) == 3 % Density
-           set(ud.p2text, 'String', vs.markers(ud.marker(2)).density.values(idx,ud.stat(2)))
+           set(ud.p2text, 'String', vs.markers(ud.marker(2)).Density.values(idx2,ud.stat(2)))
        end
-    end
+   end
+else
+    set(ud.p2text, 'String', 'NaN')
 end
 
 set(f, 'UserData', ud);
@@ -539,44 +569,43 @@ vs.z = ud.z;
 % Update image p1
 ud.pos = 1;
 [slice,~,~] = retrieve_slice(ud,vs);
+%slice(~vs.binMask(:,:,ud.z)) = ud.cmin(ud.pos) - ud.adj(ud.pos);
 f.Children(4).Children(3).CData = single(slice);
 
 % Update alpha p1
-a = ~ismember(single(vs.av(:,:,ud.z)),vs.indexes);
-f.Children(4).Children(2).CData = a;
+%a = ~ismember(single(vs.av(:,:,ud.z)),vs.indexes);
+%f.Children(4).Children(2).CData = a;
 
-if ud.marker(ud.pos) ~= 0
-    f.Children(4).Children(2).AlphaData = a;
-else
-    f.Children(4).Children(2).AlphaData = a*ud.alpha_val;
-end
+%if ud.marker(ud.pos) ~= 0
+%    f.Children(4).Children(2).AlphaData = a;
+%else
+%    f.Children(4).Children(2).AlphaData = a*ud.alpha_val;
+%end
 
 % Overlay boundaries p1
-boundaries = vs.boundaries(:,:,ud.z)*-1;
+boundaries = vs.boundaries(:,:,ud.z)*max(f.Children(4).Children(1).CData,[],'all');
 f.Children(4).Children(1).CData = boundaries;
-boundaries = boundaries<0;
-f.Children(4).Children(1).AlphaData = boundaries;
+f.Children(4).Children(1).AlphaData = vs.boundaries(:,:,ud.z);
 
 % Update image p2
 ud.pos = 2;
 [slice,~,~] = retrieve_slice(ud,vs);
+%slice(~vs.binMask(:,:,ud.z)) = ud.cmin(ud.pos) - ud.adj(ud.pos);
 f.Children(2).Children(3).CData = single(slice);
 
 % Update alpha p2
-a = ~ismember(single(vs.av(:,:,ud.z)),vs.indexes);
-f.Children(2).Children(2).CData = a;
-if ud.marker(ud.pos) ~= 0
-    f.Children(2).Children(2).AlphaData = a;
-else
-    f.Children(2).Children(2).AlphaData = a*ud.alpha_val;
-end
+%a = ~ismember(single(vs.av(:,:,ud.z)),vs.indexes);
+%f.Children(2).Children(2).CData = a;
+%if ud.marker(ud.pos) ~= 0
+%    f.Children(2).Children(2).AlphaData = a;
+%else
+%    f.Children(2).Children(2).AlphaData = a*ud.alpha_val;
+%end
 
 % Overlay boundaries p2
-boundaries = vs.boundaries(:,:,ud.z)*-1;
+boundaries = vs.boundaries(:,:,ud.z)*max(f.Children(2).Children(1).CData,[],'all');
 f.Children(2).Children(1).CData = boundaries;
-boundaries= boundaries<0;
-f.Children(2).Children(1).AlphaData = boundaries;
-
+f.Children(2).Children(1).AlphaData = vs.boundaries(:,:,ud.z);
 
 % Update AP coordinates
 ud.ptext.String = sprintf('Slice:%d/%d \t %.2f AP',ud.z,size(vs.av,3),vs.ap(ud.z));
@@ -607,3 +636,17 @@ end
 
 end
 
+function display_help
+
+fprintf(1, '\nControls: \n');
+fprintf(1, '--------- \n');
+fprintf(1, 'scroll: move between slices \n');
+fprintf(1, 'click: print structure data \n');
+fprintf(1, 'l/r: toggle left(l) or right(r) plot to update \n');
+fprintf(1, 'b: toggle viewing boundaries \n');
+fprintf(1, 'a: toggle highlight regions \n');
+fprintf(1, 'm: switch marker \n');
+fprintf(1, 'c: switch data type (i.e. volume, Counts, Density) \n');
+fprintf(1, 's: switch data (i.e. mean, st. dev., %% change, p value) \n');
+
+end

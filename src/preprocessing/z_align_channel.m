@@ -6,14 +6,14 @@ function [z_displacement,ave_score] = z_align_channel(config,path_mov,path_ref,c
 % Set number of peaks and subixel value
 peaks = 3;              % Phase correlation peaks to test
 usfac = 1;              % Precision of phase correlation
-max_shift = 0.1;        % Max shift as fraction of longest image dimension
-min_signal = 0.2;       % Minimum fraction of signal pixels in reference for registering
+max_shift = 0.2;        % Max shift as fraction of longest image dimension
+min_signal = 0.05;       % Minimum fraction of signal pixels in reference for registering
 
 % Unpack variables
 z_positions = config.z_positions;
 z_window = config.z_window;
 signalThresh = config.signalThresh(channel_idx);
-z_initial = config.z_initial(channel_idx-1);
+z_initial = config.z_initial(channel_idx);
 
 % Adjust for resolution
 res_adj = config.resolution{1}./config.resolution{channel_idx};
@@ -62,7 +62,7 @@ for i = 1:length(z)
     % Read reference image and specify z range to look based on user-defined
     % window
     z_range = z(i)-z_window+z_initial:1:z(i)+z_window+z_initial;
-    ref_img = imread(path_ref.file{i});
+    ref_img = read_img(path_ref.file{i});
 
     % Resample the reference image if the resolution is different
     % Note: we're resizing reference image instead of moving image for
@@ -79,7 +79,7 @@ for i = 1:length(z)
         end
         
         % Read moving image
-        mov_img = imread(path_mov.file{z_range(j)});
+        mov_img = read_img(path_mov.file{z_range(j)});
 
         % Calculate number of bright pixels
         signal = numel(mov_img(mov_img>signalThresh))/numel(mov_img);
