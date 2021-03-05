@@ -1,6 +1,7 @@
 function NM_setup
 % Download and verify MATLAB add-ons and external packages used in NuMorph
 
+o = weboptions('CertificateFilename','');
 home_path = fileparts(which('NM_config'));
 
 % Check Matlab version and required add-ons
@@ -45,11 +46,11 @@ atlas_path2 = fullfile(home_path,'data','atlas','ara_nissl_25.nii');
 if ~isfile(atlas_path1) && ~isfile(atlas_path2)
     if ~isfile(atlas_path1)
        fprintf("Downloading average template atlas...\n")
-       websave(atlas_path1,"https://bitbucket.org/steinlabunc/numorph/downloads/average_template_25.nii");
+       websave(atlas_path1,"https://bitbucket.org/steinlabunc/numorph/downloads/average_template_25.nii",o);
     end
     if ~isfile(atlas_path2)
        fprintf("Downloading ara nissl atlas...\n")
-       websave(atlas_path2,"https://bitbucket.org/steinlabunc/numorph/downloads/ara_nissl_25.nii");
+       websave(atlas_path2,"https://bitbucket.org/steinlabunc/numorph/downloads/ara_nissl_25.nii",o);
     end
 else
     fprintf("All atlases exist \n\n")
@@ -59,30 +60,29 @@ end
 fprintf("Checking for elastix \n")
 external_path = fullfile(home_path,'src','external');
 elastix_path = fullfile(external_path,'elastix');
-elastix_files = dir(elastix_path);
 
 % Note, some library issues found while calling elastix-5.0 from linux os.
 % Downloading elastix-4.9 for this one instead since all main registration
 % functions should be the same
-if ~isfolder(elastix_path) || ~any(contains({elastix_files.name},'bin'))
+if ~isfolder(elastix_path)
    mkdir(elastix_path)
     if ismac
        fprintf("Downloading elastix-5.0.0 for mac...\n")
         out = websave(fullfile(elastix_path,"elastix-5.0.0-mac.tar.gz"),...
-            "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-mac.tar.gz");
+            "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-mac.tar.gz",o);
         untar(out)
         delete(out)
     elseif isunix
        fprintf("Downloading elastix-4.9.0 for linux...\n")
         out = websave(fullfile(elastix_path,"elastix-4.9.0-linux.tar.bz2"),...
-            "https://github.com/SuperElastix/elastix/releases/download/4.9.0/elastix-4.9.0-linux.tar.bz2");
-        cmd = sprintf("tar -xf '%s'", out);
+            "https://github.com/SuperElastix/elastix/releases/download/4.9.0/elastix-4.9.0-linux.tar.bz2",o);
+        cmd = sprintf("tar -xf %s -C %s", out,elastix_path);
         system(cmd);
         delete(out)
     elseif ispc
        fprintf("Downloading elastix-5.0.0 for windows...\n")
         out = websave(fullfile(elastix_path,"elastix-5.0.0-win64.zip"),...
-            "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-win64.zip");
+            "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-win64.zip",o);
         unzip(out)
         delete(out)
     end
@@ -108,9 +108,10 @@ end
 fprintf("Checking for vl_feat toolbox \n")
 vl_path = fullfile(external_path,'vlfeat-0.9.21');
 if ~isfolder(vl_path)
+   mkdir(vl_path)
    fprintf("Downloading vl_feat toolbox...\n")
-   out = websave(vl_path,...
-       "https://www.vlfeat.org/download/vlfeat-0.9.21-bin.tar.gz");
+   out = websave(fullfile(vl_path,"vlfeat-0.9.21-bin.tar.gz"),...
+       "https://www.vlfeat.org/download/vlfeat-0.9.21-bin.tar.gz",o);
    untar(out)
    delete(out)
    %addpath(genpath(external_path))
@@ -122,7 +123,7 @@ end
 % Check if conda is installed
 PATH = getenv('PATH');
 c_idx = 1;
-if ~contains(PATH,'conda3/bin')
+if ~contains(PATH,'conda/bin') && ~contains(PATH,'conda3/bin')
     conda_path = add_conda_to_path;
     if isempty(conda_path)
         warning("Did not detect conda installation. Download and install "+...
@@ -165,7 +166,7 @@ if c_idx ~= 0
     model_files = dir(fullfile(home_path,'src','analysis','3dunet','nuclei','models'));
     if ~any(endsWith({model_files.name},'.h5'))
         out = websave(fullfile(model_files(1).folder,'121_model.h5'),...
-            "https://bitbucket.org/steinlabunc/numorph/downloads/121_model.h5");
+            "https://bitbucket.org/steinlabunc/numorph/downloads/121_model.h5",o);
     else
         fprintf("Model file %s already exists \n",...
             model_files(arrayfun(@(s) endsWith(s.name,'.h5'),model_files)).name)
