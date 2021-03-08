@@ -1,0 +1,12 @@
+templates/*
+data/tmp/*
+src/external/*
+.DS_Store
+*.DS_Store
+*.tif
+*.tiff
+*.nii
+*.nrrd
+*.mhd
+*.raw
+*.h5
