@@ -70,7 +70,7 @@ if ~isfolder(elastix_path)
        fprintf("Downloading elastix-5.0.0 for mac...\n")
         out = websave(fullfile(elastix_path,"elastix-5.0.0-mac.tar.gz"),...
             "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-mac.tar.gz",o);
-        untar(out)
+        untar(out,elastix_path)
         delete(out)
     elseif isunix
        fprintf("Downloading elastix-4.9.0 for linux...\n")
@@ -83,7 +83,7 @@ if ~isfolder(elastix_path)
        fprintf("Downloading elastix-5.0.0 for windows...\n")
         out = websave(fullfile(elastix_path,"elastix-5.0.0-win64.zip"),...
             "https://github.com/SuperElastix/elastix/releases/download/5.0.0/elastix-5.0.0-win64.zip",o);
-        unzip(out)
+        unzip(out,elastix_path)
         delete(out)
     end
 else
@@ -109,10 +109,10 @@ fprintf("Checking for vl_feat toolbox \n")
 vl_path = fullfile(external_path,'vlfeat-0.9.21');
 if ~isfolder(vl_path)
    mkdir(vl_path)
-   fprintf("Downloading vl_feat toolbox...\n")
+   fprintf("Downloading vl_feat toolbox...\n\n")
    out = websave(fullfile(vl_path,"vlfeat-0.9.21-bin.tar.gz"),...
        "https://www.vlfeat.org/download/vlfeat-0.9.21-bin.tar.gz",o);
-   untar(out)
+   untar(out,vl_path)
    delete(out)
    %addpath(genpath(external_path))
 else
@@ -165,6 +165,7 @@ if c_idx ~= 0
     fprintf("Checking for 3D-Unet model files \n")
     model_files = dir(fullfile(home_path,'src','analysis','3dunet','nuclei','models'));
     if ~any(endsWith({model_files.name},'.h5'))
+       fprintf("Downloading 3D-Unet model 121_model.h5...\n")
         out = websave(fullfile(model_files(1).folder,'121_model.h5'),...
             "https://bitbucket.org/steinlabunc/numorph/downloads/121_model.h5",o);
     else
@@ -172,6 +173,22 @@ if c_idx ~= 0
             model_files(arrayfun(@(s) endsWith(s.name,'.h5'),model_files)).name)
     end
 end
+
+% Move templates 
+template_path = fullfile(home_path,'templates');
+if ~isfolder(template_path)
+    mkdir(template_path)
+    reload_default_template('process',true)
+    reload_default_template('analyze',true)
+    reload_default_template('evaluate',true)
+    reload_default_template('samples',true)
+else
+    reload_default_template('process',false)
+    reload_default_template('analyze',false)
+    reload_default_template('evaluate',false)
+    reload_default_template('samples',false)
+end
+addpath(template_path)
 
 fprintf("Setup completed! \n")
 

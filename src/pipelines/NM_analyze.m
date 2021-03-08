@@ -375,6 +375,15 @@ if isequal(config.count_method,"hessian")
     % Detect nuclei centroids using hessian-based blob detector
     path_sub = path_table(path_table.markers == config.markers(1),:); 
     
+    % Check for intensity thresholds
+    if isempty(config.lowerThresh) || isempty(config.signalThresh) ||...
+            isempty(config.upperThresh)
+        markers = config.markers;
+        config.markers = config.markers(1);
+        config = check_for_thresholds(config,path_sub,true);
+        config.markers = markers;
+    end
+    
     % Load annotation mask
     if isequal(config.use_annotation_mask,"true")
         config.mask_file = fullfile(config.output_directory,...
@@ -385,7 +394,7 @@ if isequal(config.count_method,"hessian")
     end
     
     % Run prediction
-    predict_centroids_hessian(config,path_sub,I_mask);
+    predict_centroids_hessian(config,path_sub,path_save,I_mask);
     
 elseif isequal(config.count_method,"3dunet")
     % Detect nuclei centroids using 3dunet (requires python + conda environment)

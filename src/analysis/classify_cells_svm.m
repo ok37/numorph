@@ -7,9 +7,6 @@ function ct = classify_cells_svm(centroids,stable,config)
 outlierTypes = 1:9;
 outlierTypes = outlierTypes(~ismember(outlierTypes,config.keep_classes));
 
-% Adjust from python base 0 indexing
-centroids(:,1:3) = centroids(:,1:3)+1;
-
 % Read classifications + patch feautre info
 itable = readtable(fullfile(config.output_directory,'classifier',...
     sprintf('%s_patch_info.csv',config.sample_id)));

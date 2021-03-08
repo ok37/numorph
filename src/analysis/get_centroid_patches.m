@@ -88,8 +88,8 @@ ftable = cell(size(cen_sub,1),length(markers));
 
 for i = 1:size(cen_sub,1)
     % Get positions
-    z = cen_sub(i,3)+1;
-    pos = cen_sub(i,1:2)+1;
+    z = cen_sub(i,3);
+    pos = cen_sub(i,1:2);
     
     % Get file
     file = path_table(path_table.z == z,1).file;

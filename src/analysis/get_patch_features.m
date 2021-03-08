@@ -18,10 +18,10 @@ for i = 1:length(z_pos)
             path_table.markers == markers(j),:);
         file = file.file{1};
         f = zeros([size(cen_sub,1),8]);
-        xy = cen_sub(:,[1,2]);
-        parfor k = 1:size(xy,1)
+        yx = cen_sub(:,[1,2]);
+        parfor k = 1:size(yx,1)
             try 
-                pos = xy(k,:);
+                pos = yx(k,:);
                 ranges = {[pos(1)-s,pos(1)+s], [pos(2)-s,pos(2)+s]};
                 img = imread(file,'PixelRegion',ranges);
                 f(k,:) = measure_patch_features(img, s, false);

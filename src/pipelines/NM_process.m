@@ -15,7 +15,7 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 % step: ('process','stitch','align','intensity'). Perform a single
 % processing or run full pipeline. (default: 'process')
 %   
-% use_adjustments - Apply intensity adjustments if performing 1 step. 
+% use_adjustments: Apply intensity adjustments if performing 1 step. 
 % (default: true)
 %
 %--------------------------------------------------------------------------

@@ -10,12 +10,9 @@ sub_back = 'false';  % Option to subtract background
 tempI = loadtiff(path_table.file{1});
 [nrows, ncols] = size(tempI);
 
-% +1 to go from python indexing
-z_pos = unique(centroids(:,3))+1;
-
+z_pos = unique(centroids(:,3));
 m_int = zeros(length(markers),size(centroids,1));
 m_back = zeros(length(markers),size(centroids,1));
-
 parfor i = 1:length(z_pos)
     fprintf('%s\t Remeasuring image %d \n',datetime('now'),z_pos(i));
     
@@ -25,8 +22,8 @@ parfor i = 1:length(z_pos)
     idx = centroids(:,3)==z_pos(i);
     
     % Get linear indexes for cooridnates
-    y = centroids(idx,1)+1;
-    x = centroids(idx,2)+1;
+    y = centroids(idx,1);
+    x = centroids(idx,2);
 
     y1 = arrayfun(@(a,b) meshgrid(a-s:a+s,b-s:b+s),y,x,'UniformOutput',false);
     x1 = arrayfun(@(a,b) meshgrid(a-s:a+s,b-s:b+s)',x,y,'UniformOutput',false);

@@ -29,7 +29,6 @@ ftable(7) = sum(bw(:));
 %ftable(7) = ftable(6)/sum(bwconvhull(bw,'objects'),'all');
 ftable(8) = 0;
 
-
 % Shape features
 %rp = regionprops(bw,'Solidity','FilledArea');
 %try

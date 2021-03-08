@@ -83,6 +83,7 @@ n_channels = 3  # Total number of channels
 ##### Load parameters from config.mat matlab structure
 if args.mat:
     # Load parameters from matlab structure
+    from_matlab = True
     config = mat73.loadmat(args.mat[0])
 
     input_img_directory = config['config']['img_directory']
@@ -113,8 +114,10 @@ if args.mat:
         resample_chunks = False
 
     save_name = config['config']['path_save']
-#####
+else:
+    from_matlab = False
 
+#####
 save_name = os.path.join(output_directory, save_name)
 print('Saving results to: ', save_name)
 
@@ -390,6 +393,10 @@ for n in range(n_chunks):
             # Throwing errors
             cent = np.append(cent, intensities[:, None], axis=1)
         cent[:, 2] += z_start
+
+    # If called by MATLAB, adjust for base 1 indexing
+    if from_matlab:
+        cent += 1
 
     # Write .csv file
     if n == 0:

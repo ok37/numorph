@@ -50,12 +50,12 @@ switch stage
 end
 
 % Save config structure
-save(fullfile('templates', 'NM_variables.mat'),'-mat')
+save(fullfile('data', 'tmp', 'NM_variables.mat'),'-mat')
 
 % Load and append sample info
 if nargin > 1 && ~isequal(main_stage,'evaluate')
     [img_directory, output_directory] = NM_samples(sample, true);
-    load(fullfile('templates', 'NM_variables.mat'),'-mat')
+    load(fullfile('data','tmp', 'NM_variables.mat'),'-mat')
     
 elseif nargin > 1 && isequal(main_stage,'evaluate')
     fid = fopen('./templates/NM_samples.m');
@@ -128,7 +128,7 @@ if ~isequal(use_processed_images,"false")
     if ~exist(process_directory,'dir')
         error("Could not locate processed image directory %s\n",process_directory)
     else
-        save(fullfile('templates','NM_variables.mat'),'process_directory','-mat','-append')
+        save(fullfile('data','tmp','NM_variables.mat'),'process_directory','-mat','-append')
     end
 elseif ~isequal(main_stage,'evaluate')
     if ~isfolder(img_directory)
@@ -163,16 +163,8 @@ catch
         "that this toolbox be installed to speed up analysis.")
 end
 
-% Try setting up vl_feat if not permanently installed
-if ~(exist('vl_version','file') == 3)
-    try 
-        vl_setup
-    catch
-    end
-end
-
 % Reload config
-config = load(fullfile('templates','NM_variables.mat'));
+config = load(fullfile('data','tmp','NM_variables.mat'));
 config = orderfields(config);
 
 % Run
@@ -189,7 +181,7 @@ if run
     end
     
     % Copy variables to output destination
-    copyfile(fullfile('templates', 'NM_variables.mat'),var_directory)
+    copyfile(fullfile('data','tmp', 'NM_variables.mat'),var_directory)
     
     % Run pipeline
     switch stage
@@ -234,7 +226,7 @@ switch stage
             'elastix_params','rescale_intensities','subtract_background','Gamma','smooth_img','smooth_sigma',...
             'DoG_img','DoG_minmax','DoG_factor','darkfield_intensity', 'resolution','z_initial',...
             'lowerThresh','upperThresh','signalThresh'};
-        load(fullfile('templates','NM_variables.mat'),variable_names{:});
+        load(fullfile('data','tmp','NM_variables.mat'),variable_names{:});
         
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
@@ -316,7 +308,7 @@ switch stage
         % Variables to check
         variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
             'direction'};
-        load(fullfile('templates','NM_variables.mat'),variable_names{:});
+        load(fullfile('data','tmp','NM_variables.mat'),variable_names{:});
         
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
@@ -363,6 +355,6 @@ end
 
 % Resave these variables
 variable_names = who;
-save(fullfile('templates', 'NM_variables.mat'),variable_names{:},'-mat','-append')
+save(fullfile('data','tmp','NM_variables.mat'),variable_names{:},'-mat','-append')
 
 end

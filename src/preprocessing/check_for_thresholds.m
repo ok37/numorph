@@ -1,4 +1,4 @@
-function config = check_for_thresholds(config,path_table)
+function config = check_for_thresholds(config,path_table,load_from_thresholds)
 %--------------------------------------------------------------------------
 % Check for intensity thresholds (i.e. thresholds.mat) structure and attach
 % to config.
@@ -15,10 +15,14 @@ function config = check_for_thresholds(config,path_table)
 % config = config structure with thresholds attached.
 %--------------------------------------------------------------------------
 
+if nargin<3
+    load_from_thresholds = false;
+end
+
 var_file = fullfile(config.output_directory,'variables','thresholds.mat');
 
 % First check if adj_params exists in variables folder
-if isfile(var_file)
+if isfile(var_file) || load_from_threholds
     load(var_file,'thresholds')
     if all(thresholds.markers == config.markers) && all(thresholds.img_directory == config.img_directory)
         % Save into config
