@@ -1,93 +1,156 @@
-function preprocess_3dunet(res,file_delimiter,n)
-% Preprocess images for running 3dunet
-% Normalize images
-% Identify nuclei borders, fills, and centroids
-% Save images in preprocessed directory
-%img_location = './Updated Training Samples/f121_images_224_64';
-%cen_location = './Updated Training Samples/c121_centroids_361_102/finished';
-%cen_location = [];
+function preprocess_3dunet(part,file_delimiter,n)
+%--------------------------------------------------------------------------
+% Preprocess images for running 3dunet. Normalize images. Identify nuclei 
+% borders, fills, and centroids. Perform morphological operations on
+% centroid patches. Save images in preprocessed directory.
+%
+% Images (.nii 16-bit) should be placed in /data/raw/(partition) with at 
+% least 1 folder containing raw images (i) and 1 folder containing centroid 
+% patches (c) with unique indexes. Image and centroids filenames should 
+% start with an index to matchup images with centroids. Typically the 
+% following nomeclature is used: 
+%   i.e. /data/raw/075/c0201_xxxx.nii: 
+%       Image patch #2 from image set #1 in '075' partition.
+%       Corresponding centroid patch: c0201_xxxx.nii
+%
+% Note patches are read in alphabetical and are not shuffled during 
+% training unless specified here. If there are few training images sampled 
+% from many regions, it becomes more important to get adequate
+% representation of all image features in both training and testing sets, 
+% which may be inconsistent if patches are shuffled.
+%
+%--------------------------------------------------------------------------
+% Usage:
+% preprocess_3dunet(part,file_delimiter,n)
+%
+%--------------------------------------------------------------------------
+% Inputs:
+% part: (string) Read only certain partition. (default: [], read all 
+% partitions)
+%
+% file_delimiter: (string) Keep only files with this delimiter in the
+% filename. (i.e. "final" keeps only images with "final" in name).
+% (default: [], use all files)
+%
+% n: (int) Limit number of images read (for testing purposes). (default:
+% [], use all images)
+%
+%--------------------------------------------------------------------------
 
-img_location = sprintf('./data/raw/%s/c%s_images_final_224_64',res,res);
-cen_location = sprintf('./data/raw/%s/c%s_cen_final_224_64',res,res);
+final_size = [112 112 32];      % Final patch size. Images will be cropped or padded
+shuffle_images = false;         % Shuffle images
+split_images = true;            
 
-patch_size = [224 224 64];
-split_size = [112 112 32];
-final_size = [112 112 32];
+rescale_centroids = false;      % Resample patches to specific resolution and rewrite centroids   
+capture_res = [0.75,0.75,2.5];  % Resolution at which images were acquired
+patch_res = [0.75,0.75,2];    % Resolution to resample to (Resampling of z dimension is not recommended)
 
-patch_resolution = [1.21, 1.21, 4];
-capture_resolution = [0.75, 0.75, 2.5];
-save_directory = './data/preprocessed';
-split_images = true;
-rewrite_centroids = false;
-write_edges = false;
-erode_blobs = true;
-normalize_images = true;
-remove_background = false;
-%file_delimiter = 'condensed';
+erode_blobs = true;         % Erode pixels around the edges
+pix_threshold = 0.4;        % Erode fraction pixels from farthest from center
+normalize_images = true;    % Perform min/ax normalization
+remove_background = false;  % Perform background subtraction
+write_edges = false;        % Add edge labels as index=2
 size_threshold = 0;
-pix_threshold = 0.4;
 
 % Create preprocessed directory
-if ~exist(save_directory,'dir')
+home_path = fileparts(which('preprocess_3dunet'));
+save_directory = fullfile(home_path,'data','preprocessed');
+if ~isfolder(save_directory)
     mkdir(save_directory)
 elseif ~isempty(dir(save_directory))
     rmdir(save_directory,'s')
     mkdir(save_directory)
 end
 
-% Load images, normalize, and save images
-files = dir(img_location);
-file_idx = arrayfun(@(s) contains(s.name,'.nii'),files);
-img_files = files(file_idx);
-
-if ~isempty(cen_location)
-    files = dir(cen_location);
-    file_idx = arrayfun(@(s) contains(s.name,'.nii'),files);
-    cen_files = files(file_idx);
+% Subset parition
+folders = dir(fullfile(home_path,'data','raw'));
+folders = folders(arrayfun(@(s) ~ismember(s.name,{'.','..'}),folders)); 
+if nargin < 1
+    folders = folders([folders.isdir]);
 else
-    cen_files = [];
+    folders = folders(arrayfun(@(s) isequal(s.name,part),folders));
 end
 
-if ~isempty(file_delimiter)
-    file_idx = arrayfun(@(s) contains(s.name,file_delimiter),files);
-    cen_files = files(file_idx);
+% Load images and match centroid files
+img_files = cell(length(folders),1);
+for i = 1:length(folders)
+    files = dir(fullfile(folders(i).folder, folders(i).name));
+    files = files(arrayfun(@(s) contains(s.name,'.nii'),files));
+    
+    % Trim files if delimiter is provided
+    if nargin>1
+        files = files(arrayfun(@(s) contains(s.name,file_delimiter),files));
+    end
+    
+    % Match image files with centroid files in this partition
+    ifiles = files(arrayfun(@(s) startsWith(s.name,'i'),files));
+    filenames = {ifiles.name};
+    ifiles = arrayfun(@(s) fullfile(s.folder,s.name),ifiles,'UniformOutput',false);
+    cfiles = cell(length(ifiles),1);
+    for j = 1:length(ifiles)
+        idx = strsplit(filenames{j},'_');
+        c_idx = ['c',idx{1}(2:end)];
+        idx = startsWith({files.name},c_idx);
+        cfiles{j} = fullfile(files(idx).folder,files(idx).name);
+    end
+    img_files{i} = [ifiles,cfiles];
 end
-cen_files = cen_files(1:n);
+img_files = cat(1,img_files{:});
+n_images = size(img_files,1);
 
+% Shuffle images
+if shuffle_images
+    img_files = img_files(randperm(n_images),:);
+end
+
+% Subset images
+if nargin>2
+    idx = randperm(n_images);
+    img_files = img_files(idx(1:n),:);
+end
+
+% Load images, normalize, and save
 n_cells = 0;
-if ~isempty(cen_files)
-    for n = 1:length(cen_files)
-    cen_name = strsplit(cen_files(n).name,'.');
-    fprintf('%s\n',cen_name{1})
-    
-    % Read centroid image
-    cen_path = fullfile(cen_location,cen_files(n).name);
-    L = read_nii(cen_path);
-    
+pixels = zeros(1,n_images);
+for i = 1:n_images
     % Read image
-    img_idx = arrayfun(@(s) string(s.name(1:5)) == string(cen_name{1}(1:5)),...
-        img_files);
-    img_path = fullfile(img_location,img_files(img_idx).name);
-    fprintf('%s\n',img_path)
-
-    I = read_nii(img_path);
+    [~,img_name] = fileparts(img_files{i,1});
+    fprintf('%s\n',img_name)
+    I = niftiread(img_files{i,1});
     I = uint16(I);
     
-    if size(I,1) > patch_size(1)
-        I = I(1:patch_size(1),1:patch_size(2),1:patch_size(3));
-        L = L(1:patch_size(1),1:patch_size(2),1:patch_size(3));
-    end
+    % Read centroids
+    [~,cen_name] = fileparts(img_files{i,2});
+    fprintf('%s\n',cen_name)
+    L = niftiread(img_files{i,2});
+    L = uint16(L);
     
     % Normalize image
     if normalize_images
         I = normalize_image(I,remove_background);
     end
-        
+
+    % Take 2D slice if 3D indexed centroid volume provided
+    if length(unique(L(:)))>2
+        rp = regionprops3(L,I,'WeightedCentroid','VoxelList');
+        rp =rp(any(~isnan(rp.WeightedCentroid),2),:);
+        L = zeros(size(L),'uint16');
+        for j = 1:height(rp)
+            z_slice = round(rp(j,:).WeightedCentroid);
+            vox = rp(j,:).VoxelList{1};
+            vox = vox(vox(:,3) == z_slice(3),:);
+            vox = sub2ind(size(L),vox(:,2),vox(:,1),vox(:,3));
+            L(vox) = 1;
+        end
+        % Increase erosion for fully traced nuclei
+        pix_threshold = pix_threshold - (1-pix_threshold)*0.25;
+    end
+    
     % Expand centroids
-    if rewrite_centroids
-        L = rewrite_centroid(L,I,capture_resolution,patch_resolution);
-    else
-        L = imresize3(L,patch_size,'Method','nearest');
+    if rescale_centroids
+        res_adj = capture_res./patch_res;
+        I = imresize3(I,round(res_adj.*size(I)),'Method','cubic');
+        L = resample_centroids(L,I,capture_res,patch_res);
     end
     L = uint8(L>0);
     
@@ -109,113 +172,49 @@ if ~isempty(cen_files)
     n_cells = n_cells + labels.NumObjects;
     
     % Count percent of positive pixels
-    pixels(n) = sum(L(:)>0)/numel(L(:));
+    pixels(i) = sum(L(:)>0)/numel(L(:));
     
-    % Write images
-    if split_images
-        n_chunks = patch_size./split_size;
+    % Pad or crop images
+    pad_val = median(I,'all');
+    [I,L] = pad_or_crop_dim(I,L,final_size,3,pad_val);
+    [I,L] = pad_or_crop_dim(I,L,final_size,2,pad_val);
+    [I,L] = pad_or_crop_dim(I,L,final_size,1,pad_val);
+    
         
-        x_chunks = floor(linspace(0,patch_size(1),n_chunks(1)+1));
-        y_chunks = floor(linspace(0,patch_size(2),n_chunks(2)+1));
-        z_chunks = floor(linspace(0,patch_size(3),n_chunks(3)+1));
+    % Split to final chunk size and write images
+    patch_size = size(I);
+    n_chunks = patch_size./final_size;
+    x_chunks = floor(linspace(0,patch_size(1),n_chunks(1)+1));
+    y_chunks = floor(linspace(0,patch_size(2),n_chunks(2)+1));
+    z_chunks = floor(linspace(0,patch_size(3),n_chunks(3)+1));
 
-        a = 1;
-        for x = 1:n_chunks(1)
-            for y = 1:n_chunks(2)
-                for z = 1:n_chunks(3)
-                    xi = x_chunks(x)+1:x_chunks(x+1);
-                    yi = y_chunks(y)+1:y_chunks(y+1);
-                    zi = z_chunks(z)+1:z_chunks(z+1);
-                    
-                    L_chunk = L(xi,yi,zi);
-                    I_chunk = I(xi,yi,zi);
-                    
-                    pad_size = (final_size - split_size)/4;
-                    L_chunk = padarray(L_chunk,pad_size,0);
-                    I_chunk = padarray(I_chunk,pad_size,0);
+    a = 1;
+    for x = 1:n_chunks(1)
+        for y = 1:n_chunks(2)
+            for z = 1:n_chunks(3)
+                xi = x_chunks(x)+1:x_chunks(x+1);
+                yi = y_chunks(y)+1:y_chunks(y+1);
+                zi = z_chunks(z)+1:z_chunks(z+1);
 
-                    
-                    % Create new folder in directory
-                    dir_name = fullfile(save_directory,...
-                        sprintf('s%d%s',a,cen_name{1}));
-                    mkdir(dir_name)
-    
-                    niftiwrite(L_chunk,fullfile(dir_name,'truth'),'Compressed',true)
-                    niftiwrite(I_chunk,fullfile(dir_name,'t1'),'Compressed',true)
-                    a = a+1;
-                end
+                L_chunk = L(xi,yi,zi);
+                I_chunk = I(xi,yi,zi);
+
+                % Create new folder in directory
+                dir_name = fullfile(save_directory,...
+                    sprintf('s%d%s',a,cen_name));
+                mkdir(dir_name)
+
+                niftiwrite(L_chunk,fullfile(dir_name,'truth'),'Compressed',true)
+                niftiwrite(I_chunk,fullfile(dir_name,'t1'),'Compressed',true)
+                a = a+1;
             end
         end
-    else
-        % Create new folder in directory
-        dir_name = fullfile(save_directory,cen_name{1});
-        mkdir(dir_name)
-    
-        niftiwrite(L,fullfile(dir_name,'truth'),'Compressed',true)
-        niftiwrite(I,fullfile(dir_name,'t1'),'Compressed',true)
     end
-end
-else
-    for n = 1:length(img_files)
-    % Read image
-    img_path = fullfile(img_location,img_files(n).name);
-    fprintf('%s\n',img_path)
-
-    I = read_nii(img_path);
-    I = uint16(I);
-    
-    if size(I,1) > patch_size(1)
-        I = I(1:patch_size(1),1:patch_size(2),1:patch_size(3));
-    end
-    
-    % Normalize image
-    if normalize_images
-        I = normalize_image(I,remove_background);
-    end
-    
-    % Write images
-    if split_images
-        n_chunks = patch_size./split_size;
-        
-        x_chunks = floor(linspace(0,patch_size(1),n_chunks(1)+1));
-        y_chunks = floor(linspace(0,patch_size(2),n_chunks(2)+1));
-        z_chunks = floor(linspace(0,patch_size(3),n_chunks(3)+1));
-
-        a = 1;
-        for x = 1:n_chunks(1)
-            for y = 1:n_chunks(2)
-                for z = 1:n_chunks(3)
-                    xi = x_chunks(x)+1:x_chunks(x+1);
-                    yi = y_chunks(y)+1:y_chunks(y+1);
-                    zi = z_chunks(z)+1:z_chunks(z+1);
-                    
-                    I_chunk = I(xi,yi,zi);
-                    
-                    pad_size = (final_size - split_size)/4;
-                    I_chunk = padarray(I_chunk,pad_size,0);
-
-                    % Create new folder in directory
-                    dir_name = fullfile(save_directory,...
-                        sprintf('s%d%s',a,img_files(n).name));
-                    mkdir(dir_name)
-    
-                    niftiwrite(I_chunk,fullfile(dir_name,'t1'),'Compressed',true)
-                    a = a+1;
-                end
-            end
-        end
-    else
-        % Create new folder in directory
-        dir_name = fullfile(save_directory,img_name{1});
-        mkdir(dir_name)
-    
-        niftiwrite(I,fullfile(dir_name,'t1'),'Compressed',true)
-    end
-end
 
 end
 
-fprintf('Preprocessed %d cells in %d images \n',n_cells,n)
+
+fprintf('Preprocessed %d cells in %d images \n',n_cells,i)
 fprintf('Percent of pixels: %f \n',mean(pixels)*100)
 
 end
@@ -244,22 +243,6 @@ img_adj = imadjustn(img,[int_low, int_high(1)]);
         
 end
 
-function L_new = rewrite_centroid(L,I,capture_resolution,patch_resolution)
-% Save centroids based in rescaled dimensions
-res = capture_resolution./patch_resolution;
-L_new = zeros(size(L));
-cc = bwconncomp(L,6);
-label_matrix = labelmatrix(cc);
-
-rp = regionprops(label_matrix);
-        
-for j = 1:length(rp)
-    pos = round(rp(j).Centroid.*res);
-    L_new(pos(2),pos(1),pos(3)) = j;
-end
-
-L_new = expand_centroids3(label_matrix,I,rp);
-end
 
 function L_new = write_edge(L)
 nhood = [0 1 0;1 1 1;0 1 0];
@@ -364,3 +347,48 @@ end
 L_new = uint8(L_new);
 end
 
+function [I,L] = pad_or_crop_dim(I,L,final_size,dim,pad_val)
+
+s = size(I);
+chunks = s(dim)/final_size(dim);
+if abs(chunks-round(chunks)) ~= 0
+    if abs(chunks-floor(chunks))<0.25
+        % Crop
+        chunks = floor(chunks);
+        pad1 = abs(ceil((s(dim) - final_size(dim)*chunks)/2));
+        pad2 = abs(floor((s(dim) - final_size(dim)*chunks)/2));
+        if dim==1
+            I = I(pad1:end-pad1-1,:,:);
+            L = L(pad2:end-pad2-1,:,:);
+        elseif dim==2
+            I = I(:,pad1:end-pad1-1,:);
+            L = L(:,pad2:end-pad2-1,:);
+        else
+            I = I(:,:,pad1:end-pad1-1);
+            L = L(:,:,pad2:end-pad2-1);
+        end
+    else
+        % Pad
+        chunks = ceil(chunks);
+        pad1 = abs(ceil((s(dim) - final_size(dim)*chunks)/2));
+        pad2 = abs(floor((s(dim) - final_size(dim)*chunks)/2));
+        if dim==1
+            I = cat(1,repmat(pad_val,[pad1,s(2),s(3)]),I);
+            I = cat(1,I,repmat(pad_val,[pad2,s(2),s(3)]));
+            L = cat(1,zeros([pad1,s(2),s(3)]),L);
+            L = cat(1,L,zeros([pad2,s(2),s(3)]));
+        elseif dim==2
+            I = cat(2,repmat(pad_val,[s(1),pad1,s(3)]),I);
+            I = cat(2,I,repmat(pad_val,[s(1),pad2,s(3)]));
+            L = cat(2,zeros([s(1),pad1,s(3)]),L);
+            L = cat(2,L,zeros([s(1),pad2,s(3)]));
+        else
+            I = cat(3,repmat(pad_val,[s(1),s(2),pad1]),I);
+            I = cat(3,I,repmat(pad_val,[s(1),s(2),pad2]));
+            L = cat(3,zeros([s(1),s(2),pad1]),L);
+            L = cat(3,L,zeros([s(1),s(2),pad2]));
+        end
+    end
+end
+
+end

@@ -445,7 +445,8 @@ else
     save_z = 1:height(coreg_table);
 end
 
-ref_img = imread(coreg_table.file_1{save_z(1)});
+idx = find(coreg_table.file_1{save_z(1)} ~= "",1);
+ref_img = imread(coreg_table.file_1{idx});
     
 % For each image in table
 for i = save_z

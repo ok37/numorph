@@ -438,11 +438,11 @@ for i = 1:nrows
             reg_img = imwarp(A{i,j+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
             c_idx = config.stitch_sub_channel(k);
             
-            %Adjust intensity again?
-            if isequal(config.adjust_tile_position(c_idx),"true")
-                reg_img = tile_pair_adjustment(B{i,k}(:,overlap_h_max),...
-                    reg_img(:,overlap_h_min),reg_img,tile_int);
-            end            
+            %Adjust intensity again? Not stable in images with few features
+            %if isequal(config.adjust_tile_position(c_idx),"true")
+            %    reg_img = tile_pair_adjustment(B{i,k}(:,overlap_h_max),...
+            %        reg_img(:,overlap_h_min),reg_img,tile_int);
+            %end            
             B{i,k} = blend_images(reg_img,B{i,k},false,config.blending_method(c_idx),w_h_adj);  
         end
         
@@ -557,11 +557,11 @@ for i = 1:length(B)-1
         reg_img = imwarp(B{i+1,k},final_tform,'OutputView',ref_fixed2,'FillValues',0);
         c_idx = config.stitch_sub_channel(k);
         
-        %Adjust intensity again?
-        if isequal(config.adjust_tile_position(c_idx),"true")
-            reg_img = tile_pair_adjustment(I{k}(overlap_v_max,:),reg_img(overlap_v_min,:),...
-                reg_img,tile_int);
-        end
+        %Adjust intensity again? Not stable in images with few features
+        %if isequal(config.adjust_tile_position(c_idx),"true")
+        %    reg_img = tile_pair_adjustment(I{k}(overlap_v_max,:),reg_img(overlap_v_min,:),...
+        %        reg_img,tile_int);
+        %end
         I{k} = blend_images(reg_img,I{k},false,config.blending_method(c_idx),w_v_adj); 
     end
     

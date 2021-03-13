@@ -12,6 +12,7 @@ min_signal = 0.05;       % Minimum fraction of signal pixels in reference for re
 % Unpack variables
 z_positions = config.z_positions;
 z_window = config.z_window;
+refThresh = config.signalThresh(1);
 signalThresh = config.signalThresh(channel_idx);
 z_initial = config.z_initial(channel_idx);
 
@@ -21,6 +22,7 @@ res_equal = all(res_adj == 1);
 
 % Get shift threshold as pixels
 tempI = imread(path_ref.file{1});
+npix = numel(tempI);
 shift_threshold = max(size(tempI))*max_shift;
 
 % Check resolutions
@@ -32,6 +34,9 @@ end
 % Adjust signalThresh to 16 bit
 if signalThresh<1
     signalThresh = signalThresh*65535;
+end
+if refThresh<1
+    refThresh = refThresh*65535;
 end
 
 % Read number of reference/moving images
@@ -63,6 +68,12 @@ for i = 1:length(z)
     % window
     z_range = z(i)-z_window+z_initial:1:z(i)+z_window+z_initial;
     ref_img = read_img(path_ref.file{i});
+    
+    % If low intensity in this image, continue to next one
+    refSignal = sum(ref_img>refThresh,'all')/npix;
+    if refSignal < min_signal
+        continue
+    end
 
     % Resample the reference image if the resolution is different
     % Note: we're resizing reference image instead of moving image for
@@ -112,9 +123,6 @@ for i = 1:length(z)
     end
 end
 
-% Display cross-correlation matrix
-disp(mean(cc,1))
-
 % Generate score by multiplying intensity value by cross-correlation. This
 % will lower effect caused by noise in images with no features
 [val, pos] = max(cc'.*max_signal);
@@ -129,8 +137,14 @@ end
 % Max score determines final z displacement
 [~,k] = max(score);
 
+% Display cross-correlation matrix
+disp(max((cc'.*max_signal),2)')
+
 % Adjust final z displacement based on initial z position
-z_displacement = pos_idx(k)-(z_window+1)+z_initial;
+%z_displacement = pos_idx(k)-(z_window+1)+z_initial;
 ave_score = mean(val);
+
+% Just take max cc for z displacement
+mac
 
 end

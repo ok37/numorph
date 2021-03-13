@@ -22,7 +22,7 @@ end
 var_file = fullfile(config.output_directory,'variables','thresholds.mat');
 
 % First check if adj_params exists in variables folder
-if isfile(var_file) || load_from_threholds
+if isfile(var_file) || load_from_thresholds
     load(var_file,'thresholds')
     if all(thresholds.markers == config.markers) && all(thresholds.img_directory == config.img_directory)
         % Save into config

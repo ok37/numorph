@@ -3,7 +3,7 @@ function L_new = expand_centroids3(L, I,rp)
 res = size(I)./size(L);
 L_new = zeros(size(I));
 
-I_adj = imgaussfilt(I); %imopen(I,strel('disk',2));
+I_adj = imgaussfilt(I);
 dim = size(L_new(:,:,1));
 L_zero = zeros(dim);
 
@@ -81,54 +81,6 @@ for i = unique(centroids_full(:,3))'
         centroids_full(a,5) = z_pos_adj;
         a = a+1;
     end
-end
-
-
-imshowpair(L_new(:,:,30),imadjust(I(:,:,30)))
-
-
-    %L_slice = L_new(:,:,i);
-    %L_slice(L_slice > 1) = 0;
-    %L_new(:,:,i) = L_slice;
-    
-    % Remove touching pixels based on 4 connected components
-    %labels = bwconncomp(L_new(:,:,i),4);
-    %cc_sizes = cellfun(@(s) length(s), labels.PixelIdxList);
-    %cc_big = find(cc_sizes > 4);
-    
-    %for j = 1:length(cc_big)
-    %    if cc_sizes(cc_big(j)) == 8
-    %        L_slice = L_zero;
-    %        pixels = labels.PixelIdxList{cc_big(j)};
-    %        L_slice(pixels) = 1;
-            
-    %        for k = 1:length(pixels)
-    %            L_slice1 = L_slice;
-    %            L_slice1(pixels(k)) = 0;
-    %            cc = bwconncomp(L_slice1,4);
-    %            l(k) = cc.NumObjects == 2;
-    %        end
-            
-    %        L_slice = L_new(:,:,i);
-    %        L_slice(pixels(l)) = 0;
-    %        L_new(:,:,i) = L_slice;
-            
-            
-            %cc1 = labels.PixelIdxList{cc_big(j)}(1:4);
-            %cc2 = labels.PixelIdxList{cc_big(j)}(5:8);
-            %cc3 = cc1 + size(L_new,1);
-        
-            %rm_pix = ismember(cc2,cc3);
-        
-            %L_slice = L_new(:,:,i);
-            %L_slice(cc2(rm_pix)) = 0;
-        
-            %rm_pix = ismember(cc3,cc2);
-            %L_slice(cc1(rm_pix)) = 0;
-        
-            %L_new(:,:,i) = L_slice;
-            
-            
-            
+end        
 
 end

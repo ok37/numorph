@@ -75,8 +75,11 @@ if isfield(config,'channel_num') && ~isempty(config.channel_num)
     c_idx = cell(1,length(config.channel_num));
     for i = 1:length(config.channel_num)
         a = arrayfun(@(s) contains(s.name,config.channel_num(i)),tiff_files);
-        a = a & arrayfun(@(s) contains(s.name,config.markers(i)),tiff_files);
-        if ~isempty(a)
+        b = a & arrayfun(@(s) contains(s.name,config.markers(i)),tiff_files);
+        if ~isempty(b) && any(b)
+            c_idx{i} = b;
+            idx = idx | b;
+        else
             c_idx{i} = a;
             idx = idx | a;
         end

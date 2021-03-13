@@ -31,7 +31,7 @@ switch sample
         % (a/p):anterior/posterior, (s/i):superior/inferior, (l/r):left/right
         % Specified as location at row(y)=0, column(x)=0, slice(z)=0
         orientation = "ail";                                 % 1x3 string specifying sample orientation
-
+        hemisphere = "left";                                 % "left","right","whole","none"
     otherwise
         error("Sample %s does not exist in NM_samples.",sample)
 end

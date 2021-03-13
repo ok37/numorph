@@ -68,7 +68,7 @@ dependencies:
     - imageio==2.9.0
     - importlib-metadata==1.7.0
     - joblib==0.16.0
-    - keras==2.2.4
+    - keras==2.1.6
     - keras-applications==1.0.8
     - git+https://www.github.com/keras-team/keras-contrib.git
     - keras-preprocessing==1.1.2
@@ -80,6 +80,7 @@ dependencies:
     - numexpr==2.7.1
     - numpy==1.16.0
     - opencv-python==4.2.0.32
+    - pydot==1.4
     - protobuf==3.13.0
     - pywavelets==1.1.1
     - scikit-image==0.16.2

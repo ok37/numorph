@@ -14,7 +14,7 @@ matplotlib.use('QT5Agg')
 import matplotlib.pyplot as plt
 
 
-acquired_img_resolution = [1.208, 1.208, 4]  # Resolution of acquired images in um/pixel
+acquired_img_resolution = [1.21, 1.21, 4]  # Resolution of acquired images in um/pixel
 mask_resolution = [10, 10, 10]  # Resolution of mask in um/pixel
 mask_res = [i / j for i, j in zip(mask_resolution, acquired_img_resolution)]
 

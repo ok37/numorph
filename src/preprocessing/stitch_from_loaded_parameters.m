@@ -47,7 +47,8 @@ try
     img_name_grid = reshape(path_table.file,size(img_name_grid));
 catch ME
     if isequal(ME.identifier,'MATLAB:getReshapeDims:notSameNumel')
-        error("Inconsistent image file information. Recalculate adjusted z and/or check configuration")
+        error("Inconsistent image file information. Check configuration or " +....
+            "recalculate stitching parameters and z_adjustment.")
     end
 end
 

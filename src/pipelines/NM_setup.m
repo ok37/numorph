@@ -4,6 +4,12 @@ function NM_setup
 o = weboptions('CertificateFilename','');
 home_path = fileparts(which('NM_config'));
 
+% Create empty directories
+tmp_folder = fullfile(home_path,'data','tmp');
+if ~isfolder(tmp_folder)
+    mkdir(tmp_folder)
+end
+
 % Check Matlab version and required add-ons
 fprintf("Checking MATLAB toolboxes \n")
 v = ver;
@@ -12,7 +18,7 @@ idx = v(arrayfun(@(s) isequal(s.Name,'MATLAB'),v)).Release;
 idx = str2double(idx([5,6]));
 if idx < 20
     warning("Detected MATLAB release %s. Some functions may not exist or work correctly"+...
-        "in this release. Update MATLAB to at least version R2020a.")
+        "in this release. Update MATLAB to at least version R2020a.",v(1).Release)
     pause(5)
 end
 
