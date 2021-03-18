@@ -447,6 +447,7 @@ if isempty(config.classify_channels)
     config.classify_channels = unique(path_table.channel_num');
 end
 
+
 markers = config.markers(config.classify_channels);
 path_table = path_table(ismember(path_table.markers,markers),:);
 
@@ -632,9 +633,11 @@ for i = 1:length(classes)
     idx = cen_classes(:,5) == classes(i);
     count = sum(idx);
     intensities = round(mean(centroids(idx,5:end),1));
+
+    
+    
     fprintf('\t Classified %d cells or %.3f of centroids as type %d.\n',...
         count,count/size(cen_classes,1),classes(i))
-    fprintf('\t Average intensities: %s.\n',num2str(intensities))
 end
 
 % Write matrix

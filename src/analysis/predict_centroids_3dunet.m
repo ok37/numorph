@@ -5,6 +5,12 @@ function predict_centroids_3dunet(config)
 % via conda. 
 %--------------------------------------------------------------------------
 
+% Use the default chunk sizes for the default 3D-Unet trained model
+config.chunk_size = [112,112,32];          % Chunk size of unet model
+config.chunk_overlap = [16,16,8];          % Overlap between chunks
+config.trained_resolution = [1.21,1.21,4]; % Resolution at which the model was trained. Only required if resampling
+config.resample_chunks = "false";          % Resample images to match model resolution. This process takes significantly longer
+
 % Save matlab's config structure in the directory
 home_path = fileparts(which('NM_config'));
 save_path = fullfile(home_path,'src','analysis','3dunet','config.mat');

@@ -138,13 +138,10 @@ end
 [~,k] = max(score);
 
 % Display cross-correlation matrix
-disp(max((cc'.*max_signal),2)')
+disp(mean(cc,1))
 
 % Adjust final z displacement based on initial z position
-%z_displacement = pos_idx(k)-(z_window+1)+z_initial;
+z_displacement = pos_idx(k)-(z_window+1)+z_initial;
 ave_score = mean(val);
-
-% Just take max cc for z displacement
-mac
 
 end

@@ -130,7 +130,7 @@ trainedClassifier.ClassificationSVM = classificationSVM;
 partitionedModel = crossval(trainedClassifier.ClassificationSVM, 'KFold', 5);
 
 % Compute validation predictions
-[validationPredictions, ~] = kfoldPredict(partitionedModel);
+[validationPredictions, score] = kfoldPredict(partitionedModel);
 
 % Display validation accuracy
 validationPredictions(ismember(validationPredictions,outlierTypes)) = min(outlierTypes);
@@ -140,7 +140,7 @@ fprintf("Correctly classified %.2f%% of cells after cross validation \n",...
 
 responses = unique(response)';
 for i = 1:length(responses)
-fprintf("Classification accuracy is %.2f%% for class %d \n",...
+fprintf("Classifying at rate of %.2f%% of true predictions for class %d \n",...
     sum(validationPredictions==responses(i))*100/sum(response == i),responses(i))
 end
 

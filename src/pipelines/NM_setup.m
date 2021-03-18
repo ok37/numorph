@@ -172,7 +172,7 @@ if c_idx ~= 0
     model_files = dir(fullfile(home_path,'src','analysis','3dunet','nuclei','models'));
     if ~any(endsWith({model_files.name},'.h5'))
        fprintf("Downloading 3D-Unet model 121_model.h5...\n")
-        out = websave(fullfile(model_files(1).folder,'121_model.h5'),...
+        out = websave(fullfile(model_files(1).folder,'075_121_model.h5'),...
             "https://bitbucket.org/steinlabunc/numorph/downloads/121_model.h5",o);
     else
         fprintf("Model file %s already exists \n",...
@@ -189,10 +189,10 @@ if ~isfolder(template_path)
     reload_default_template('evaluate',true)
     reload_default_template('samples',true)
 else
-    reload_default_template('process',false)
-    reload_default_template('analyze',false)
-    reload_default_template('evaluate',false)
-    reload_default_template('samples',false)
+    %reload_default_template('process',false)
+    %reload_default_template('analyze',false)
+    %reload_default_template('evaluate',false)
+    %reload_default_template('samples',false)
 end
 addpath(template_path)
 

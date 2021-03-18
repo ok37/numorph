@@ -1,4 +1,4 @@
-function I_final = create_image_slices(centroids, path_table_stitched, config)
+function I_final = create_image_slices2(centroids, path_table_stitched, config)
 % Create overlay of centroids with cell-type
 
 spacing = 100;

@@ -85,7 +85,11 @@ for i = 1:nchannels
     % Change the orientation
     if isequal(config.normalize_orientation,"true")
         or_out = config.orientation{1};
-        or_in = config.orientation{channels(i)};
+        if length(config.orientation)>1
+            or_in = config.orientation{channels(i)};
+        else
+            or_in = config.orientation{1};
+        end
         re_I = permute_orientation(re_I,or_in,or_out);
     end    
 

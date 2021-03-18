@@ -11,12 +11,13 @@ save_samples = "true";                          % true, false
 
 %% Annotation Parameters
 % Orientation key: anterior(a)/posterior(p), superior(s)/inferior(i), left(l)/right(r)
-use_annotation_mask = "true";            % true, false or name of file; Use annotation mask for cell counting. Specify mask filename and place in /data/masks/
+use_annotation_mask = "true";            % true, false or name of file; Use annotation mask for cell counting. Specify mask filename and place in /data/usr/masks/
 structures = "cortex";                   % Specify csv file in /annotations detailing which structures to analyze
 
 % For custom annotations
-%annotation_resolution = 45;              % Isotropic image resolution of mask file if using custom
+%annotation_resolution = 25;              % Isotropic image resolution of mask file if using custom
 %annotation_orientation = 'lps';          % Orientation of custom annotation
+%annotation_hemisphere = 'left';          % Hemisphere of annotation
 
 %% Resampling Parameters
 resample_resolution = 25;                   % Isotropic resample resolution. This is also the resolution at which registration is performed
@@ -54,29 +55,27 @@ classify_method = "svm";                    % threhsold, gmm, svm; Cell-type cla
 classify_channels = [1,2,3];                % which channels to use for classification
 remeasure_centroids = "false";              % true,false; Re-measure channel intensities and save into centroids sheet
 
-%z_normalization = 'false';                  % Apply z normalization to thresholds
-%log_outliers = 0;                           % Apply log to z scores above or below this threshold
-%skip_c1 = "true";                           % Skip classifying 1st (reference/nuclei) channel
-
 % Threshold classification
 thresholds = [0.005,0.005];                 % Intensity thresholds 
-expression = "1*mode + 5*mad";           % Threshold expression
+expression = "1*mode + 5*mad";              % Threshold expression
 
 % Gaussian-Mixture Model (gmm) classification
-n_clusters = [];                           % Number of clusters for GMM
-split_markers = "true";                    % Run GMM seperately for each marker
-
+n_clusters = [];                            % Number of clusters for GMM
+split_markers = "true";                     % Run GMM seperately for each marker
 mix_proportions = [0.55,0.15,0.30,0.01];	% Intial mixing proportions for n-1 markers for intializing GMM. Leave empty to estimate with k-means++
 mix_markers = {[],2,3,[2,3]};               % Marker numbers for the mixing proprtions described above
 confidence = [0.5,0.5,0.5,0.5];             % Posterior probability of cell being positive for a marker. This will get adjusted with addition of more clusters
-stratify_gmm_csv = "true";               % Run GMM clustering sper individual structures
+stratify_gmm_csv = "true";                  % Run GMM clustering sper individual structures
+%z_normalization = 'false';                  % Apply z normalization to thresholds
+%log_outliers = 0;                           % Apply log to z scores above or below this threshold
+%skip_c1 = "true";                           % Skip classifying 1st (reference/nuclei) channel
 
 % Support-Vector Machine (svm) classification
 load_patches = "true";                          % Load previous centroid patches
 load_groups = [];                                % Merge patch annotation from different groups for training
 keep_classes = 1:3;                             % Which classes to keep after prediction. Other labeled classes will be discarded
 classify_by_annotations = "false";              % Use structure annotations during model training/predictions. Treated as factors
-patch_size = [50,7];                            % 1x2 integer. [Patch size for viewing, patch size read by classifier]
+patch_size = [50,6];                            % 1x2 integer. [Patch size for viewing, patch size read by classifier]
 n_patches = 1000;                               % integer. Number of patches to generate
 min_class_thresh = 0.5;                         % numeric <1. Remove cells dim in every channel from classifier. (i.e. 0.5 removes cells below 50th percentile for all channels)
 

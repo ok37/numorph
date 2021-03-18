@@ -458,4 +458,5 @@ if nargout>1
         fprintf('Deleting temporary directory %s\n',outputDir)
         rmdir(outputDir,'s')
     end
+    varargout{3} = status;
 end

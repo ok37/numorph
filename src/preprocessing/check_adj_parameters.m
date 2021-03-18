@@ -37,7 +37,9 @@ function [adj_params_full, config, lowerThresh, upperThresh, signalThresh] = che
 lowerThresh = config.lowerThresh;
 signalThresh = config.signalThresh;
 upperThresh = config.upperThresh;
-ntiles = nrows.*ncols;
+n_tiles = nrows.*ncols;
+n_markers = length(config.markers);
+
 
 % If given is 16-bit integer, rescale to unit interval
 if lowerThresh>1
@@ -53,7 +55,6 @@ end
 % If no adjustment parameters specified, check lengths and return
 if isempty(adj_params)
     if ~isempty([lowerThresh upperThresh signalThresh])
-        n_markers = length(config.markers);
         msg = "User thresholds must be specified for all markers.";
         assert(length(lowerThresh) == n_markers,msg)
         assert(length(upperThresh) == n_markers,msg)
@@ -85,7 +86,7 @@ if any(ismember(config.adjust_tile_shading,"basic"))
 end
 
 % Get measured thresholds from adj_params structure
-adj_params_full = adj_params; a=1;
+adj_params_full = adj_params;
 for i = 1:length(config.markers)
     if isfield(adj_params_full,config.markers(i))
         adj_params = adj_params_full.(config.markers(i));
@@ -103,7 +104,6 @@ for i = 1:length(config.markers)
         config.lowerThresh(i) = lowerThresh_measured;
     else
         fprintf('%s\t Using user-defined lowerThresh of %s \n',datetime('now'),num2str(round(lowerThresh*65535)));    
-        adj_params.lowerThresh = lowerThresh(i);
     end
 
     if isempty(upperThresh)
@@ -124,9 +124,13 @@ for i = 1:length(config.markers)
 
     % Set Gamma equal to 1 if undefined
     if isempty(config.Gamma)
-        adj_params.Gamma = 1;
+        adj_params.Gamma = ones(1,length(config.markers));
     else
-        adj_params.Gamma = config.Gamma(i); 
+        if length(config.Gamma) == n_markers
+            adj_params.Gamma = config.Gamma(i); 
+        else
+            adj_params.Gamma = config.Gamma(1); 
+        end
     end
 
     % Check img directories
@@ -152,7 +156,7 @@ for i = 1:length(config.markers)
     end
     
     % Check tile position
-    if isequal(adj_params.adjust_tile_position,'true') && ntiles(i)>1
+    if isequal(adj_params.adjust_tile_position,'true') && n_tiles(i)>1
         assert(~isempty(adj_params.t_adj), "No tile position adjustments found for "+...
             "marker %s",config.markers(i))
         assert(size(adj_params.t_adj,1) == nrows(i), "Incorrect numner of rows "+...

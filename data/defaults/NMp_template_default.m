@@ -24,7 +24,7 @@ laser_y_displacement = 0;               % [-0.5,0.5]; Displacement of light-shee
 % Parameters for BaSIC shading_correction (i.e. adjust_tile_shading = "basic") 
 sampling_frequency = 0.2;               % [0,1]; Fraction of images to read and sample from. Setting to 1 means use all images
 shading_correction_tiles = [];          % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
-shading_smoothness = 2;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
+shading_smoothness = 1;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
@@ -34,7 +34,7 @@ z_window = 5;                           % integer; Search window for finding cor
 z_initial = 0;                          % 1xn_channels-1 interger; Predicted initial z displacement between reference channel and secondary channel (i.e. 
 
 %% Channel Alignment Parameters
-align_method = "elastix";               % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
+align_method = "translation";           % elastix, translation; Channel alignment by rigid, 2D translation or non-rigid B-splines using elastix
 align_tiles = [];                       % Option to align only certain stacks and not all stacks. Row-major order
 align_channels = [];                    % Option to align only certain channels (set to >1)
 align_slices = {};                      % Option to align only certain slice ranges. Set as cell array for non-continuous ranges (i.e. {1:100,200:300})
@@ -45,10 +45,10 @@ only_pc = "false";                      % true, false; Use only phase correlatio
 
 % Specific to elastix method
 align_chunks = [];                      % Only for alignment by elastix. Option to align only certain chunks
-elastix_params = "16_prealign";         % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
-pre_align = "true";                     % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
-max_chunk_size = 1500;                  % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
-chunk_pad = 10;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
+elastix_params = "32_bins";             % 1xn_channels-1 string; Name of folders containing elastix registration parameters. Place in /supplementary_data/elastix_parameter_files/channel_alignment
+pre_align = "false";                    % true, false; (Experimental) Option to pre-align using translation method prior to non-linear registration
+max_chunk_size = 300;                   % integer; Chunk size for elastix alignment. Decreasing may improve precision but can give spurious results
+chunk_pad = 30;                         % integer; Padding around chunks. Should be set to value greater than the maximum expected translation in z
 mask_int_threshold = [];                % numeric; Mask intensity threshold for choosing signal pixels in elastix channel alignment. Leave empty to calculate automatically
 resample_s = [3 3 1];                   % 1x3 integer. Amount of downsampling along each axis. Some downsampling, ideally close to isotropic resolution, is recommended
 hist_match = 64;                        % 1xn_channels-1 interger; Match histogram bins to reference channel? If so, specify number of bins. Otherwise leave empty or set to 0. This can be useful for low contrast images
@@ -56,7 +56,7 @@ hist_match = 64;                        % 1xn_channels-1 interger; Match histogr
 %% Stitching Parameters
 % Parameters for running iterative 2D stiching
 sift_refinement = "true";               % true, false; Refine stitching using SIFT algorithm (requires vl_fleat toolbox)
-load_alignment_params = "false";        % true, false; True: apply previously calculated parameters to align individual tiles during stitching
+load_alignment_params = "true";         % true, false; Apply channel alignment translations during stitching
 overlap = 0.10;                         % 0:1; overlap between tiles as fraction
 
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
@@ -90,6 +90,6 @@ DoG_factor = 1;                         % [0,1]; Factor controlling amount of ad
 smooth_img = "false";                   % 1xn_channels, "gaussian", "median", "guided". Apply a smoothing filter
 smooth_sigma = [];                      % 1xn_channels numeric; Size of smoothing kernel. For median and guided filters, it is the dimension of the kernel size
 
-% Permute image
+% Permute image. Sample orientation must be updated in downstream analysis
 flip_axis = "none";                     % "none", "horizontal", "vertical", "both"; Flip image along horizontal or vertical axis
 rotate_axis = 0;                        % 90 or -90; Rotate image

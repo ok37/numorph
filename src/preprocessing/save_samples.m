@@ -70,7 +70,7 @@ switch process
             imwrite(img,fullfile(sub_directory,file_name))
         end
         
-        % Check for exporgraphics function in MATLAB 2020
+        % Check for exportgraphics function in MATLAB 2020
         if exist('exportgraphics','file') == 0
                 warning("Could not save flatfield images due to missing "+...
                     "export function. Update to MATLAB 2020.")
@@ -84,7 +84,7 @@ switch process
             params = config.adj_params.(markers{i});
             
             % Save flatfield 
-            flatfield = params.flatfield;
+            flatfield = 1./params.flatfield;
             fig = figure('visible','off');
             imagesc(flatfield,[0.5,1.5])
             colorbar

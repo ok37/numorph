@@ -72,10 +72,12 @@ elseif isnumeric(t_adj)
 end
 
 % Apply flatfield correction
-if isnumeric(flatfield) && isnumeric(darkfield)
-   I = (I-darkfield)./flatfield + darkfield;
-elseif isnumeric(flatfield)
-   I = I./flatfield;
+if isnumeric(flatfield)
+    if isnumeric(darkfield)
+        I = (I-darkfield)./flatfield + darkfield;
+    else
+        I = I./flatfield;
+    end
 end
 
 % Adjust for light-sheet width

@@ -41,6 +41,7 @@ if ~isfolder(save_directory)
     mkdir(save_directory);
 end
 
+% Can only do 3 markers currently
 markers = config.markers;
 if length(markers)>3
     markers = markers(1:3);
@@ -58,17 +59,27 @@ if ~isequal(centroids,'load')
         sum(k_idx),length(k_idx),low_thresh)
     cen_sub = centroids(k_idx,:);
     cen_idx = find(k_idx)';
+    
+    % Shuffle indexes
+    s_idx = randperm(size(cen_sub,1));
+    cen_idx = cen_idx(s_idx);
+    cen_sub = cen_sub(s_idx,:);
+    
+    fprintf('\t Selecting %d random patches \n',k)
+    
+    %cen_sub = zeros(k,3);
+    %cen_idx = zeros(1,k);
 
     % Take random sample from indexes
-    s_idx = randsample(size(cen_sub,1),k);
-    fprintf('\t Selecting %d random patches \n',k)
+    %s_idx = randsample(size(cen_sub,1),k);
+    %fprintf('\t Selecting %d random patches \n',k)
 
-    cen_sub = cen_sub(s_idx,:);
-    cen_idx = cen_idx(s_idx);
+    %cen_sub = cen_sub(s_idx,:);
+    %cen_idx = cen_idx(s_idx);
     
-    [~,i] = sort(cen_sub(:,3));
-    cen_sub = cen_sub(i,:);
-    cen_idx = cen_idx(i)';
+    %[~,i] = sort(cen_sub(:,3));
+    %cen_sub = cen_sub(i,:);
+    %cen_idx = cen_idx(i)';
 else
    % Load previous patch info list
    fprintf('\t Loading previous patch info \n')
@@ -78,33 +89,46 @@ else
    cen_sub = patch_info(:,2:end);
 end
 
-% Get layer and structure info
-structures = string(bin_annotation_structures(cen_sub(:,4),'cortex'));
-layers = string(bin_annotation_structures(cen_sub(:,4),'layers'));
-
 patches = zeros([2*patch_size+1,2*patch_size+1,k],'uint16');
 patches = repmat({patches},1,3);
 ftable = cell(size(cen_sub,1),length(markers));
-
-for i = 1:size(cen_sub,1)
+cen_idx_save = false(1,length(cen_idx));
+a = 1;
+b = 1;
+while a<k+1
     % Get positions
-    z = cen_sub(i,3);
-    pos = cen_sub(i,1:2);
+    i = cen_idx(b);
+    z = cen_sub(b,3);
+    pos = cen_sub(b,1:2);
     
     % Get file
     file = path_table(path_table.z == z,1).file;
     ranges = {[pos(1)-patch_size,pos(1)+patch_size], [pos(2)-patch_size,pos(2)+patch_size]};
+    
+    c = 0;
     for j = 1:length(markers)
         % Read patch
         img = imread(file{j},'PixelRegion',ranges);
+        
+        if ~isequal(size(img),repmat(patch_size*2+1,1,2))
+            break
+        end
 
         % Get features from patch
-        ftable{i,j} = measure_patch_features(img, class_size, true, config.markers(j));
-
+        ftable{a,j} = measure_patch_features(img, class_size, true, config.markers(j));
+        
         % Add to stack
-        patches{j}(:,:,i) = img;
+        patches{j}(:,:,a) = img;
+        c = 1;
     end
+    if c == 1
+        cen_idx_save(b) = 1;
+        a = a+1;
+    end
+    b = b+1;
 end
+cen_idx = cen_idx(cen_idx_save)';
+cen_sub = cen_sub(cen_idx_save,:);
 
 % Adjust intensity
 for i = 1:length(markers)    
@@ -123,17 +147,19 @@ ftable = cat(2,ftable1{:});
 % Save patch
 options.overwrite = true;
 options.color = true;
+options.message = false;
 img_name = fullfile(save_directory,sprintf('%s_patches.tif',config.sample_id));
-saveastiff(patches,char(img_name),options)
+saveastiff(patches,char(img_name),options);
 
 % Save patch info
-if ~isequal(centroids,'load')
-    patch_info = horzcat(cen_idx,cen_sub);
-    patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_id));
-    writematrix(patch_info,patch_name)
-end
+patch_info = horzcat(cen_idx',cen_sub);
+patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_id));
+writematrix(patch_info,patch_name)
 
 % Save patch features
+% Get layer and structure info
+structures = string(bin_annotation_structures(cen_sub(:,4),'cortex'));
+layers = string(bin_annotation_structures(cen_sub(:,4),'layers'));
 feature_table = array2table([layers,structures],'VariableNames',{'Layer', 'Structure'});
 feature_table = horzcat(feature_table,ftable);
 table_name = fullfile(save_directory,sprintf('%s_patch_features.csv',config.sample_id));

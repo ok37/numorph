@@ -37,8 +37,8 @@ end
 
 % Get confirmation from user
 if ~override
-    usr_confirmation = input(sprintf("Overwriting default template for stage "+...
-        "'%s'. Type 'yes' to confirm. \n",stage));  
+    usr_confirmation = input(sprintf("Overwriting template for stage "+...
+        "'%s' with default. Type 'yes' to confirm. \n",stage));  
 else
     usr_confirmation = 'yes';
 end
@@ -50,13 +50,13 @@ if isequal(usr_confirmation,'yes')
     save_location = fullfile(home_path,'templates',fname);
     [status,msg] = copyfile(file_location,save_location);
     if status 
-        fprintf("Default template for stage '%s' has been replaced.\n",stage)
+        fprintf("Template for stage '%s' has been replaced.\n",stage)
     else
         disp(msg)
         fprintf("Error Defaults for stage '%s' has NOT been replaced.\n",stage)
     end
 else
-    fprintf("Default template for stage '%s' has NOT been replaced.\n", stage)
+    fprintf("Template for stage '%s' has NOT been replaced.\n", stage)
 end
     
     

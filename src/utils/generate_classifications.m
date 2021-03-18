@@ -26,13 +26,14 @@ function ud = generate_classifications(inputs, patch_path, info_path)
 
 % Get path to centroid from config structure
 if isstruct(inputs)
-    img_path = fullfile(config.output_directory,'classifier',...
-        sprintf('%s_patches.tif',config.sample_id));
+    img_path = fullfile(inputs.output_directory,'classifier',...
+        sprintf('%s_patches.tif',inputs.sample_id));
     img = loadtiff(img_path);
-    itable = fullfile(config.output_directory,'classifier',...
-        sprintf('%s_patch_info.csv',config.sample_id));
+    itable = fullfile(inputs.output_directory,'classifier',...
+        sprintf('%s_patch_info.csv',inputs.sample_id));
     info = readmatrix(itable);
-    sample = config.sample_id;
+    sample = inputs.sample_id;
+    output_directory = fullfile(inputs.output_directory,'classifier');
 end
 
 if ischar(inputs) || isstring(inputs)
@@ -63,6 +64,7 @@ if ischar(inputs) || isstring(inputs)
             error("Could not locate %s in current directory",info_name)
         end
     end
+    output_directory = pwd;
 end
 
 if size(img,4) == 3
@@ -74,6 +76,12 @@ ud.c = 'c';
 ud.s = 'all';
 ud.sample = sample;
 ud.class = zeros(1,size(img,4));
+ud.output_directory = output_directory;
+
+for i = 1:size(img,3)
+    ud.thresh(i) = {[0,1]};
+end
+
 layers = bin_annotation_structures(info(:,5),'layers');
 
 [nrows,~] = size(img);
@@ -111,9 +119,11 @@ switch keydata.Key
     case 'leftarrow'
         ud = advance_slice(f, vs, ud, 'l');
     case 'c'
+        % Display composite
         ud.c = 'c';
         ud = display_slice(f, vs, ud);
     case 'r'
+        % Display red
         if ud.c == 'r'
             ud.c = 'c';
         else
@@ -121,6 +131,7 @@ switch keydata.Key
         end
         ud = display_slice(f, vs, ud);
     case 'g'
+        % Display green
         if ud.c == 'g'
             ud.c = 'c';
         else
@@ -128,13 +139,31 @@ switch keydata.Key
         end
         ud = display_slice(f, vs, ud);
     case 'b'
+        % Display blue
         if ud.c == 'b'
             ud.c = 'c';
         else
             ud.c = 'b';
         end
         ud = display_slice(f, vs, ud);
+    case 'a'
+        % Adjust intensity
+        if isequal(ud.c,'c')
+            ud.thresh{1}(1,2) = ud.thresh{1}(1,2)*0.9;
+            ud.thresh{2}(1,2) = ud.thresh{2}(1,2)*0.9;
+            ud.thresh{3}(1,2) = ud.thresh{3}(1,2)*0.9;
+            
+        elseif isequal(ud.c,'r')
+            ud.thresh{1}(1,2) = ud.thresh{1}(1,2)*0.9;
+        elseif isequal(ud.c,'g')
+            ud.thresh{2}(1,2) = ud.thresh{2}(1,2)*0.9;
+        else 
+            ud.thresh{3}(1,2) = ud.thresh{3}(1,2)*0.9;
+        end
+        ud = display_slice(f, vs, ud);
+
     case 'f'
+        % Find nearest unannotated
         if ~isequal(ud.s,'all')
             return
         end        
@@ -146,6 +175,7 @@ switch keydata.Key
             disp("All patches annotated!")
         end
     case 's'
+        % Subset class
         x = input('Enter cell-type index or ''all'' to release subset: ','s');
         ud.s = x;
         if ~isequal(x,'all')
@@ -154,20 +184,26 @@ switch keydata.Key
         ud = advance_slice(f, vs, ud, 'r');
         figure(f)
     case 'w'
+        % Write table
         ttable = array2table(ud.class','VariableNames',{'Type'});
         fname = sprintf('%s_classifications.csv',ud.sample);
-        writetable(ttable,fname)
+        writetable(ttable,fullfile(ud.output_directory,fname))
+        fprintf("Table saved\n")
     case 'l'
-        fname = sprintf('%s_classifications.csv',ud.sample);
+        % Load previous table
+        fname = fullfile(ud.output_directory,sprintf('%s_classifications.csv',ud.sample));
         if isfile(fname)
+            fprintf("Loading previous table\n")
             ttable = readtable(fname);
             ud.class = ttable{:,1}';
             ud = display_slice(f, vs, ud);
+
         else
             fprintf("Could not locate previous classification table in current "+...
                 "directory\n")
         end
     case 'h'
+        % Display help
         display_help_menu
     case '1'
         ud.class(ud.z) = 1;
@@ -206,10 +242,17 @@ img = vs.slice{ud.z};
 switch ud.c
     case 'r'
     img(:,:,2:3) = 0;
+    img = imadjust(img,ud.thresh{1});
     case 'g'
     img(:,:,[1 3]) = 0;
+    img = imadjust(img,ud.thresh{2});
     case 'b'
     img(:,:,1:2) = 0;
+    img = imadjust(img,ud.thresh{3});
+    case 'c'
+    img(:,:,1) = imadjust(img(:,:,1),ud.thresh{1});
+    img(:,:,2) = imadjust(img(:,:,2),ud.thresh{2});
+    img(:,:,3) = imadjust(img(:,:,3),ud.thresh{3});
 end
 
 ud.img = img;
@@ -277,6 +320,7 @@ msg = "Manual annotation key strokes:\n"+...
     "  g:         display only green (2nd) channel\n"+...
     "  b          display only blue (3rd) channel\n"+...
     "  c:         display composite (all channels)\n"+...
+    "  a:         increase brightness of selected channels\n"+...
     "  h:         display help menu\n"+...
     "  s:         subset patches of a given annotation\n"+...
     "  f:         find nearest unannotated patch\n"+...

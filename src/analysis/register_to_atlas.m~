@@ -287,8 +287,6 @@ end
 use_points = false;
 if ~isempty(points)
     use_points = true;
-    mov_points = points.mov_points;
-    atlas_points = points.atlas_points;
 end
 
 % If multiple moving channels, apply rigid registration to pre-align

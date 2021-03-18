@@ -61,7 +61,6 @@ centroids = centroids(~rm_idx,:);
 
 % Intitialize matrices and models
 count = zeros(size(centroids,1),n_markers);
-a = ref_n-1;
 for i = ref_n:n_markers
     % Clustering using thresholds
     idx = 4+i;
@@ -89,10 +88,10 @@ for i = ref_n:n_markers
     % Calculate threshold
     if ~isempty(config.intensity_thresholds)
         % From manually specified value
-        if config.intensity_thresholds(i-a) > 0 && config.intensity_thresholds(i-a) < 1
-            thresh = config.intensity_thresholds(i-a)*65535;
-        elseif config.intensity_thresholds(i-a) > 1 
-            thresh = config.intensity_thresholds(i-a);
+        if config.intensity_thresholds(i-1) > 0 && config.intensity_thresholds(i-1) < 1
+            thresh = config.intensity_thresholds(i-1)*65535;
+        elseif config.intensity_thresholds(i-1) > 1 
+            thresh = config.intensity_thresholds(i-1);
         else
             thresh = 0;
         end
@@ -135,32 +134,34 @@ end
 classes = classes(idx,:);
 
 
-% Calculate classes
-[~,c] = ismember(count,classes,'rows');
-ct(~rm_idx) = c;
-ct(rm_idx) = 0;
 
-%if n_markers > 2
-%    % Count cells positive for all markers and add to last column
-%    count(:,end) = all(count(:,2:end-1),2);
-%    count(:,2:end-1) = count(:,2:end-1) - count(:,end);
-%end
+a = arrayfun(@(s) find(
+
+
+
+
+if n_markers > 2
+    % Count cells positive for all markers and add to last column
+    count(:,end) = all(count(:,2:end-1),2);
+    count(:,2:end-1) = count(:,2:end-1) - count(:,end);
+end
 
 % Calculate all negative cells
-%count(:,1) = ~any(count(:,2:end),2);
+count(:,1) = ~any(count(:,2:end),2);
 
 % Save cell type counts
-%[r,c] = find(count);
-%v1(r) = c;
-%ct(~rm_idx) = c;
+[r,c] = find(count);
+v1(r) = c;
+ct(~rm_idx) = v1;
+ct(rm_idx) = 0;
 
 % Calculate sums
-%max_ct = max(unique(ct));
-%sums = histcounts(ct,-0.5:max_ct+0.5);
-%sums = sums(2:end);
-%sums(1) = sums(1) + sum(l1_idx);
-%pct = sums/sum(sums(:));
-%disp(pct)
+max_ct = max(unique(ct));
+sums = histcounts(ct,-0.5:max_ct+0.5);
+sums = sums(2:end);
+sums(1) = sums(1) + sum(l1_idx);
+pct = sums/sum(sums(:));
+disp(pct)
 
 end
 

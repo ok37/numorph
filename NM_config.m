@@ -70,14 +70,21 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
     % Get samples in group
     samples = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
     samples = cellfun(@(s) string(s(2:end-1)),samples);
-    groups = cell(1,length(samples));
-    for i = 1:length(samples)
-        [~, centroids_directory(i), groups{i}] = NM_samples(samples(i),false);
+    if ismember(sample,samples)
+        fprintf('%s\t Evaluating single sample %s \n',datetime('now'),sample)
+        [~, centroids_directory] = NM_samples(sample, false);
+        samples = {sample};
+        groups = {};        
+    else
+        groups = cell(1,length(samples));
+        for i = 1:length(samples)
+            [~, centroids_directory(i), groups{i}] = NM_samples(samples(i),false);
+        end
+        idx = cellfun(@(s) any(contains(s,sample)),groups);
+        centroids_directory = centroids_directory(idx);
+        samples = samples(idx);
+        groups = groups(idx);
     end
-    idx = cellfun(@(s) any(contains(s,sample)),groups);
-    centroids_directory = centroids_directory(idx);
-    samples = samples(idx);
-    groups = groups(idx);
     
     % Check if cell counts are present
     idx = true(1,length(samples));
@@ -114,7 +121,7 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
     output_directory = results_directory;
     use_processed_images = "false";
     clear sample;
-    save('./templates/NM_variables.mat','samples','centroids_directory','groups','output_directory','-mat','-append')
+    save('./data/tmp/NM_variables.mat','samples','centroids_directory','groups','output_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
@@ -142,7 +149,7 @@ if isequal(elastix_path_bin,'default')
 end
 
 if isequal(elastix_path_lib,'default')
-    elastix_path_bin = fullfile(home_path,'src','external','elastix','lib');
+    elastix_path_lib = fullfile(home_path,'src','external','elastix','lib');
 end
 add_elastix_to_path(elastix_path_bin,elastix_path_lib)
 

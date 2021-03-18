@@ -429,6 +429,7 @@ if isequal(config.align_method,'translation')
                     datetime('now'),z_tile(idx),y,x);
             end
             z_matrix = reshape(z_tile,[ncols, nrows])';
+            % Check for outliers
             z_displacement_align.(align_markers(k)) = z_matrix;
         end
         % Save displacement variable to output directory
@@ -807,10 +808,12 @@ else
     loaded = false;
 end
 
-if isequal(config.stitch_images,"true") && loaded        
+if isequal(config.stitch_images,"true") && loaded
     % Check if all slices have been stitched. If not, switch to update
     % and stitch remaining slices
-    if any(all(h_stitch_tforms == 0)) && any(all(v_stitch_tforms == 0))
+    if all(h_stitch_tforms==0,'all') && all(v_stitch_tforms==0,'all')
+        update_stack = true;        
+    elseif any(all(h_stitch_tforms == 0)) && any(all(v_stitch_tforms == 0))
         warning("Missing stitching transforms in loaded stitching parameters. "+...
             "Stitching will continue only for these slices. To re-stitch entire stack, "+...
             "set stitch_images to ""update"".");

@@ -130,10 +130,10 @@ varfile = fullfile(output_directory,'variables','alignment_params.mat');
 using_loaded_parameters = false;
 out = [];
 if isfile(varfile) && ~isequal(config.pre_align,"true")
-    fprintf("%s\t Loading previous alignment parameters \n",datetime('now'))
     m = matfile(varfile);
     out = m.alignment_params(y,x);
     if ~isempty(out{1})
+        fprintf("%s\t Loading previous alignment parameters \n",datetime('now'))
         out = out{1};
         using_loaded_parameters = true;
     else
@@ -538,7 +538,7 @@ if ~using_loaded_parameters || update_stack
             transforms_sub = transforms(cellfun(@(s) ~isempty(s),transforms));
             if length(transforms_sub) > 2
                 transforms_sub = transforms_sub(2:end);
-            elseif isempty9transforms_sub)
+            elseif isempty(transforms_sub)
                 continue
             end
                         

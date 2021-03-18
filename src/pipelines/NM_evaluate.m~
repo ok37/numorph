@@ -53,33 +53,22 @@ if isequal(config.combine_volumes,"update") ||...
     
     % Get sample files
     sample_files = repmat("",1,n_samples);
-    run = true;
     for i = 1:n_samples
         sample_files(i) = string(fullfile(config.centroids_directory(i),...
             strcat(config.samples(i),'_volumes.csv')));
         if ~isfile(sample_files(i))
-            fprintf("Could not locate volume data for sample %s. Skipping "+...
-                "volume calculations \n",string(config.samples{i}));
-            run = false;
+            warning("Could not locate volume data for sample %s. Skipping "+...
+                "volume calculations.",config.s
         end
     end
-    
+
     % Measure volumes and merge
-    if run
-        combine_volumes(sample_files,config);
-    end
+    combine_volumes(sample_files,config);
 elseif isequal(config.combine_counts,"true") && isfile(count_results)
     fprintf('%s\t Volumes already quantified \n',datetime('now'))
 end
 
 %% Run Statistics
-% Check for groups
-if isempty(config.groups)
-    fprintf('%s\t Only 1 sample so skipping statistics...\n',datetime('now'))
-    fprintf('%s\t Evaluation completed! \n',datetime('now'))
-    return
-end
-
 if isequal(config.compare_structures_by,'csv')
     [~,a] = fileparts(config.structure_csv);
     stats_results = fullfile(config.results_directory,strcat('NMe_',a,'_stats.csv'));
@@ -158,7 +147,6 @@ else
     fprintf('%s\t Loading calculated statistics \n',datetime('now'))
 end
 
-fprintf('%s\t Evaluation completed! \n',datetime('now'))
 return
 
 %% Visualize Results

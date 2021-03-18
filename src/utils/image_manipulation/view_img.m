@@ -68,9 +68,9 @@ else
 end
 
 if adjust
-    imshow(imadjust(img))
+    figure; imshow(imadjust(img))
 else
-    imshow(img)
+    figure; imshow(img)
 end
 
 
