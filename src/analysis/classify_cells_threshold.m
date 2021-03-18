@@ -101,10 +101,10 @@ for i = ref_n:n_markers
 
     else
         % From expression
-        if iscell(config.expression)
-            expression = config.expression{i-1};
+        if iscell(config.intensity_expression)
+            expression = config.intensity_expression{i-1};
         else
-            expression = config.expression;
+            expression = config.intensity_expression;
         end
         thresh = calculate_threshold_expression(values, expression);
         fprintf('%s\t Using expression threshold %f on marker %s \n',...
