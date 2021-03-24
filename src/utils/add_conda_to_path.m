@@ -1,6 +1,8 @@
-function conda_path = add_conda_to_path
+function conda_path = add_conda_to_path(conda_path)
 
-conda_path = [];
+if nargin<1
+    conda_path = [];
+end
 
 % First check if conda binary already in PATH
 PATH = getenv('PATH');
@@ -30,6 +32,24 @@ if  ismac || isunix
                 conda_path = c{1}{idx,:}(s1(1):s2(1)-1);
             end
         end
+    end
+else
+    % Get conda path from NM_config
+    filetext = fileread('NM_config.m');
+    expr = '[^\n]*conda_path[^\n]*';
+    matches = regexp(filetext,expr,'match');
+    conda_match = strsplit(matches{1},{''''});
+    conda_match = conda_match{2};
+
+    if isequal(conda_match,'default')
+        warning("For Windows OS, specify full path to conda folder as conda_path "+...
+            "in NM_config")
+        pause(5)
+        return
+    else
+        conda_path = strcat(conda_match,'\Library\bin');
+        conda_path = strcat(conda_path,';',conda_match);
+        conda_path = strcat(conda_path,';',conda_match,'\Library\Scripts');
     end
 end
 

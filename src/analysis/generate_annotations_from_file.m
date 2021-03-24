@@ -41,7 +41,7 @@ end
 %I_mask = permute_orientation(I_mask,config.annotation_orientation,'psl');
 
 % Create .mat file
-save_file = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_usr_mask.mat'));
-save(save_file,'I_mask')
+save_file = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat'));
+save(save_file,'I_mask','-v7.3')
 
 end

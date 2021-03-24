@@ -11,7 +11,7 @@ create_performance_img = false;
 padding = [3,3,3];
 use_watershed = true;
 use_imopen = false;
-conn_comp = 18;
+conn_comp = 26;
 int_thresh = 1100;
 
 %%%%%%

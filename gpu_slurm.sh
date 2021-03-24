@@ -8,11 +8,11 @@
 #SBATCH --qos gpu_access
 #SBATCH --gres=gpu:1
 
-module add matlab/2019a
+#module add matlab/2019a
 module add anaconda
 module add gcc
 
-SAMPLES="NF1R3M7R"
+SAMPLES="TEST1"
 STAGE="count"
 
 for sample in $SAMPLES

@@ -39,11 +39,10 @@ function preprocess_3dunet(part,file_delimiter,n)
 
 final_size = [112 112 32];      % Final patch size. Images will be cropped or padded
 shuffle_images = false;         % Shuffle images
-split_images = true;            
 
-rescale_centroids = false;      % Resample patches to specific resolution and rewrite centroids   
-capture_res = [0.75,0.75,2.5];  % Resolution at which images were acquired
-patch_res = [0.75,0.75,2];    % Resolution to resample to (Resampling of z dimension is not recommended)
+rescale_centroids = true;      % Resample patches to specific resolution and rewrite centroids   
+capture_res = [1.21,1.21,4];  % Resolution at which images were acquired
+patch_res = [1.8,1.8,4];    % Resolution to resample to (Resampling of z dimension is not recommended)
 
 erode_blobs = true;         % Erode pixels around the edges
 pix_threshold = 0.4;        % Erode fraction pixels from farthest from center
@@ -146,11 +145,16 @@ for i = 1:n_images
         pix_threshold = pix_threshold - (1-pix_threshold)*0.25;
     end
     
-    % Expand centroids
+    % Rescale centroids
     if rescale_centroids
         res_adj = capture_res./patch_res;
         I = imresize3(I,round(res_adj.*size(I)),'Method','cubic');
-        L = resample_centroids(L,I,capture_res,patch_res);
+        if res_adj(3) == 1
+            L = imresize3(L,round(res_adj.*size(L)),'Method','nearest');
+        else
+            error("Unfortunately z dimension cannot be resampled")
+        end
+        %L = resample_centroids(L,I,capture_res,patch_res);
     end
     L = uint8(L>0);
     
@@ -242,7 +246,6 @@ int_high = double(max(img(:)))/65535;
 img_adj = imadjustn(img,[int_low, int_high(1)]);
         
 end
-
 
 function L_new = write_edge(L)
 nhood = [0 1 0;1 1 1;0 1 0];

@@ -74,16 +74,16 @@ assert(ntiles == 1, "To perform analysis, there should be only 1 tile for "+...
     "each channel in the image dataset.")
 
 %% Generate annotation .mat file if provided custom
-%if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
-%    [~,b] = fileparts(config.annotation_file);
+if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
+    [~,b] = fileparts(config.annotation_file);
     %annot_file = fullfile(home_path,'data','masks',strcat(b,'.mat'));
-%    annot_file = fullfile(config.output_directory,'variables',strcat(b,'.mat'));
+    annot_file = fullfile(config.output_directory,'variables',strcat(b,'.mat'));
     
-%    if ~isfile(annot_file)
-%        fprintf('%s\t Converting custom annotations \n',datetime('now'))
-%        generate_annotations_from_file(config)
-%    end
-%end
+    if ~isfile(annot_file)
+        fprintf('%s\t Converting custom annotations \n',datetime('now'))
+        generate_annotations_from_file(config)
+    end
+end
 
 %% Run single step and return if specified
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

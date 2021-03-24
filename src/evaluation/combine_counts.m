@@ -49,10 +49,6 @@ for n = 1:length(sample_files)
     % Select classes
     if isequal(config.use_classes,"true")
         ct = df_sample(:,end);
-        for i = 1:length(classes)
-        
-        
-        end
         
         % Make sure number of cell-types present equals the number of config.markers
         assert(length(unique(ct)) == length(types),"Number of specified cell types (%d) "+...

@@ -3,6 +3,7 @@ templates/*
 data/tmp/*
 src/external/*
 src/analysis/3dunet/nuclei/data/*
+src/analysis/3dunet/nuclei/NM_config.mat
 .DS_Store
 *.DS_Store
 *.tif
