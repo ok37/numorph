@@ -85,31 +85,20 @@ end
 atlas_img_array = cell(1,length(atlas_path));
 for i = 1:length(atlas_path)
     atlas_img = niftiread(atlas_path{i});
-    % Transform atlas_img based on which sample is being imaged
+    % Transform atlas_img to match sample orientation
     if isequal(hemisphere, "right")
-        perm(1) = 1;
         atlas_img = flip(atlas_img,1);
-    elseif isequal(hemisphere,"whole")
-        perm(1) = 2;
+    elseif isequal(hemisphere,"both")
         atlas_img2 = flip(atlas_img,3);
         atlas_img = cat(3,atlas_img,atlas_img2);
-        if isequal(orientation,"lateral")
-            warning('Using lateral orientation on whole brain image\n');
-        end
     end
-    if isequal(orientation,"dorsal")
-        perm(2) = 1;
-        atlas_img = permute(atlas_img,[1,3,2]);
-        atlas_img = flip(atlas_img,3);
-    elseif isequal(orientation,"ventral")
-        perm(2) = 2;
-        atlas_img = permute(atlas_img,[1,3,2]);
-    end
+    
+    % Permute
+    atlas_img = permute_orientation(atlas_img,'ail',char(orientation));
     atlas_img_array{i} = double(atlas_img);
 end
 
 % Resize
-native_img_size = size(mov_img_array{1});
 atlas_res = cellfun(@(s) repmat(str2double(regexp(s,'\d*','Match')),1,3),atlas_file,'UniformOutput',false);
 % Rule: all atlas file must be at the same resolution
 assert(all(atlas_res{1} == atlas_res{end}),"All loaded atlas file must be at the same resolution")
@@ -173,15 +162,25 @@ if ~only_inverse
         points.atlas_points = atlas_points(1:num_points,:);
     end
 
-    % Add mask if coordinates are specified
+    % Add mask for olfactory and cerebellum
     mask = [];
-    %if ~isempty(mask_coordinates)
-    %    mask = zeros(size(mov_img));
-    %    mask(mask_coordinates(1):mask_coordinates(2),:,:) = 1;
-    %end
     if isequal(use_mask,"true")
         load(fullfile(home_path,'data','annotation_data','olf_cer.mat'),'bw_mask')
         mask = single(~bw_mask);
+        
+        % Transform atlas_img to match sample orientation
+        if isequal(hemisphere, "right")
+            mask = flip(mask,1);
+        elseif isequal(hemisphere,"both")
+            mask2 = flip(mask,3);
+            mask = cat(3,mask,mask2);
+        end
+    
+        % Permute
+        mask = permute_orientation(mask,'ail',char(orientation));
+        
+        % Resize to match atlas image
+        mask = imresize3(mask,size(atlas_img),'Method','nearest');
     end
 
     % Perform registration
@@ -226,50 +225,15 @@ end
 % Check results
 %imshowpair(reg_img(:,:,120),atlas_img(:,:,120))
 
-% Save transform parameters to variables folder
-reg_params.perm = perm;
-reg_params.atlas_res = atlas_res;
-reg_params.mov_res = resample_res;
+% Save transform parameters to structure
+reg_params.atlas_orientation = 'ail';
+reg_params.image_orientation = char(config.orientation);
+reg_params.atlas_res = atlas_res{1};
+reg_params.image_res = resample_res;
+reg_params.image_size = size_mov([2 1 3]);
+reg_params.atlas_size = size_atlas([2 1 3]);
 
-% Save sizes in the registration file
-reg_params.native_img_size = native_img_size([2 1 3]);
-reg_params.mov_img_size = size_mov([2 1 3]);
-reg_params.atlas_img_size = size_atlas([2 1 3]);
 
-% Write registered image
-%if isequal(save_registered_image, 'true')
-%    fprintf('\t Saving registered image\n'); 
-%    reg_img = uint16(reg_img);
-%    reg_img = imadjustn(reg_img);
-%    reg_img = im2uint8(reg_img);
-    
-    % Create temporary directory for saving images
-%    outputDir = fullfile(config.output_directory,'registered');
-%    if ~exist(outputDir,'dir')
-%        mkdir(outputDir)
-%    end
-    
-    % Save copy of completementary image
-%    if isequal(direction,"atlas_to_image")
-%        % Save registered image
-%        [~,name] = fileparts(mov_img_path{1});
-%        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
-%        imwrite(reg_img(:,:,1), save_path)
-%        for i = 2:size(reg_img,3)
-%            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
-%        end
-
-        % Save copy of moving image
-%        save_path = fullfile(outputDir,sprintf('%s_registered.tif',name));
-%        imwrite(reg_img(:,:,1), save_path)
-%        for i = 2:size(reg_img,3)
-%            imwrite(reg_img(:,:,i),save_path,'WriteMode','append'); 
-%        end
-%    else
-%        
-%        
-%    end
-%end
 
 end
 

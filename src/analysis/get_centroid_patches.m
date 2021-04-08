@@ -31,6 +31,7 @@ patch_size = config.patch_size(1);
 class_size = config.patch_size(2);
 k = config.n_patches;
 low_thresh = config.min_class_thresh;
+nuc_channel = config.contains_nuclear_channel;
 
 fprintf('\t Using sampling window of %d pixels\n',patch_size)
 fprintf('\t Using classification window of %d pixels\n',class_size)
@@ -47,13 +48,25 @@ if length(markers)>3
     markers = markers(1:3);
 end
 
+% Check for nuclear channel
+if isequal(nuc_channel,"true")
+    a = 1;
+else
+    a = 0;
+end
+
+% Check for minimum threshold
+if isempty(low_thresh)
+    low_thresh = 0;
+end
+
 if ~isequal(centroids,'load')
     % Subset cells above minimum intensity threshold
     k_idx = zeros(size(centroids,1),1);
-    for i = 1:length(markers)-1
-       idx = i + 5;
+    for i = 1:length(markers)+a
+       idx = i + 4;
        thresh = prctile(centroids(:,idx),low_thresh*100);
-       k_idx = k_idx | centroids(:,idx)>thresh;
+       k_idx = k_idx | centroids(:,idx)>=thresh;
     end
     fprintf('\t Retaining %d from %d that are above the threshold %f \n',...
         sum(k_idx),length(k_idx),low_thresh)
@@ -85,14 +98,14 @@ else
    fprintf('\t Loading previous patch info \n')
    patch_name = fullfile(save_directory,sprintf('%s_patch_info.csv',config.sample_id));
    patch_info = readmatrix(patch_name); 
-   cen_idx = patch_info(:,1);
+   cen_idx = patch_info(:,1)';
    cen_sub = patch_info(:,2:end);
 end
 
 patches = zeros([2*patch_size+1,2*patch_size+1,k],'uint16');
 patches = repmat({patches},1,3);
 ftable = cell(size(cen_sub,1),length(markers));
-cen_idx_save = false(1,length(cen_idx));
+cen_idx_save = false(length(cen_idx),1);
 a = 1;
 b = 1;
 while a<k+1
@@ -127,7 +140,7 @@ while a<k+1
     end
     b = b+1;
 end
-cen_idx = cen_idx(cen_idx_save)';
+cen_idx = cen_idx(cen_idx_save);
 cen_sub = cen_sub(cen_idx_save,:);
 
 % Adjust intensity

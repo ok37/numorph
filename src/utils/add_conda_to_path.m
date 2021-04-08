@@ -6,9 +6,9 @@ end
 
 % First check if conda binary already in PATH
 PATH = getenv('PATH');
-if contains(PATH,'conda3')
+if contains(PATH,'conda')
     a = strsplit(PATH,':');
-    idx = cellfun(@(s) contains(s,'conda3'),a);    
+    idx = cellfun(@(s) contains(s,'conda'),a);    
     conda_path = a{find(idx,1)};
     return
 end
@@ -34,12 +34,16 @@ if  ismac || isunix
         end
     end
 else
-    % Get conda path from NM_config
-    filetext = fileread('NM_config.m');
-    expr = '[^\n]*conda_path[^\n]*';
-    matches = regexp(filetext,expr,'match');
-    conda_match = strsplit(matches{1},{''''});
-    conda_match = conda_match{2};
+    % Get conda path from NM_config if not provided
+    if nargin<1
+        filetext = fileread('NM_config.m');
+        expr = '[^\n]*conda_path[^\n]*';
+        matches = regexp(filetext,expr,'match');
+        conda_match = strsplit(matches{1},{''''});
+        conda_match = conda_match{2};
+    else
+        conda_match = conda_path;
+    end
 
     if isequal(conda_match,'default')
         warning("For Windows OS, specify full path to conda folder as conda_path "+...

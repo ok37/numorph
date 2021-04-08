@@ -65,7 +65,7 @@ mask_file = '/media/SteinLab4/TOP16R/output/variables/I_mask.mat'
 mask_resolution = [10, 10, 10]  # Resolution of mask in um/pixel
 
 model_file = os.path.join(os.getcwd(), 'models', '128_model.h5')  # Path to 3dunet model
-trained_img_resolution = [1.21, 1.21, 4]  # Resolution the model was trained in um/voxel
+trained_img_resolution = [0.75, 0.75, 2.5]  # Resolution the model was trained in um/voxel
 
 # Image and model configuration parameters
 # Dimensions should correspond to [x,y,z]
@@ -264,7 +264,7 @@ for n in range(n_chunks):
                 pad_r_bottom = int(load_chunk_size[0] - img_chunk.shape[0])
 
                 msk_chunk = np.pad(msk_chunk, ((0, pad_r_bottom), (0, pad_c_right), (0, 0)), 'constant')
-                img_chunk = np.pad(img_chunk, ((0, pad_r_bottom), (0, pad_c_right), (0, 0)), 'mean')
+                img_chunk = np.pad(img_chunk, ((0, pad_r_bottom), (0, pad_c_right), (0, 0)), 'constant')
 
             msk_chunks.append(msk_chunk)
             img_chunks.append(img_chunk)

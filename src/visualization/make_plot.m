@@ -1,7 +1,12 @@
-function [scat] = make_plot(df2,s2,BW,disp_channel,sample_freq)
+function [scat] = make_plot(df2,s2,disp_channel,sample_freq,colors)
 
-colors = [0.4940 0.1840 0.5560];
+marker_size = 0.75;
+%colors = [0.4940 0.1840 0.5560];
 %colors = [0.4660 0.6740 0.1880];
+
+if nargin<5
+    colors = [];
+end
 
 disp(sum(df2(:,end) == disp_channel)/size(df2,1))
 
@@ -22,13 +27,17 @@ p2 = patch(s2,...
 %isonormals(BW,p2)
 p2.FaceAlpha = 0.1;
 
-tic
 scat = scatter3(df3(:,2),df3(:,1),df3(:,3),1,'.',...
-    'MarkerEdgeAlpha', 0.5, 'MarkerFaceAlpha', 0.5);
-toc
+    'MarkerEdgeAlpha', marker_size, 'MarkerFaceAlpha', marker_size);
+
+
 %scat = plot3(df3(:,2),df3(:,1),df3(:,3),'o','MarkerSize',0.5);
 
-scat = set_point_color(scat, disp_channel);
+if isempty(colors)
+    scat = set_point_color(scat, disp_channel);
+else
+    scat = set_point_color(scat, disp_channel,colors);
+end
 
 %material 'dull'
 axis vis3d off
@@ -37,17 +46,24 @@ view([80,-60])
 camroll(45)
 hold off
 
+
 %drawnow
 %get marker handles
-%   markers=scat.MarkerHandle;
+   %markers=scat.MarkerHandle;
 %change transparency by altering 4th element
-%    markers.EdgeColorType = 'truecoloralpha';
-%   markers.EdgeColorData=uint8(255*[0.4940 0.1840 0.5565 0.1])';
-exportgraphics(fig,'test.png','BackgroundColor','white','ContentType','image', 'Resolution',900)
+    %markers.EdgeColorType = 'truecoloralpha';
+    %markers.EdgeColorData=uint8(255*[0.4940 0.1840 0.5565 0.1])';
+exportgraphics(fig,'test.png','BackgroundColor','white','ContentType','image', 'Resolution',100)
 
 end
 
-function scat = set_point_color(scat, disp_channel)
+function scat = set_point_color(scat, disp_channel,colors)
+
+if nargin==3
+    scat.MarkerEdgeColor = colors;
+    scat.MarkerEdgeColor = colors;   
+    return
+end
 
 switch disp_channel
     case 1

@@ -21,7 +21,6 @@ function [table_series_final, path_table_nii] = munge_raw(config)
 % These are all possible image extensions we're able to read
 ext = [".tif",".tiff",".nii",".nrrd",".nhdr",".mhd"];
 
-
 % Get list of all files in all sub_directories
 if length(config.img_directory) == 1
     all_files = dir(fullfile(config.img_directory,'**/*.*'));
@@ -30,9 +29,10 @@ else
         "directories specified than there are markers")
     all_files = cell(1,length(config.img_directory));
     for i = 1:length(config.img_directory)
-        all_files{i} = dir(fullfile(config.img_directory(i),'**/*.*'));
+        all_files{i} = dir(fullfile(config.img_directory(i),'*.*'));
     end
     all_files = cat(1,all_files{:});
+    all_files = all_files(arrayfun(@(s) contains(s.name,ext),all_files),:);
 end
 
 % Remove output directory folder
@@ -64,7 +64,7 @@ tiff_files = all_files(any(idx(1:2,:)));
 
 % Return if no .tif files present
 if isempty(tiff_files)
-    warning("No raw .tif files detected in %s", config.img_directory) 
+    warning("No raw .tif files detected in image directories") 
     path_table_series = [];
     return
 end
@@ -107,13 +107,16 @@ if length(tiff_folders) == length(config.markers)
         if isempty(path_idx)
             path_idx = tiff_files(arrayfun(@(s) contains(s.folder,config.markers(i)),tiff_files));
         end
-        % Finally check for unique marker names in filename
+        
+        % Check for unique marker names in filename
         if isempty(path_idx)
            path_idx = tiff_files(arrayfun(@(s) contains(s.name,config.markers(i)),tiff_files));
         end
-
-        % Subset only this marker
-        path_idx = path_idx(arrayfun(@(x) contains(x.name,config.markers(i)),path_idx));
+        
+        % Finally, just assign this folder to marker based on index
+        if isempty(path_idx)
+            path_idx = tiff_files(arrayfun(@(s) isequal(s.folder,tiff_folders{i}),tiff_files),:);
+        end
 
         % Use regular expressions to extract information and save 
         path_table_series{i} = get_table_struct(path_idx, config.sample_id, config.markers(i), i, config.position_exp);

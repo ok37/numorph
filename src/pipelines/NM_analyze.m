@@ -74,16 +74,16 @@ assert(ntiles == 1, "To perform analysis, there should be only 1 tile for "+...
     "each channel in the image dataset.")
 
 %% Generate annotation .mat file if provided custom
-if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
-    [~,b] = fileparts(config.annotation_file);
+%if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
+%    [~,b] = fileparts(config.annotation_file);
     %annot_file = fullfile(home_path,'data','masks',strcat(b,'.mat'));
-    annot_file = fullfile(config.output_directory,'variables',strcat(b,'.mat'));
+%    annot_file = fullfile(config.output_directory,'variables',strcat(b,'.mat'));
     
-    if ~isfile(annot_file)
-        fprintf('%s\t Converting custom annotations \n',datetime('now'))
-        generate_annotations_from_file(config)
-    end
-end
+%    if ~isfile(annot_file)
+%        fprintf('%s\t Converting custom annotations \n',datetime('now'))
+%        generate_annotations_from_file(config)
+%    end
+%end
 
 %% Run single step and return if specified
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -266,10 +266,10 @@ if ~loaded || isequal(config.register_images,"update")
     resample_table = resample_table(idx,:);
 
     % Calculate registration parameters
-    %reg_params = register_to_atlas(config, resample_table.file);
+    reg_params = register_to_atlas(config, resample_table.file);
 
     % Save registration parameters
-    %save(reg_file,'reg_params')
+    save(reg_file,'reg_params')
     
     fprintf('%s\t Registration completed! \n',datetime('now'))
 end
@@ -293,19 +293,28 @@ if isequal(config.save_registered_images,"true")
     final_dest = strsplit(final_direction,"_");
     
     % Move final target image to registered dir
-    if isequal(final_dest(3),"atlas")
-        [~,fname] = fileparts(atlas_path);
-        copyfile(atlas_path,strcat(reg_dir,'_target.nii'))
-    elseif isequal(final_dest(3),"image")
-        [~,fname] = fileparts(resample_table.file{1});
-        copyfile(resample_table.file{1},fullfile(reg_dir,strcat(fname,'_target.nii')))
-    end
+    [~,fname] = fileparts(resample_table(1,:).file);
+    copyfile(resample_table(1,:).file,fullfile(reg_dir,strcat(fname,'_target.nii')))
     
     % Transform image to be registered
     if isequal(final_dest(1),"atlas")
         I_reg = niftiread(atlas_path);
+        
+        % Transform atlas_img to match sample orientation
+        if isequal(config.hemisphere, "right")
+            I_reg = flip(I_reg,1);
+        elseif isequal(config.hemisphere,"both")
+            I_reg2 = flip(I_reg,3);
+            I_reg = cat(3,I_reg,I_reg2);
+        end
+    
+        % Permute
+        I_reg = permute_orientation(I_reg,'ail',char(config.orientation));
+        
+        % Perform transformation
         I_reg = transformix(I_reg,reg_params.atlas_to_image,[1,1,1], []);
         [~,fname] = fileparts(atlas_path);
+        
     elseif isequal(final_dest(1),"image")
         I_reg = niftiread(resample_table.file{1});
         I_reg = transformix(I_reg,reg_params.image_to_atlas,[1,1,1], []);
@@ -336,21 +345,20 @@ if ~isempty(I_mask)
 elseif isequal(config.use_annotation_mask,"true")
     % Generate mask for selected structures
     fprintf('%s\t Generating mask for selected structures \n',datetime('now'))
-    I_mask = gen_mask(config.hemisphere, config.structures);
-    I_mask = permute_orientation(I_mask,'sla','ail');
+    I_mask = gen_mask(config.structures, config.hemisphere, config.orientation);
 else
     fprintf('%s\t Not using annotations. Skipping mask generation. \n',datetime('now'))
     return
 end
 
-% Generate annotations
+% Transform annotations
 if ~isempty(reg_params) && ~isempty(reg_params.atlas_to_image)
     fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
 
     % Adjust sizes and spacing
     I_mask = imresize3(I_mask,0.4,'Method','nearest');
     s = 1;    % Default: brain registration performed at 25um, mask at 10um
-    size1 = reg_params.native_img_size;%reg_params.native_img_size;
+    size1 = reg_params.image_size;%reg_params.native_img_size;
     for j = 1:length(reg_params.atlas_to_image.TransformParameters)
         reg_params.atlas_to_image.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
         reg_params.atlas_to_image.TransformParameters{j}.Size = size1;

@@ -30,6 +30,6 @@ for i = 1:length(n_cts)
    s.(s_idx{6}) = zeros(sum(cen_idx),1);
 end
 
-save('ImarisObjects2.mat','-struct','s')
+save('ImarisObjects.mat','-struct','s')
 
 end
