@@ -61,7 +61,7 @@ overlap = 0.10;                         % 0:1; overlap between tiles as fraction
 
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                % channel index; If only stitching certain channels
-use_middle = "false";                   % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
+stitch_start_slice = [];                % z index; Start stitching from a specific slice position. Otherwise an optimal slice will be calculated
 
 blending_method = "sigmoid";            % sigmoid, linear, max
 sd = 0.05;                              % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending
