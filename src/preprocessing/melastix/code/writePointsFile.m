@@ -33,16 +33,38 @@ if ~strcmp(pointType,'index') & ~strcmp(pointType,'point')
     return
 end
 
-
+%%%%% Update to improve speed
+% Write header
 fid = fopen(fname,'w+');
-
 fprintf(fid,'%s\n%d\n',pointType,size(data,1));
+fclose(fid);
 
-formatStr = repmat('%f ',[1,size(data,2)]);
-for ii=1:size(data,1)
+% Write data
+fname2 = fullfile(fileparts(fname),'tmp.txt');
+writematrix(data,fname2,'Delimiter',' ')
 
-    fprintf(fid,[formatStr,'\n'], data(ii,:));
+% Append 
+if isunix
+    system(sprintf("cat %s >> %s",fname2,fname));
+else
+    system(sprintf("type %s >> %s",fname2,fname))
+end
+delete(fname2)
+
 end
 
-fclose(fid);
+
+
+
+%fid = fopen(fname,'w+');
+
+%fprintf(fid,'%s\n%d\n',pointType,size(data,1));
+
+%formatStr = repmat('%f ',[1,size(data,2)]);
+%for ii=1:size(data,1)
+
+%    fprintf(fid,[formatStr,'\n'], data(ii,:));
+%end
+
+%fclose(fid);
 

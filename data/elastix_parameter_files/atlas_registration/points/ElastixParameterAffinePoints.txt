@@ -30,7 +30,7 @@
 (AutomaticScalesEstimation "true")
 
 (WriteTransformParametersEachIteration "false")
-(WriteResultImage "true")
+(WriteResultImage "false")
 (CompressResultImage "false")
 (WriteResultImageAfterEachResolution "false")
 (ResultImagePixelType "float")

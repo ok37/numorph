@@ -48,9 +48,9 @@
 
 //Number of spatial samples used to compute the mutual information in each resolution level:
 (ImageSampler "RandomCoordinate")
-(FixedImageBSplineInterpolationOrder 3)
+(FixedImageBSplineInterpolationOrder 1)
 (UseRandomSampleRegion "false")
-(NumberOfSpatialSamples 2000)
+(NumberOfSpatialSamples 200)
 (NewSamplesEveryIteration "true")
 (CheckNumberOfSamples "true")
 (MaximumNumberOfSamplingAttempts 10)

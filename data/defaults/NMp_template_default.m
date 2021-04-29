@@ -3,7 +3,7 @@
 % Set flags to indicate how/whether to run process
 adjust_intensity = "true";              % true, update, false; Whether to calculate and apply any of the following intensity adjustments. Intensity adjustment measurements should typically be performed on raw images
 channel_alignment = "true";             % true, update, false; Channel alignment
-stitch_images = "true";                    % true, update, false; 2D iterative stitching
+stitch_images = "true";                  % true, update, false; 2D iterative stitching
 
 use_processed_images = "false";         % false or name of sub-directory in output directory (i.e. aligned, stitched...); Load previously processed images in output directory as input images
 ignore_markers = "Auto";                % completely ignore marker from processing steps. 

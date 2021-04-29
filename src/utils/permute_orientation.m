@@ -26,6 +26,13 @@ function img = permute_orientation(img, or_in, or_out)
 %--------------------------------------------------------------------------
 
 % Check orientation characters
+if isstring(or_in)
+    or_in = char(or_in);
+end
+if isstring(or_out)
+    or_out = char(or_out);
+end
+
 assert(length(or_in) == 3, "Input/output orientation should be 1x3 character arrays")
 assert(length(or_out) == 3, "Input/output orientation should be 1x3 character arrays")
 

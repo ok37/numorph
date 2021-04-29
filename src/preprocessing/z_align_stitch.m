@@ -12,10 +12,12 @@ peaks = 3;
 usfac = 1;
 min_overlap = 50;
 min_signal = 0.1;       % Minimum fraction of signal pixels for registering
+z_window = 3;
+z_window_narrow = 1;
 
 % Adjust signalThresh to 16 bit
 if signalThresh<1
-    signalThresh = signalThresh*65535;
+    signalThresh = signalThresh*65535*2;
 end
 
 % Check file lengths
@@ -29,7 +31,7 @@ end
 if z_positions<1
     z_positions = ceil(z_positions*nfiles_ref);
 end
-z_positions = min(z_positions,nfiles_mov-z_window*2);
+z_positions = min(z_positions,nfiles_mov-z_window);
 
 % Pick reference images in range
 z = round(linspace(z_window+1,nfiles_ref-z_window,z_positions));
@@ -55,80 +57,76 @@ else
     overlap_max = {[nrows-overlap_min{1}(2)+1,nrows],[1,ncols]};
 end
 
-%Perform registration using phase correlation
-cc = zeros(z_positions,z_window*2+1);
-f = zeros(1,length(z));
-a=1;
-for i = 1:length(z)
-    % Define range for current z position
-    z_sub_range = z(i)-z_window:1:z(i)+z_window;
-    % Read ref image
-    ref_img = imread(path_ref.file{i});
-    % This is dumb - problem with imread loading 3 channel image
-    ref_img = ref_img(overlap_max{1}(1):overlap_max{1}(2),overlap_max{2}(1):overlap_max{2}(2),:);
-    % Check for multi-channel
-    if size(ref_img,3)>1
-       ref_img = ref_img(:,:,1); 
-    end
+% Load reference images to match with
+f = zeros(1,length(z_positions));
+ref_img = zeros(overlap_max{1}(2)-overlap_max{1}(1)+1,...
+    overlap_max{2}(2)-overlap_max{2}(1)+1,...
+    z_positions,'uint16');
+for i = 1:z_positions    
+    img = imread(path_ref.file{i},'PixelRegion',overlap_max);
     % Measure number of positive pixels
-    f(i) = numel(ref_img(ref_img>signalThresh))/numel(ref_img);
-    b=1;
-    for j = z_sub_range
-        % Read corresponding moving image
-        mov_img = imread(path_mov.file{j});
-        % This is dumb - problem with imread loading 3 channel image
-        mov_img = mov_img(overlap_min{1}(1):overlap_min{1}(2),overlap_min{2}(1):overlap_min{2}(2),:);
-        % Check for multi-channel
-        if size(mov_img,3)>1
-            mov_img = mov_img(:,:,1); 
-        end
-        % Get transform using phase correlation and measure cross
-        % correlation
-        [~,~,~,~,cc(a,b)] = calculate_phase_correlation(mov_img,ref_img,peaks,usfac);
-        b = b+1;
-    end
-    a = a+1;
+    f(i) = round(numel(img(img>signalThresh))/numel(img),3);
+    ref_img(:,:,i) = img;
 end
 
-% Pick highest correlated
-cc(isnan(cc))=0;
-
-if sum(cc(:)) > 0
-    [~,a1] = max(cc');
-    f_num = length(f(f>min_signal)); 
-else
-    f_num = 0;
-end
-disp(mean(cc))
-
-%If images contain positive pixels, save best transform. Otherwise set as
-%NaN and mark flag
-if f_num>0
-    a1(f<0.001)=NaN;
-    a1(all(cc'==-1))=NaN;
-
-    %Highest correlated is the one with 
-    z1 = mode(a1);
-    q1 = cc(:,z1);
-    cc(:,z1) = -1;
-
-    %Pick second highest correlated
-    [~,a2] = max(cc');    
-    z2 = mode(a2);
-    q2 = cc(:,z2);
-
-    %Take z_displacements of both
-    z_displacement = z1 - (z_window+1);
-    %disp(z_displacement)
-
-    %q is the difference in quality of the 2 best matches
-    q = mean(q1-q2);
-    low_flag = 0;
-else
+% Check reference images to see if there are bright pixels
+if ~any(f>min_signal)
     %Save tranform
+    warning("Low intensities measured for all z positions sampled")
     z_displacement = NaN;
     q = -1;
     low_flag = 1;
-    %disp('low')
+    return
 end
+
+% Find z position with most positive pixels
+[~,idx] = max(f);
+z_initial = z(idx);
+
+% Check cross correlation for wide range at this z position
+z_sub_range = z_initial-z_window:1:z_initial+z_window;
+ref_img0 = ref_img(:,:,idx);
+cc0 = zeros(1,length(z_sub_range));
+for i = 1:length(z_sub_range)
+    % Read corresponding moving image
+    mov_img = imread(path_mov.file{z_sub_range(i)},'PixelRegion',overlap_min);
+    % Get transform using phase correlation and measure cross correlation
+    [~,~,~,~,cc0(i)] = calculate_phase_correlation(mov_img,ref_img0,peaks,usfac);
+end
+
+% Find displacement with highest cross correlation
+[~,idx] = max(cc0);
+z_shift = idx-z_window-1;
+
+% Use narrower range test for remaining z_positions
+cc = zeros(z_positions,z_window_narrow*2+1);
+for i = 1:length(z)
+    z_sub_range = z(i)-z_window_narrow+z_shift:1:z(i)+z_window_narrow+z_shift;
+    for j = 1:length(z_sub_range)
+        if z_sub_range(j) < 1 || z_sub_range(j) > nfiles_mov
+            continue
+        else
+            % Read corresponding moving image
+            mov_img = imread(path_mov.file{z_sub_range(j)},'PixelRegion',overlap_min);
+            % Get transform using phase correlation and measure cross correlation
+            [~,~,~,~,cc(i,j)] = calculate_phase_correlation(mov_img,ref_img(:,:,i),peaks,usfac);
+        end
+    end
+end
+
+% Find displacement with highest cross correlation
+[q1,idx] = max(sum(cc,1));
+z_shift_narrow = idx-z_window_narrow-1;
+
+% Calculate final displacement and quality metric
+z_displacement = z_shift + z_shift_narrow;
+
+mean_cc = mean(cc(:,idx));
+cc(:,idx) = 0;
+q = (q1-max(sum(cc,1)));
+low_flag = 0;
+
+% Display average cross correlation
+fprintf("Mean cross correlation: %.3f \n",mean_cc);
+
 end

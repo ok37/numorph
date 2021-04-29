@@ -139,7 +139,7 @@ if ~isequal(use_processed_images,"false")
     end
 elseif ~isequal(main_stage,'evaluate')
     if ~isfolder(img_directory)
-        error("Could not find image directory %s\n",img_directory)
+        error("Could not find image directory")
     end
 end
 
@@ -314,13 +314,13 @@ switch stage
     case 'analyze'
         % Variables to check
         variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
-            'direction'};
+            'registration_direction'};
         load(fullfile('data','tmp','NM_variables.mat'),variable_names{:});
         
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
-        if exist('direction','var') ~= 1
-            if isempty(direction)
+        if exist('registration_direction','var') ~= 1
+            if isempty(registration_direction)
                 direction = "atlas_to_image";
             end
             assert(isequal(direction,"atlas_to_image") || isequal(direction,"image_to_atlas"),...

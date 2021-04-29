@@ -36,17 +36,22 @@ if nargin<3
 end
 
 if ~isempty(index) && istable(filepath)
-    filepath = filepath(filepath.channel_num == index(1) &...
-        filepath.z == index(2),:);
-    if height(filepath) > 1
-        filepath = filepath(filepath.y == index(3) &...
-            filepath.x == index(4),:);
-    end
-    if isempty(filepath)
-        img = [];
-        return
+    % Check if nifti
+    if any(strcmp('y_res',filepath.Properties.VariableNames))
+        filepath = filepath(filepath.channel_num == index(1),:).file;
     else
-        filepath = filepath.file{1};
+        filepath = filepath(filepath.channel_num == index(1) &...
+            filepath.z == index(2),:);
+        if height(filepath) > 1
+            filepath = filepath(filepath.y == index(3) &...
+                filepath.x == index(4),:);
+        end
+        if isempty(filepath)
+            img = [];
+            return
+        else
+            filepath = filepath.file{1};
+        end
     end
 end
 

@@ -48,30 +48,40 @@ fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_id)
 %% Read image filename information
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate table containing image information
-path_table = path_to_table(config);
-
-% If markers ignored, add these from raw
-if ~all(ismember(config.markers,unique(path_table.markers)))
-    idx = find(~ismember(config.markers,unique(path_table.markers)));
-    
-    for i = 1:length(idx)
-        config2 = config;
-        config2.markers = config.markers(idx(i));
-        config2.channel_num = config.channel_num(idx(i));
-        try 
-            path_table = vertcat(path_table,path_to_table(config2,'raw',false));
-            path_table.channel_num = arrayfun(@(s) find(s == config.markers),path_table.markers);
-        catch
-            warning("Could not load marker %s ignored from processing.",config.markers(idx(i)));
-        end
-    end
-    clear config2
+if isfield(config,'mri_directory') && ~isempty(config.mri_directory)
+    [path_table, path_table_nii] = path_to_table(config);
+else
+    path_table = path_to_table(config);
+    path_table_nii = [];
 end
 
-% Count number of x,y tiles for each channel
-ntiles = length(unique([path_table.x,path_table.y]));
-assert(ntiles == 1, "To perform analysis, there should be only 1 tile for "+...
-    "each channel in the image dataset.")
+% If markers ignored, add these from raw
+if ~isempty(path_table)
+    if ~all(ismember(config.markers,unique(path_table.markers)))
+        idx = find(~ismember(config.markers,unique(path_table.markers)));
+
+        for i = 1:length(idx)
+            config2 = config;
+            config2.markers = config.markers(idx(i));
+            config2.channel_num = config.channel_num(idx(i));
+            try 
+                path_table = vertcat(path_table,path_to_table(config2,'raw',false));
+                path_table.channel_num = arrayfun(@(s) find(s == config.markers),path_table.markers);
+            catch
+                warning("Could not load marker %s ignored from processing.",config.markers(idx(i)));
+            end
+        end
+        clear config2
+    end
+
+    % Count number of x,y tiles for each channel
+    ntiles = length(unique([path_table.x,path_table.y]));
+    if ntiles ~= 1
+        warning("Check if use_processed_images field needs to be updated to stitched directory")
+        assert(ntiles == 1, "To perform analysis, there should be only 1 tile for "+...
+            "each channel in the image dataset.")
+    end
+end
 
 %% Generate annotation .mat file if provided custom
 %if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
@@ -94,18 +104,21 @@ if nargin>1 && isequal(step,'resample')
     if nargout < 1; clear config; end
     return
 elseif nargin>1 && isequal(step,'register')
-    config = perform_registration(config);
+    config = perform_registration(config,path_table_nii);
+    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
 elseif nargin>1 && isequal(step,'count')
     path_table = path_table(path_table.markers == config.markers(1),:);
     config = perform_counting(config,path_table);
+    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
 elseif nargin>1 && isequal(step,'classify')
     config = perform_classification(config, path_table);
+    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
@@ -118,6 +131,7 @@ if isequal(step,'analyze')
     config = perform_registration(config);
     config = perform_counting(config,path_table);
     config = perform_classification(config, path_table);
+    create_final_structure(config);
     fprintf('%s\t Analysis steps completed! \n',datetime('now'))
 end
 
@@ -134,8 +148,8 @@ flags = true(1,length(config.markers));
 
 % Get channels to resample
 if isempty(config.resample_channels)
-    if ~isempty(config.register_channels)
-        resample_channels = config.register_channels;
+    if ~isempty(config.registration_channels)
+        resample_channels = config.registration_channels;
     else
         resample_channels = unique(path_table.channel_num)';
     end
@@ -169,15 +183,14 @@ else
 end
 
 % Perform resampling
-resample_path_table(path_table, config,resample_channels);
+resample_path_table(path_table, config, resample_channels);
 
 end
 
 
-function config = perform_registration(config)
+function config = perform_registration(config, path_table_mri)
 % Image registration
 home_path = fileparts(which('NM_config'));
-I_mask = [];
 
 if isequal(config.register_images,"false")
     % Check if I_mask exists
@@ -189,6 +202,7 @@ if isequal(config.register_images,"false")
     return
 end
 
+I_mask = [];
 if ~isempty(config.annotation_file)
     % Custom annotation
      if isequal(config.annotation_mapping,"image")
@@ -213,26 +227,25 @@ fprintf('%s\t Performing image registration \n',datetime('now'))
 
 % Get which structures
 [~,structures] = fileparts(config.structures);
-r1_marker = config.markers(config.register_channels);
-home_path = fileparts(which('NM_config'));
+r1_marker = config.markers(config.registration_channels);
 
 % Get final direction with inverse
-final_direction = config.direction;
-if isequal(config.calculate_inverse,"true")
-    if isequal(final_direction,"atlas_to_image")
-        final_direction = "image_to_atlas";
-    elseif isequal(final_direction,"image_to_atlas")
-        final_direction = "atlas_to_image";
-    elseif isequal(final_direction,"mri_to_atlas")
-        final_direction = "altas_to_mri";
-    elseif isequal(final_direction,"atlas_to_mri")
-        final_direction = "mri_to_atlas";
-    elseif isequal(final_direction,"image_to_mri")
-        final_direction = "mri_to_image";
-    elseif isequal(final_direction,"mri_to_image")
-        final_direction = "image_to_mri";
-    end
-end
+final_direction = config.registration_direction;
+%if isequal(config.calculate_inverse,"true")
+%    if isequal(final_direction,"atlas_to_image")
+%        final_direction = "image_to_atlas";
+%    elseif isequal(final_direction,"image_to_atlas")
+%        final_direction = "atlas_to_image";
+%    elseif isequal(final_direction,"mri_to_atlas")
+%        final_direction = "altas_to_mri";
+%    elseif isequal(final_direction,"atlas_to_mri")
+%        final_direction = "mri_to_atlas";
+%    elseif isequal(final_direction,"image_to_mri")
+%        final_direction = "mri_to_image";
+%    elseif isequal(final_direction,"mri_to_image")
+%        final_direction = "image_to_mri";
+%    end
+%end
 
 % Attempt to load registration parameters
 reg_params = [];
@@ -256,74 +269,134 @@ if isfile(reg_file)
     end
 end
 
-% Read file and perform registration
-if ~loaded || isequal(config.register_images,"update")
-    % Get resampled paths
-    [~,resample_table] = path_to_table(config,'resampled');
+% Check atlas files
+if ~loaded && contains(config.registration_direction,"atlas")
+    atlas_path = arrayfun(@(s) {char(fullfile(config.home_path,'data','atlas',s))},config.atlas_file);
+    assert(all(isfile(atlas_path)), "Could not locate Allen Reference Atlas .nii file specified")
+    
+    % Resize
+    atlas_res = cellfun(@(s) repmat(str2double(regexp(s,'\d*','Match')),1,3),{config.atlas_file},'UniformOutput',false);
 
-    % Subset channels to register
-    idx = ismember(resample_table.markers,[1,config.markers(config.register_channels)]);
-    resample_table = resample_table(idx,:);
+    % Rule: all atlas file must be at the same resolution
+    assert(all(atlas_res{1} == atlas_res{end}),"All loaded atlas file must be at the same resolution")
+end
+
+% Perform pairwise registration
+if ~loaded || isequal(config.register_images,"update")
+    % Get moving image paths, subset channels, save into config
+    if isequal(config.registration_direction,"image_to_atlas") ||...
+            isequal(config.registration_direction,"image_to_mri")
+        [~, resample_table] = path_to_table(config,'resampled');
+        idx = ismember(resample_table.markers,[1,config.markers(config.registration_channels)]);
+        mov_img_path = resample_table(idx,:).file;
+        config.mov_res = resample_table.y_res;
+        config.mov_orientation = config.orientation;
+        config.mov_direction = "image";
+        config.mov_channels = config.markers(config.registration_channels);
+        if isequal(config.registration_prealignment,"image") ||...
+                isequal(config.registration_prealignment,"both")
+            config.mov_prealign = true;
+        else
+            config.mov_prealign = false;
+        end
+                
+    elseif isequal(config.registration_direction,"mri_to_atlas") ||...
+            isequal(config.registration_direction,"mri_to_image")
+        mov_img_path = path_table_nii.file;
+        config.mov_res = config.mri_resolution;
+        config.mov_orientation = config.mri_orientation;
+        config.mov_direction = "mri";
+        config.mov_channels = config.mri_channels;
+        if isequal(config.registration_prealignment,"mri") ||...
+                isequal(config.registration_prealignment,"both")
+            config.mov_prealign = true;
+        else
+            config.mov_prealign = false;
+        end
+        
+    elseif isequal(config.registration_direction,"atlas_to_image") ||...
+            isequal(config.registration_direction,"atlas_to_mri")
+        % Type of atlas
+        t = cell(1,length(config.atlas_file));
+        for i = 1:length(config.atlas_file)
+            t{i} = table(fullfile(home_path,'data','atlas',config.atlas_file),25,25,25,...
+                'VariableNames',{'file','y_res','x_res','z_res'});
+        end
+        mov_img_path = {cat(1,t{:}).file};
+        config.mov_res = 25;
+        config.mov_orientation = "ail";
+        config.mov_direction = "atlas";
+        config.mov_channels = "atlas";
+        config.mov_prealign = false;
+        
+    else
+        error("Incorrect registration direction specified")
+    end
+
+    % Get reference image paths
+    if isequal(config.registration_direction,"atlas_to_image") ||...
+            isequal(config.registration_direction,"mri_to_image")
+        [~, resample_table] = path_to_table(config,'resampled');
+        % Subset channels to register
+        idx = ismember(resample_table.markers,[1,config.markers(config.registration_channels)]);
+        ref_img_path = resample_table(idx,:).file;
+        config.ref_res = resample_table.y_res;
+        config.ref_orientation = config.orientation;
+        config.ref_direction = "image";
+        config.ref_channels = config.markers(config.registration_channels);
+        if isequal(config.registration_prealignment,"image") ||...
+                isequal(config.registration_prealignment,"both")
+            config.ref_prealign = true;
+        else
+            config.ref_prealign = false;
+        end
+        
+    elseif isequal(config.registration_direction,"atlas_to_mri") ||...
+            isequal(config.registration_direction,"image_to_mri")
+        ref_img_path = path_table_nii.file;
+        config.ref_res = config.mri_resolution;
+        config.ref_orientation = config.mri_orientation;
+        config.ref_direction = "mri";
+        config.ref_channels = config.mri_channels;
+        if isequal(config.registration_prealignment,"mri") ||...
+                isequal(config.registration_prealignment,"both")
+            config.ref_prealign = true;
+        else
+            config.ref_prealign = false;
+        end
+        
+    elseif isequal(config.registration_direction,"image_to_atlas") ||...
+            isequal(config.registration_direction,"mri_to_atlas")
+        % Type of atlas
+        t = cell(1,length(config.atlas_file));
+        for i = 1:length(config.atlas_file)
+            t{i} = table(fullfile(home_path,'data','atlas',config.atlas_file),25,25,25,...
+                'VariableNames',{'file','y_res','x_res','z_res'});
+        end
+        ref_img_path = {cat(1,t{:}).file};
+        config.ref_res = 25;
+        config.ref_orientation = "ail";
+        config.ref_direction = "atlas";
+        config.ref_channels = "atlas";
+        config.ref_prealign = false;
+    end
 
     % Calculate registration parameters
-    reg_params = register_to_atlas(config, resample_table.file);
+    % Moving image to reference image
+    reg_params = register_to_atlas(config, mov_img_path, ref_img_path);
 
     % Save registration parameters
     save(reg_file,'reg_params')
-    
     fprintf('%s\t Registration completed! \n',datetime('now'))
 end
 
 % Save a copy of registered images
-reg_dir = fullfile(config.output_directory,'registered');
 if isequal(config.save_registered_images,"true")
     fprintf('%s\t Transforming and saving registered images \n',datetime('now'))
-    if ~isfolder(reg_dir)
-        mkdir(reg_dir)
-    end
-    
-    % Get resampled paths
-    [~,resample_table] = path_to_table(config,'resampled');
-
-    % Subset channels to register
-    idx = ismember(resample_table.markers,config.markers(config.register_channels));
-    resample_table = resample_table(idx,:);
-        
-    atlas_path = fullfile(home_path,'data','atlas',config.atlas_file(1));
-    final_dest = strsplit(final_direction,"_");
-    
-    % Move final target image to registered dir
-    [~,fname] = fileparts(resample_table(1,:).file);
-    copyfile(resample_table(1,:).file,fullfile(reg_dir,strcat(fname,'_target.nii')))
-    
-    % Transform image to be registered
-    if isequal(final_dest(1),"atlas")
-        I_reg = niftiread(atlas_path);
-        
-        % Transform atlas_img to match sample orientation
-        if isequal(config.hemisphere, "right")
-            I_reg = flip(I_reg,1);
-        elseif isequal(config.hemisphere,"both")
-            I_reg2 = flip(I_reg,3);
-            I_reg = cat(3,I_reg,I_reg2);
-        end
-    
-        % Permute
-        I_reg = permute_orientation(I_reg,'ail',char(config.orientation));
-        
-        % Perform transformation
-        I_reg = transformix(I_reg,reg_params.atlas_to_image,[1,1,1], []);
-        [~,fname] = fileparts(atlas_path);
-        
-    elseif isequal(final_dest(1),"image")
-        I_reg = niftiread(resample_table.file{1});
-        I_reg = transformix(I_reg,reg_params.image_to_atlas,[1,1,1], []);
-        [~,fname] = fileparts(resample_table.file{1});
-    end
-    fname = fullfile(reg_dir,strcat(fname,'_registered.nii'));
-    niftiwrite(uint16(I_reg),fname)
+    save_registered_images(config,reg_params)
 end
 
+% Now working on making an annotation mask
 % Name mask image based on direction
 if isequal(final_direction,"atlas_to_image") || isequal(final_direction,"mri_to_image")
     annot_marker = r1_marker;
@@ -396,20 +469,20 @@ end
 
 
 function config = perform_counting(config,path_table)
-% Segment and/or Count Cells
+% Detect cell/nuclei centroids
 
-path_centroids = fullfile(config.output_directory, sprintf('%s_centroids1.csv',...
-    config.sample_id));
-
-% Update centroid index if file already exists
-if isfile(path_centroids)
-    [path,fname,ext] = fileparts(path_centroids);
-    fname = char(fname);
-    fname(end) = num2str(str2double(fname(end))+1);
-    path_save = fullfile(path,strcat(fname,ext));
-else
-    path_save = path_centroids;
+% Check for centroids structure
+path_centroids = fullfile(config.var_directory,'centroids.mat');
+if isequal(config.count_nuclei,"false")
+    fprintf('%s\t No cell counting selected\n',datetime('now'))
+    return
+elseif isequal(config.count_nuclei,"true") && isfile(path_centroids)
+    fprintf('%s\t Centroids already detected. Skipping cell counting\n',datetime('now'))
+    return
 end
+   
+% Append results to csv while progessing down stack
+path_save = fullfile(config.output_directory, sprintf('%s_centroids.csv',config.sample_id));
 
 if isequal(config.count_method,"hessian")
     % Detect nuclei centroids using hessian-based blob detector
@@ -441,9 +514,12 @@ elseif isequal(config.count_method,"3dunet")
     config.path_save = path_save;
     config.img_directory = fileparts(path_table(path_table.channel_num ==1,:).file{1});
     predict_centroids_3dunet(config)
-    
 end
 
+% Read centroids csv file and resave as MATLAB structure
+centroids.coordinates = readmatrix(path_save);
+save(path_centroids,'centroids')
+delete(path_save)
 
 end
 
@@ -451,54 +527,43 @@ end
 function config = perform_classification(config, path_table)
 % Classify Cell-Types  
 
+% Check for centroids structure
+path_classes = fullfile(config.var_directory,'classes.mat');
+if isequal(config.classify_cells,"false")
+    fprintf('%s\t No cell classification selected\n',datetime('now'))
+    return
+elseif isequal(config.classify_cells,"true") && isfile(path_classes)
+    fprintf('%s\t Centroids already classified. Skipping cell classification\n',datetime('now'))
+    return
+end
+
+% Subset markers to classify
 if isempty(config.classify_channels)
-    config.classify_channels = unique(path_table.channel_num');
+    % Use only channels at the same resolution as nuclear channel
+    c = 1:length(config.markers);
+    config.classify_channels = c(cellfun(@(s) isequal(s,config.resolution{1}),config.resolution));
+else
+    
 end
-
-markers = config.markers(config.classify_channels);
-path_table = path_table(ismember(path_table.markers,markers),:);
-
-% Load previous cell counting results. Should be located in the output directory.
-path_centroids = dir(config.output_directory);
-path_centroids = path_centroids(arrayfun(@(s) startsWith(s.name,sprintf("%s_centroids",config.sample_id)) ...
-    && endsWith(s.name,".csv"),path_centroids));
-
-% Take most recent one if multiple
-if length(path_centroids)>1
-    s1 = arrayfun(@(s) strsplit(s.name,{'centroids','.csv'}),path_centroids,...
-        'UniformOutput',false);
-    s1 = cellfun(@(s) str2double(s(2)),s1);
-    path_centroids = path_centroids(s1 == max(s1));
-end
+class_markers = config.markers(config.classify_channels);
+path_table = path_table(ismember(path_table.markers,class_markers),:);
 
 % Load centroids
-if isempty(path_centroids)
+path_centroids = fullfile(config.var_directory,'centroids.mat');
+if ~isfile(path_centroids)
     error("Could not locate centroids file in the output directory");
 else
-    fprintf('%s\t Loading centroid list from %s \n',datetime('now'),path_centroids.name)
-    path_centroids = fullfile(path_centroids.folder,path_centroids.name);
-    centroids = readmatrix(path_centroids);
+    fprintf('%s\t Loading centroid list \n',datetime('now'))
+    load(path_centroids,'centroids');
 end
 
 % Check if all channel intensity have been measured
-ncols = 4 + length(markers);
-
-if size(centroids,2) == 4 || isequal(config.remeasure_centroids,'true')
+if ~isfield(centroids,'intensities') || isequal(config.remeasure_centroids,'true') ||...
+        size(centroids.intensities,2) ~= length(class_markers)
     % No intensities measured
-    m_int = remeasure_centroids(centroids,path_table,config,markers);    
-    centroids(:,5:ncols) = m_int;
-    writematrix(centroids,path_centroids);
-    
-elseif size(centroids,2) == 5 && length(markers)>1
-    % Reference channel already measured
-    m_int = remeasure_centroids(centroids,path_table,config,markers(2:end));
-    centroids(:,6:ncols) = m_int;
-    writematrix(centroids,path_centroids);
-
-elseif size(centroids,2) ~= ncols
-    % Incorrect number of columns in centroid file
-    error("Error in centroids .csv file. Number of data columns does not match"+...
-        " expected number of columns based on number of markers specified")
+    centroids.intensities = remeasure_centroids(centroids.coordinates,path_table,config,class_markers);
+    centroids.intensities = round(centroids.intensities);
+    save(path_centroids,'centroids')
 end
 
 % Calculate automatic minimum threshold if unspecified
@@ -513,42 +578,13 @@ if isempty(config.min_intensity)
     fprintf('%s\t Using minimum centroid intensity: %.0f \n',datetime('now'),thresh*65535)
 end
 
-% Subset channels from path_table to classify
-if isempty(config.classify_channels)
-    c = 1:length(markers);
-    c = c(cellfun(@(s) isequal(s,config.resolution{1}),config.resolution));
-else
-    c = config.classify_channels;
-end
-path_table = path_table(ismember(path_table.channel_num,c),:);
-
 % Name class file
-path_classes = fullfile(config.output_directory, sprintf('%s_classes1.csv',...
-    config.sample_id));
-if isfile(path_classes)
-    [path,fname,ext] = fileparts(path_classes);
-    fname = char(fname);
-    fname(end) = num2str(str2double(fname(end))+1);
-    path_save = fullfile(path,strcat(fname,ext));
-else
-    path_save = path_classes;
-end
+path_classes = fullfile(config.var_directory,'classes.mat');
+path_save = fullfile(config.output_directory, sprintf('%s_classes.csv',config.sample_id));
 
 if isequal(config.classify_method,'gmm')
-    [ct, p, gm] = classify_cells_gmm(centroids, config);
-    centroids(:,8) = ct;
+    % Not supported anymore. Might add later
 
-    %path_centroids = fullfile(output_directory, sprintf('%s_centroids.csv',sample_id));
-    %writematrix(centroids,path_centroids);
-        
-    %I_final = create_image_slices(centroids, path_table_stitched, config);
-    %I_final = create_image_slice(centroids, path_table_stitched, config);
-        
-    %if isequal(config.save_counts,'true') || isequal(config.save_counts,'overwrite')
-    %    fprintf('%s\t Saving centroid list \n',datetime('now'))
-    %    path_centroids = fullfile(output_directory, sprintf('%s_centroids2_new.csv',sample_id));
-    %    writematrix(centroids_new,path_centroids);
-    %end
 elseif isequal(config.classify_method,'svm')
     % Classify cell-types by trained SVM
     
@@ -568,6 +604,7 @@ elseif isequal(config.classify_method,'svm')
     ftable_full = fullfile(config.output_directory,'classifier',...
         sprintf('%s_full_patch_features.csv',config.sample_id));
     
+    % Create new patches for manual labeling or load a previous set
     if ~isfile(itable) || ~isfile(ftable)
         fprintf('%s\t Generating new centroid patches for training SVM model \n',...
             datetime('now'))
@@ -622,32 +659,35 @@ else
 end
 
 % Construct new csv file for cell classes
-cen_classes = centroids(:,1:4);
-cen_classes = horzcat(cen_classes,ct);
+cen_classes = cat(2,centroids.coordinates,centroids.annotations,ct);
 
-% Remove outlers
+% Remove outliers
 if isempty(config.keep_classes)
     config.keep_classes = unique(ct(ct>0)');
 end
-r_idx = ismember(ct,config.keep_classes);
-cen_classes = cen_classes(r_idx,:);
-centroids = centroids(r_idx,:);
+keep_idx = ismember(ct,config.keep_classes);
+cen_classes = cen_classes(keep_idx,:);
+centroids.intensities = centroids.intensities(keep_idx,:);
 
 % Print results
 fprintf('\t Total centroids retained: %d\n', size(cen_classes,1))
-classes = unique(cen_classes(:,5));
-for i = 1:length(classes)
-    idx = cen_classes(:,5) == classes(i);
+u_classes = unique(cen_classes(:,5));
+for i = 1:length(u_classes)
+    idx = cen_classes(:,5) == u_classes(i);
     count = sum(idx);
-    intensities = round(mean(centroids(idx,5:end),1));
+    intensities = round(mean(centroids.intensities(idx,:),1));
     fprintf('\t Classified %d cells or %.3f of centroids as type %d.\n',...
-        count,count/size(cen_classes,1),classes(i))
+        count,count/size(cen_classes,1),u_classes(i))
     fprintf('\t Average intensities: %s.\n',num2str(intensities))
 end
 
-% Write matrix
-writematrix(cen_classes,path_save)
+% Save to structure
+classes.centroids = cen_classes(:,1:3);
+classes.annotations = cen_classes(:,4);
+classes.classes = cen_classes(:,5);
+save(path_classes,'classes')
 
 fprintf('%s\t Classification of sample %s completed! \n',...
         datetime('now'),config.sample_id)
 end
+

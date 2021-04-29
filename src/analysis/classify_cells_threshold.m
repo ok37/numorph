@@ -6,10 +6,15 @@ remove_l1 = 'false';
 stratify_structures = 'false';
 remove_background = 'false';
 
-% Get parameters from config structure
+% Get parameters
 markers = config.markers;
 n_markers = length(markers);
 
+annotations = centroids.annotations;
+intensities = centroids.intensities;
+centroids = centroids.coordinates;
+
+% Calculate class combinations from the number of markers
 if isequal(config.contains_nuclear_channel,"true")
     ref_n = 2;
     n = n_markers-1;
@@ -32,13 +37,15 @@ end
 ct = ones(size(centroids,1),1);
 
 % Remove any centroids without annotations
-rm_idx = centroids(:,4) == 0;
+rm_idx = annotations == 0;
 fprintf('%s\t Removed %d nuclei with no annotation \n',datetime('now'),sum(rm_idx))
 
 % Remove cells below minimum nuclei intensity threshold
-low_idx = centroids(:,5) < config.min_intensity;
-rm_idx = rm_idx | low_idx;
-fprintf('%s\t Removed %d low intensity nuclei \n',datetime('now'),sum(low_idx))
+if isequal(config.contains_nuclear_channel,"true")
+    low_idx = intensities(:,1) < config.min_intensity;
+    rm_idx = rm_idx | low_idx;
+    fprintf('%s\t Removed %d low intensity nuclei \n',datetime('now'),sum(low_idx))
+end
 
 % Ask if to remove layer 1 prior to analysis
 if isequal(remove_l1,"true")
@@ -52,8 +59,6 @@ if isequal(remove_l1,"true")
    l1_idx = s1 & s2 & l1_idx;
    rm_idx = rm_idx | l1_idx;
    fprintf('%s\t Removed %d cells \n',datetime('now'),sum(l1_idx))
-else
-    l1_idx = 0;
 end
 
 % Remove selected indexes
@@ -64,8 +69,8 @@ count = zeros(size(centroids,1),n_markers);
 a = ref_n-1;
 for i = ref_n:n_markers
     % Clustering using thresholds
-    idx = 4+i;
-    intensities = centroids(:,idx);
+    %idx = 4+i;
+    intensities = centroids(:,i);
 
     % Load background intensities from background images
     if isequal(remove_background,'true')
@@ -107,7 +112,7 @@ for i = ref_n:n_markers
             expression = config.intensity_expression;
         end
         thresh = calculate_threshold_expression(values, expression);
-        fprintf('%s\t Using expression threshold %f on marker %s \n',...
+        fprintf('%s\t Using expression threshold %d on marker %s \n',...
             datetime('now'),thresh, markers(i))
     end
     

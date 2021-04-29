@@ -45,7 +45,8 @@ end
 % Note: this is the default parameter file for calculating the inverse
 home_path = fileparts(which('NM_config'));
 parameter_path{1} = fullfile(home_path,'elastix_parameter_files',...
-                'atlas_registration',inverse_params, 'ElastixParameterAffineInverse.txt');
+                'atlas_registration',inverse_params,...
+                'ElastixParameterBSplineInverse.txt');
 
 % Load registration parameters if not provided
 if isempty(reg_params)
