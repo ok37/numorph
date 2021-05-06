@@ -1,4 +1,5 @@
-tmp
+results/*
+tmp/*
 templates/*
 data/tmp/*
 src/external/*

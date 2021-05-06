@@ -5,6 +5,7 @@ function NM_evaluate(config, step, plot_type)
 % and KO groups.
 %--------------------------------------------------------------------------
 config.overwrite = "true";
+config.temp_file = fullfile(fileparts('NM_config'),'annotations','structure_template.csv');
 
 % Default to run full pipeline
 if nargin<2

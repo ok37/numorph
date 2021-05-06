@@ -18,7 +18,6 @@ function results = load_results(input,sample)
 % results: Results structure.
 %
 %--------------------------------------------------------------------------
-
 if nargin>1 && isstruct(input)
     input.output_directory = input.results_path(input.samples == string(sample));
 end

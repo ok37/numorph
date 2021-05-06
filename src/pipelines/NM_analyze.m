@@ -29,10 +29,11 @@ config.var_directory = fullfile(config.output_directory,'variables');
 config.home_path = fileparts(which('NM_config'));
 config.res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
 
-
 % Default to run full pipeline
 if nargin<2
     step = 'analyze';
+elseif ~ismember(step,{'analyze','resample','register','count','classify'})
+    error("Unrecognized step selected")
 end
 
 % Make an output directory
@@ -129,7 +130,6 @@ config = perform_resampling(config, path_table);
 config = perform_registration(config);
 config = perform_counting(config,path_table);
 config = perform_classification(config, path_table);
-create_final_structure(config);
 fprintf('%s\t Analysis steps completed! \n',datetime('now'))
 
 end
@@ -436,8 +436,7 @@ if ~isempty(I_mask)
         % Measure structure volumes and save into summary structure
         fprintf('%s\t Measuring structure volumes \n',datetime('now'))
         volumes = measure_structure_volumes(config);
-        summary.volumes = [1:length(volumes);volumes]';
-        save(config.res_name,'-append','summary')
+        save_to_summary(config.res_name,volumes,'volumes')
         return
     else
         error("Custom annotations not mapped to either moving or reference images.")
@@ -492,8 +491,7 @@ end
 % Measure structure volumes and save into summary structure
 fprintf('%s\t Measuring structure volumes \n',datetime('now'))
 volumes = measure_structure_volumes(config);
-summary.volumes = [1:length(volumes);volumes]';
-save(config.res_name,'-append','summary')
+save_to_summary(config.res_name,volumes,'volumes')
 
 end
 
@@ -517,6 +515,8 @@ elseif isequal(config.count_nuclei,"true") && isfile(path_centroids)
         results = rmfield(results,'classes');
     end
     save(config.res_name,'-struct','results')
+    counts = measure_cell_counts(config);
+    save_to_summary(config.res_name,counts,'counts')
     return
 end
    
@@ -560,6 +560,10 @@ centroids.coordinates = readmatrix(path_save);
 save(path_centroids,'centroids')
 delete(path_save)
 
+% Save to results structure
+counts = measure_cell_counts(config);
+save_to_summary(config.res_name,counts,'counts')
+
 end
 
 
@@ -581,6 +585,8 @@ elseif isequal(config.classify_cells,"true") && isfile(path_classes)
     save(config.res_name,'-append','centroids')
     save(config.res_name,'-append','annotations')
     save(config.res_name,'-append','classes')
+    counts = measure_cell_counts(config);
+    save_to_summary(config.res_name,counts,'counts')
     return
 end
 
@@ -731,6 +737,8 @@ classes.centroids = cen_classes(:,1:3);
 classes.annotations = cen_classes(:,4);
 classes.classes = cen_classes(:,5);
 save(path_classes,'classes')
+counts = measure_cell_counts(config);
+save_to_summary(config.res_name,counts,'counts')
 
 fprintf('%s\t Classification of sample %s completed! \n',...
         datetime('now'),config.sample_id)
