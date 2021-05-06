@@ -1,4 +1,4 @@
-function reg_params = register_to_atlas(config, mov_img_path, ref_img_path, num_points, only_inverse)
+function reg_params = register_to_atlas(config, mov_img_path, ref_img_path, num_points)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
 % reg_params variable. While it is simpler to just register the atlas to
@@ -8,8 +8,6 @@ function reg_params = register_to_atlas(config, mov_img_path, ref_img_path, num_
 % Defaults
 high_prct = 99;                 % Max intensity adjustment percentile for images
 Gamma = 0.9;                    % Gamma to apply for intensity adjustment
-
-%calc_inverse = config.calculate_inverse;
 %inverse_params = "inverse";     % Location of elastix parameter for calculating the inverse
 
 % Unpack config variables
@@ -25,10 +23,6 @@ home_path = fileparts(which('NM_config.m'));
 % Unless testing, use all points
 if nargin<4 || isempty(num_points)
     num_points = 'all';
-end
-
-if nargin<5
-    only_inverse = false;
 end
 
 % Remove tmp directories
@@ -84,97 +78,73 @@ mov_img_array = cellfun(@(s) double(imadjustn(uint16(s),...
 ref_img_array = cellfun(@(s) double(imadjustn(uint16(s),...
     [0,prctile(s(:),high_prct)/65535],[],Gamma)), ref_img_array,...
     'UniformOutput', false);
-
-% Load registration parameters from file
-reg_file = fullfile(config.output_directory,'variables','reg_params.mat');
-if isfile(reg_file) 
-    load(reg_file,'reg_params')
-end
     
 % Chain registration parameters. Parameter files are found in
 % data/elastix_parameter_files/atlas_registration. 
 % Update specific elastix parameters by editting these files.
-if ~only_inverse
-    % Paths to elastix parameter files
-    param_path = fullfile(home_path,'data','elastix_parameter_files','atlas_registration',params);
-    param_path = dir(param_path);
-    parameter_paths = cell(1,length(params));
-    if ~isempty(param_path)
-        % Detect which transform is in the parameter file
-        parameterSub = param_path(arrayfun(@(s) endsWith(s.name,'.txt'),param_path));
-        for j = 1:length(parameterSub)
-            file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
-            text = textread(file_path,'%s','delimiter','\n');
-            n = find(cellfun(@(s) contains(s,'(Transform '),text));
-            if contains(text(n),'Translation') || contains(text(n),'Affine') || contains(text(n),'Euler')
-                fprintf('\t Performing rigid registration\n');
-                parameter_paths{1} = file_path;
-            elseif contains(text(n),'BSpline')
-                fprintf('\t Performing b-spline registration\n');
-                parameter_paths{2} = file_path;
-            end
+% Paths to elastix parameter files
+param_path = fullfile(home_path,'data','elastix_parameter_files','atlas_registration',params);
+param_path = dir(param_path);
+parameter_paths = cell(1,length(params));
+if ~isempty(param_path)
+    % Detect which transform is in the parameter file
+    parameterSub = param_path(arrayfun(@(s) endsWith(s.name,'.txt'),param_path));
+    for j = 1:length(parameterSub)
+        file_path = fullfile(parameterSub(1).folder,parameterSub(j).name);
+        text = textread(file_path,'%s','delimiter','\n');
+        n = find(cellfun(@(s) contains(s,'(Transform '),text));
+        if contains(text(n),'Translation') || contains(text(n),'Affine') || contains(text(n),'Euler')
+            fprintf('\t Performing rigid registration\n');
+            parameter_paths{1} = file_path;
+        elseif contains(text(n),'BSpline')
+            fprintf('\t Performing b-spline registration\n');
+            parameter_paths{2} = file_path;
         end
-    else
-        error("Could not locate elastix parameter folder %s.",param_path)
     end
-
-    % Load registration points
-    points = [];
-    if ~isempty(points_file)
-        fprintf('\t Loading points to guide registration\n');
-
-        % Load points from BigWarpJ .csv file
-        [mov_points,ref_points] = load_points_from_bdv(output_directory, points_file,...
-            atlas_type, mov_img);
-
-        % Trim points if not using all
-        if isequal(num_points,'all')
-            num_points = size(mov_points,1);
-        end
-        
-        points.mov_points = mov_points(1:num_points,:);
-        points.ref_points = ref_points(1:num_points,:);
-    end
-
-    % Add mask for olfactory and cerebellum
-    mask = [];
-    if isequal(use_mask,"true") && contains(direction,"atlas")
-        load(fullfile(home_path,'data','annotation_data','olf_cer.mat'),'bw_mask')
-        mask = single(~bw_mask);
-        
-        % Transform atlas_img to match sample orientation
-        if isequal(hemisphere, "right")
-            mask = flip(mask,1);
-        elseif isequal(hemisphere,"both")
-            mask2 = flip(mask,3);
-            mask = cat(3,mask,mask2);
-        end
-    
-        % Permute
-        mask = permute_orientation(mask,'ail',char(orientation));
-        
-        % Resize to match atlas image
-        mask = imresize3(mask,size(ref_img),'Method','nearest');
-    end
-
-    % Perform pairwise registration
-    reg_params_sub = elastix_registration(mov_img_array,ref_img_array,...
-        parameter_paths,points,mask,config.output_directory,...
-        direction, [config.mov_prealign, config.ref_prealign]);
+else
+    error("Could not locate elastix parameter folder %s.",param_path)
 end
 
+% Load registration points
+points = [];
+if ~isempty(points_file)
+    fprintf('\t Loading points to guide registration\n');
+
+    % Load points from BigWarpJ .csv file
+    [mov_points,ref_points] = load_points_from_bdv(output_directory, points_file,...
+        atlas_type, mov_img);
+
+    % Trim points if not using all
+    if isequal(num_points,'all')
+        num_points = size(mov_points,1);
+    end
+    points.mov_points = mov_points(1:num_points,:);
+    points.ref_points = ref_points(1:num_points,:);
+end
+
+% Add mask for olfactory and cerebellum
+mask = [];
+if isequal(use_mask,"true") && contains(direction,"atlas")
+    load(fullfile(home_path,'data','annotation_data','olf_cer.mat'),'bw_mask')
+    mask = standardize_nii(single(~bw_mask),"mask",25,'ail',config.hemisphere);
+end
+
+% Perform pairwise registration
+reg_params = elastix_registration(mov_img_array,ref_img_array,...
+    parameter_paths,points,mask,config.output_directory,...
+    direction, [config.mov_prealign, config.ref_prealign]);
+
 % Create new variable or attach to existing
-reg_params.(direction) = reg_params_sub;
-reg_params.(direction).mov_img_path = mov_img_path;
-reg_params.(direction).mov_orientation = config.mov_orientation;
-reg_params.(direction).mov_res = config.mov_res;
-reg_params.(direction).mov_size = size_mov([2 1 3]);
-reg_params.(direction).mov_channels = config.mov_channels;
-reg_params.(direction).ref_img_path = ref_img_path;
-reg_params.(direction).ref_orientation = config.ref_orientation;
-reg_params.(direction).ref_res = config.ref_res;
-reg_params.(direction).ref_size = size_ref([2 1 3]);
-reg_params.(direction).ref_channels = config.ref_channels;
+reg_params.mov_img_path = mov_img_path;
+reg_params.mov_orientation = config.mov_orientation;
+reg_params.mov_res = config.mov_res;
+reg_params.mov_size = size_mov([2 1 3]);
+reg_params.mov_channels = config.mov_channels;
+reg_params.ref_img_path = ref_img_path;
+reg_params.ref_orientation = config.ref_orientation;
+reg_params.ref_res = config.ref_res;
+reg_params.ref_size = size_ref([2 1 3]);
+reg_params.ref_channels = config.ref_channels;
 
 
 % Calculating inverse deprecated for now

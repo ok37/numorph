@@ -11,31 +11,6 @@ temp_file = fullfile(fileparts('NM_config'),'annotations','structure_template.cs
 df_temp = readtable(temp_file);
 annotation_indexes = df_temp.index;
 
-
-
-% Sum according to structure level order, except for background
-ids = df_template.id;
-path = df_template.structure_id_path;
-df_new = zeros(size(df_volumes));
-for i = 2:length(ids)
-    idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
-    df_new(i) = sum(df_volumes(idx));
-end
-df_volumes = df_new';
-
-% Create header name
-df_header = config.sample_id + "_" + "Volume";
-
-% Convert to table
-volumes_table = array2table(df_volumes,'VariableNames',df_header);
-
-% Concatenate counts to results table
-df_results = horzcat(df_template(:,[1,end-1,end]), volumes_table);
-
-
-
-
-
 % Create matrix for storing volumes
 df_volumes = zeros(length(annotation_indexes),length(sample_files));
 for i = 1:length(config.results_path)

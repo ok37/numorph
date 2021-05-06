@@ -11,7 +11,7 @@ function [z_displacement,q,low_flag] = z_align_stitch(path_mov,path_ref,overlap,
 peaks = 3;
 usfac = 1;
 min_overlap = 50;
-min_signal = 0.1;       % Minimum fraction of signal pixels for registering
+min_signal = 0.025;       % Minimum fraction of signal pixels for registering
 z_window = 3;
 z_window_narrow = 1;
 

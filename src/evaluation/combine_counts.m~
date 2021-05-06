@@ -30,7 +30,8 @@ for n = 1:length(config.results_path)
     sum_path = config.results_path(n);
     obj = matfile(sum_path);
     var_names = who(obj);
-    
+    obj.Properties.Writable = true;
+
     % Read annotations
     if any(ismember(var_names,'annotations'))
         annotations = obj.annotations;
@@ -89,14 +90,18 @@ for n = 1:length(config.results_path)
     % Print cells counted
     if using_classes
         for j = 1:length(types)
-            fprintf('%s\t Total %s count: %d\n',datetime('now'),types(j),counts(2,j))
+            fprintf('%s\t Total %s Count: %d\n',datetime('now'),types(j),counts(2,j))
         end
     end
-    fprintf('%s\t Total cell count: %d\n',datetime('now'),length(ct))
+    fprintf('%s\t Total Cell Count: %d\n',datetime('now'),length(ct))
     
     % Save counts to structure
-    summary.counts = horzcat(df_results(:,[1,8,9]),counts_table);
-    save(sum_path,'-append','summary');
+    df_sample = horzcat(df_results(:,[1,8,9]),counts_table);
+    obj.('summary').counts = df_sample;
+    
+    
+    
+    
 end
 
 % Write new results file

@@ -5,9 +5,9 @@ function [lowerThresh, upperThresh, signalThresh, t_adj, y_adj, flatfield, darkf
 %--------------------------------------------------------------------------
 % Some additional defaults for tile position adjustment
 defaults.low_prct = 5;   % Low percentile for sampling background pixels
-defaults.high_prct = 99; % High percentile for sampling bright pixels
-defaults.pads = 0.1;     % Crop this fraction of image from the sides of images. Note this should be <0.5
-defaults.image_sampling = 0.01;   % Fraction of all images to sample
+defaults.high_prct = 98; % High percentile for sampling bright pixels
+defaults.pads = 0.05;     % Crop this fraction of image from the sides of images. Note this should be <0.5
+defaults.image_sampling = 0.05;   % Fraction of all images to sample
 
 % If just measuring thresholds, set to true
 if nargin<4

@@ -1,4 +1,4 @@
-function I_mask = gen_mask(structures, hemisphere, orientation, res_adj)
+function I_mask = gen_mask(structures, hemisphere, orientation, resolution)
 % -------------------------------------------------------------------------
 %This function generates a mask from Allen atlas based on CCF ids in a csv
 %file
@@ -6,6 +6,8 @@ function I_mask = gen_mask(structures, hemisphere, orientation, res_adj)
 
 if nargin<4
     res_adj = [];
+else
+    res_adj = 10/resolution;
 end
 
 % Load annotation volume and indexes
@@ -18,6 +20,7 @@ annotationVolume = reshape_mask(annotationVolume,hemisphere,orientation,res_adj)
 % Return whole brain mask
 if nargin < 2 || isequal(structures,"structure_template.csv") ||...
         isequal(structures,"structure_template") ||...
+        isequal(structures,"full") ||...
         isempty(structures)
     I_mask = annotationVolume;
     return

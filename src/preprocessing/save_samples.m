@@ -147,7 +147,11 @@ switch process
             for i = 1:length(y)
                 I_adj = cell(1,length(x));
                 for j = 1:length(x)
-                    I_adj{j} = check_alignment(config, {y(i), x(j)}, spacing);
+                    try 
+                        I_adj{j} = check_alignment(config, {y(i), x(j)}, spacing);
+                    catch
+                        return
+                    end
                 end
                 I_adj2{i} = cat(2,I_adj{:});
             end

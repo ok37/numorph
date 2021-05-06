@@ -751,28 +751,31 @@ if isempty(mask_int_threshold)
     mask_int_threshold = signalThresh;
 end
 
-% Binarize mask and fill holes
-mask = imbinarize(I2,mask_int_threshold);
-mask = imfill(mask,26,'holes');
-    
-% Clear any slices with only a few 
-idx = sum(sum(mask,1),2)/numel(mask(:,:,1))<slice_thresh;
-mask(:,:,idx) = 0;
+signal = 0;
+while signal < 0.05
+    % Binarize mask and fill holes
+    mask = imbinarize(I2,mask_int_threshold);
+    mask = imfill(mask,26,'holes');
 
-% Keep only brightest compnent. Disconnected components will give errors
-%labels = bwconncomp(mask);
-%intensity = regionprops3(labels,I2,{'VoxelIdxList','MeanIntensity',});
-%idx = find(intensity.MeanIntensity == max(intensity.MeanIntensity));
-%for i = 1:height(intensity)
-%    if i ~= idx
-%        mask(intensity.VoxelIdxList{i}) = 0;
-%    end
-%end
-    
-% Resize back to original size
-mask = imresize3(double(mask), size(I),'method', 'nearest');
-signal = sum(mask(:))/numel(mask);
+    % Clear any slices with only a few 
+    idx = sum(sum(mask,1),2)/numel(mask(:,:,1))<slice_thresh;
+    mask(:,:,idx) = 0;
 
+    % Keep only brightest compnent. Disconnected components will give errors
+    %labels = bwconncomp(mask);
+    %intensity = regionprops3(labels,I2,{'VoxelIdxList','MeanIntensity',});
+    %idx = find(intensity.MeanIntensity == max(intensity.MeanIntensity));
+    %for i = 1:height(intensity)
+    %    if i ~= idx
+    %        mask(intensity.VoxelIdxList{i}) = 0;
+    %    end
+    %end
+
+    % Resize back to original size
+    mask = imresize3(double(mask), size(I),'method', 'nearest');
+    signal = sum(mask(:))/numel(mask);
+    mask_int_threshold = mask_int_threshold*0.95;
+end
 fprintf('\n Using a mask intensity threshold of %.4f \n', mask_int_threshold)
 fprintf('\n Using %.4f percent of voxels \n', signal*100)
 

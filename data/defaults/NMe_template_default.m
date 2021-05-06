@@ -2,7 +2,7 @@
 % These are the key parameters
 % Set flags to indicate how/whether to run process
 % Directory to save results
-results_directory = [];                 % Output directory. (default: numorph home directory)
+results_directory = [];                 % Output directory for summary (default: numorph/results)
 combine_counts = 'true';                % Combine cell counts from multiple samples
 combine_volumes = 'true';               % Combine volumes from multiple samples
 calculate_stats = 'true';               % Create summary table with statistics

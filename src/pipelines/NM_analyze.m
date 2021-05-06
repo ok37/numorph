@@ -26,7 +26,9 @@ elseif ~isstruct(config)
     error("Invalid configuartion input")
 end
 config.var_directory = fullfile(config.output_directory,'variables');
-home_path = fileparts(which('NM_config'));
+config.home_path = fileparts(which('NM_config'));
+config.res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
+
 
 % Default to run full pipeline
 if nargin<2
@@ -83,17 +85,17 @@ if ~isempty(path_table)
     end
 end
 
-%% Generate annotation .mat file if provided custom
-%if isequal(config.use_annotation_mask,"true") && ~isempty(config.annotation_file)  
-%    [~,b] = fileparts(config.annotation_file);
-    %annot_file = fullfile(home_path,'data','masks',strcat(b,'.mat'));
-%    annot_file = fullfile(config.output_directory,'variables',strcat(b,'.mat'));
-    
-%    if ~isfile(annot_file)
-%        fprintf('%s\t Converting custom annotations \n',datetime('now'))
-%        generate_annotations_from_file(config)
-%    end
-%end
+%% Intialize results structure if not present
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
+if ~isfile(res_name)
+    fprintf('%s\t Intializing new structure of saving results \n',datetime('now'))   
+    results.sample_id = config.sample_id;
+    results.group = config.group;
+    results.resolution = config.resolution{1};
+    results.markers = config.markers;
+    save(res_name,'-struct','results')
+end
 
 %% Run single step and return if specified
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -105,20 +107,17 @@ if nargin>1 && isequal(step,'resample')
     return
 elseif nargin>1 && isequal(step,'register')
     config = perform_registration(config,path_table_nii);
-    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
 elseif nargin>1 && isequal(step,'count')
     path_table = path_table(path_table.markers == config.markers(1),:);
     config = perform_counting(config,path_table);
-    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
 elseif nargin>1 && isequal(step,'classify')
     config = perform_classification(config, path_table);
-    create_final_structure(config);
     if nargout == 1; path_table = []; end
     if nargout < 1; clear config; end
     return
@@ -126,14 +125,12 @@ end
 
 %% Run full analysis pipeline
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isequal(step,'analyze') 
-    config = perform_resampling(config, path_table);
-    config = perform_registration(config);
-    config = perform_counting(config,path_table);
-    config = perform_classification(config, path_table);
-    create_final_structure(config);
-    fprintf('%s\t Analysis steps completed! \n',datetime('now'))
-end
+config = perform_resampling(config, path_table);
+config = perform_registration(config);
+config = perform_counting(config,path_table);
+config = perform_classification(config, path_table);
+create_final_structure(config);
+fprintf('%s\t Analysis steps completed! \n',datetime('now'))
 
 end
 
@@ -188,89 +185,83 @@ resample_path_table(path_table, config, resample_channels);
 end
 
 
-function config = perform_registration(config, path_table_mri)
+function config = perform_registration(config, path_table_nii)
 % Image registration
+
 home_path = fileparts(which('NM_config'));
+reg_dir = fullfile(config.output_directory,'registered');
+direction = config.registration_direction;
+reg_file = fullfile(config.output_directory,'variables','reg_params.mat');
+mask_var = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat')); 
+reg_params = []; 
+I_mask = [];
+run_registration = true;
 
 if isequal(config.register_images,"false")
     % Check if I_mask exists
-    mask_var = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat'));
-    if ~isfile(mask_var) && ~isequal(config.use_annotation_mask,"false")
+    if ~isfile(mask_var) && isequal(config.use_annotation_mask,"true")
         error("Analysis is configured to use annotations however none exist. "+...
             "Run registration to generate an annotation mask or specify custom annotations")
     end
     return
 end
 
-I_mask = [];
+% Create registered directory
+if ~isfolder(reg_dir) && isequal(config.save_registered_images,"true")
+    mkdir(reg_dir)
+end
+
+% Get moving and reference directions
+if isequal(config.registration_direction,"image_to_atlas")
+    config.mov_direction = "image"; config.ref_direction = "atlas";
+elseif isequal(config.registration_direction,"image_to_mri")
+    config.mov_direction = "image"; config.ref_direction = "mri";
+elseif isequal(config.registration_direction,"mri_to_atlas")
+    config.mov_direction = "mri"; config.ref_direction = "atlas";
+elseif isequal(config.registration_direction,"mri_to_image")
+    config.mov_direction = "mri"; config.ref_direction = "image";
+elseif isequal(config.registration_direction,"atlas_to_image")
+    config.mov_direction = "atlas"; config.ref_direction = "image";
+elseif isequal(config.registration_direction,"atlas_to_mri")
+    config.mov_direction = "atlas"; config.ref_direction = "mri";
+else
+    error("Unrecognized registration direction specified.")
+end
+
+% Check for custom annotations
 if ~isempty(config.annotation_file)
-    % Custom annotation
      if isequal(config.annotation_mapping,"image")
-         % Matches images, save as .mat and return
+         % Matches images, save as .mat
          if isfile(config.annotation_file)
              I_mask = read_img(config.annotation_file);
-             mask_var = fullfile(config.output_directory,...
-                 'variables',strcat(config.sample_id,'_mask.mat'));
-              fprintf('%s\t Saving custom annotations that are already mapped to images \n',datetime('now'))
-             save(mask_var,'I_mask','-v7.3')
-             return
+             run_registration = false;
          else
              error("Could not locate custom annotation file %s",config.custom_annotation_file)
          end
      else
-         % Matches atlas file, still need to perform registration. Load
-         % mask here
+         % Does not match target image; still perform registration
          I_mask = read_img(config.annotation_file);
      end
 end
-fprintf('%s\t Performing image registration \n',datetime('now'))
-
-% Get which structures
-[~,structures] = fileparts(config.structures);
-r1_marker = config.markers(config.registration_channels);
-
-% Get final direction with inverse
-final_direction = config.registration_direction;
-%if isequal(config.calculate_inverse,"true")
-%    if isequal(final_direction,"atlas_to_image")
-%        final_direction = "image_to_atlas";
-%    elseif isequal(final_direction,"image_to_atlas")
-%        final_direction = "atlas_to_image";
-%    elseif isequal(final_direction,"mri_to_atlas")
-%        final_direction = "altas_to_mri";
-%    elseif isequal(final_direction,"atlas_to_mri")
-%        final_direction = "mri_to_atlas";
-%    elseif isequal(final_direction,"image_to_mri")
-%        final_direction = "mri_to_image";
-%    elseif isequal(final_direction,"mri_to_image")
-%        final_direction = "image_to_mri";
-%    end
-%end
 
 % Attempt to load registration parameters
-reg_params = [];
-loaded = false;
-reg_file = fullfile(config.output_directory,'variables','reg_params.mat');
 if isfile(reg_file) 
     % Load previous parameters if not updating
-    if ~isequal(config.register_images,"update")
+    if run_registration && ~isequal(config.register_images,"update")
         fprintf('%s\t Loading previosuly calculated registration parameters \n',datetime('now'))
         load(reg_file,'reg_params')
-    end
-    
-    % Check if loaded registration parameters contain the direction
-    % specified in config
-    if isfield(reg_params,final_direction)
-        loaded = true;
-    end
-    if ~isequal(config.register_images,"update")
-        fprintf('%s\t Parameters already exist for specified direction. Skipping registration\n',...
-            datetime('now'))
+        % Check if loaded registration parameters contain the direction
+        % specified in config
+        if isfield(reg_params,direction)
+            fprintf('%s\t Parameters already exist for specified direction. Skipping registration\n',...
+                datetime('now'))
+            run_registration = false;
+        end
     end
 end
 
 % Check atlas files
-if ~loaded && contains(config.registration_direction,"atlas")
+if run_registration && contains(config.registration_direction,"atlas")
     atlas_path = arrayfun(@(s) {char(fullfile(config.home_path,'data','atlas',s))},config.atlas_file);
     assert(all(isfile(atlas_path)), "Could not locate Allen Reference Atlas .nii file specified")
     
@@ -282,16 +273,18 @@ if ~loaded && contains(config.registration_direction,"atlas")
 end
 
 % Perform pairwise registration
-if ~loaded || isequal(config.register_images,"update")
+if run_registration
+    fprintf('%s\t Performing image registration \n',datetime('now'))
+
     % Get moving image paths, subset channels, save into config
-    if isequal(config.registration_direction,"image_to_atlas") ||...
-            isequal(config.registration_direction,"image_to_mri")
+    if isequal(config.mov_direction,"image")
         [~, resample_table] = path_to_table(config,'resampled');
-        idx = ismember(resample_table.markers,[1,config.markers(config.registration_channels)]);
+        idx = ismember(resample_table.markers,config.markers(config.registration_channels));
         mov_img_path = resample_table(idx,:).file;
-        config.mov_res = resample_table.y_res;
+        assert(length(unique(resample_table(idx,:).y_res)) == 1,...
+            "All resampled images for registration must be at the same resolution")
+        config.mov_res = unqiue(resample_table(idx,:).y_res);
         config.mov_orientation = config.orientation;
-        config.mov_direction = "image";
         config.mov_channels = config.markers(config.registration_channels);
         if isequal(config.registration_prealignment,"image") ||...
                 isequal(config.registration_prealignment,"both")
@@ -300,12 +293,10 @@ if ~loaded || isequal(config.register_images,"update")
             config.mov_prealign = false;
         end
                 
-    elseif isequal(config.registration_direction,"mri_to_atlas") ||...
-            isequal(config.registration_direction,"mri_to_image")
+    elseif isequal(config.mov_direction,"mri")
         mov_img_path = path_table_nii.file;
         config.mov_res = config.mri_resolution;
         config.mov_orientation = config.mri_orientation;
-        config.mov_direction = "mri";
         config.mov_channels = config.mri_channels;
         if isequal(config.registration_prealignment,"mri") ||...
                 isequal(config.registration_prealignment,"both")
@@ -314,8 +305,7 @@ if ~loaded || isequal(config.register_images,"update")
             config.mov_prealign = false;
         end
         
-    elseif isequal(config.registration_direction,"atlas_to_image") ||...
-            isequal(config.registration_direction,"atlas_to_mri")
+    elseif isequal(config.mov_direction,"atlas")
         % Type of atlas
         t = cell(1,length(config.atlas_file));
         for i = 1:length(config.atlas_file)
@@ -325,24 +315,20 @@ if ~loaded || isequal(config.register_images,"update")
         mov_img_path = {cat(1,t{:}).file};
         config.mov_res = 25;
         config.mov_orientation = "ail";
-        config.mov_direction = "atlas";
         config.mov_channels = "atlas";
-        config.mov_prealign = false;
-        
-    else
-        error("Incorrect registration direction specified")
+        config.mov_prealign = false;        
     end
 
     % Get reference image paths
-    if isequal(config.registration_direction,"atlas_to_image") ||...
-            isequal(config.registration_direction,"mri_to_image")
+    if isequal(config.ref_direction,"image")
         [~, resample_table] = path_to_table(config,'resampled');
         % Subset channels to register
-        idx = ismember(resample_table.markers,[1,config.markers(config.registration_channels)]);
+        idx = ismember(resample_table.markers,config.markers(config.registration_channels));
         ref_img_path = resample_table(idx,:).file;
-        config.ref_res = resample_table.y_res;
+        assert(length(unique(resample_table(idx,:).y_res)) == 1,...
+            "All resampled images for registration must be at the same resolution")
+        config.ref_res = unique(resample_table(idx,:).y_res);
         config.ref_orientation = config.orientation;
-        config.ref_direction = "image";
         config.ref_channels = config.markers(config.registration_channels);
         if isequal(config.registration_prealignment,"image") ||...
                 isequal(config.registration_prealignment,"both")
@@ -351,12 +337,10 @@ if ~loaded || isequal(config.register_images,"update")
             config.ref_prealign = false;
         end
         
-    elseif isequal(config.registration_direction,"atlas_to_mri") ||...
-            isequal(config.registration_direction,"image_to_mri")
+    elseif isequal(config.ref_direction,"mri")
         ref_img_path = path_table_nii.file;
         config.ref_res = config.mri_resolution;
         config.ref_orientation = config.mri_orientation;
-        config.ref_direction = "mri";
         config.ref_channels = config.mri_channels;
         if isequal(config.registration_prealignment,"mri") ||...
                 isequal(config.registration_prealignment,"both")
@@ -365,8 +349,7 @@ if ~loaded || isequal(config.register_images,"update")
             config.ref_prealign = false;
         end
         
-    elseif isequal(config.registration_direction,"image_to_atlas") ||...
-            isequal(config.registration_direction,"mri_to_atlas")
+    elseif isequal(config.ref_direction,"atlas")
         % Type of atlas
         t = cell(1,length(config.atlas_file));
         for i = 1:length(config.atlas_file)
@@ -376,95 +359,142 @@ if ~loaded || isequal(config.register_images,"update")
         ref_img_path = {cat(1,t{:}).file};
         config.ref_res = 25;
         config.ref_orientation = "ail";
-        config.ref_direction = "atlas";
         config.ref_channels = "atlas";
         config.ref_prealign = false;
     end
 
     % Calculate registration parameters
     % Moving image to reference image
-    reg_params = register_to_atlas(config, mov_img_path, ref_img_path);
+    reg_params.(direction) = register_to_atlas(config, mov_img_path, ref_img_path);
 
     % Save registration parameters
     save(reg_file,'reg_params')
+    save(config.res_name,'-append','reg_params')
+    
+    % Calculate inverse if specified
+    %%%%%%%
     fprintf('%s\t Registration completed! \n',datetime('now'))
 end
 
-% Save a copy of registered images
-if isequal(config.save_registered_images,"true")
+% Save a copy of registered images if previous image does not exist
+if isequal(config.save_registered_images,"true") && run_registration &&...
+        isempty(dir(fullfile(reg_dir,sprintf('*MOV*%s*.nii',reg_params.(direction).mov_channels(1)))))
     fprintf('%s\t Transforming and saving registered images \n',datetime('now'))
     save_registered_images(config,reg_params)
 end
 
-% Now working on making an annotation mask
-% Name mask image based on direction
-if isequal(final_direction,"atlas_to_image") || isequal(final_direction,"mri_to_image")
-    annot_marker = r1_marker;
-elseif isequal(final_direction,"image_to_atlas") || isequal(final_direction,"image_to_atlas")
-    [~,annot_marker] = fileparts(config.atlas_file);
-elseif isequal(final_direction,"image_to_mri") || isequal(final_direction,"atlas_to_mri")
-    annot_marker = config.mri_markers(1);
+% Return if not calculating mask
+% Note: Mask is only calculated if mapping annotations to light-sheet images
+% All other
+if isequal(config.use_annotation_mask,"false")   
+    fprintf('%s\t Not using annotations. Skipping mask generation \n',datetime('now'))
+    if isfile(mask_var)
+        warning("An annotation mask from previosuly calculated parameters already exists")
+    end
+    return
+elseif ~isequal(config.ref_direction,"image")
+    warning('%s\t Annotation generated only when mapping to light-sheet images. Skipping... \n',...
+        datetime('now'))
+    return
+end
+    
+%%%%%%%
+% Now working on making an annotation mask to overlay light-sheet images
+% Get which structures
+if isempty(config.structures)
+    structures = "full";
+else
+    [~,structures] = fileparts(config.structures);
 end
 
-annot_file = fullfile(reg_dir,sprintf('%s_%s_%d_%s.nii',...
-            config.sample_id,strjoin(annot_marker,"_"),....
-            config.resample_resolution,structures));
+% Name mask image based on direction
+%if isequal(config.ref_direction,"image")
+    annot_marker = config.markers(config.registration_channels);
+    target_res = config.resample_resolution;
+    target_or = config.orientation;
+%elseif isequal(config.ref_direction,"atlas")
+%    annot_marker = "atlas";
+%    target_res = 25;
+%    target_or = 'ail';
+%elseif isequal(config.ref_direction,"mri")
+%    annot_marker = config.mri_channels(1);
+%    target_res = config.mri_resolution;
+%    target_or = config.mri_orientation;
+%end
 
 % Permute mask to match atlas file
 if ~isempty(I_mask)
-    % Custom mask. Mask expected to match orientation of the registered
-    % atlas
+    % Custom mask
+    if isequal(config.annotation_mapping,config.mov_direction)
+        I_mask = permute_orentation(I_mask,target_or,'ail');        
+        new_size = size(I_mask).*target_res/25;
+        I_mask = imresize3(I_mask,new_size,'Method','nearest');
+    elseif isequal(config.annotation_mapping,"image")
+         fprintf('%s\t Saving custom annotations that are already mapped to images \n',datetime('now'))
+         save(mask_var,'I_mask','-v7.3')
+         
+        % Measure structure volumes and save into summary structure
+        fprintf('%s\t Measuring structure volumes \n',datetime('now'))
+        volumes = measure_structure_volumes(config);
+        summary.volumes = [1:length(volumes);volumes]';
+        save(config.res_name,'-append','summary')
+        return
+    else
+        error("Custom annotations not mapped to either moving or reference images.")
+    end
     
-elseif isequal(config.use_annotation_mask,"true")
-    % Generate mask for selected structures
+elseif isequal(config.mov_direction,"atlas")
+    % Generate mask for selected structures from atlas
     fprintf('%s\t Generating mask for selected structures \n',datetime('now'))
-    I_mask = gen_mask(config.structures, config.hemisphere, config.orientation);
+    I_mask = gen_mask(config.structures, config.hemisphere, 'ail', 25);
+    
 else
-    fprintf('%s\t Not using annotations. Skipping mask generation. \n',datetime('now'))
+    warning("No valid annotations to map for this registration direction.")
     return
 end
 
 % Transform annotations
-if ~isempty(reg_params) && ~isempty(reg_params.atlas_to_image)
-    fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
+fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
 
-    % Adjust sizes and spacing
-    I_mask = imresize3(I_mask,0.4,'Method','nearest');
-    s = 1;    % Default: brain registration performed at 25um, mask at 10um
-    size1 = reg_params.image_size;%reg_params.native_img_size;
-    for j = 1:length(reg_params.atlas_to_image.TransformParameters)
-        reg_params.atlas_to_image.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
-        reg_params.atlas_to_image.TransformParameters{j}.Size = size1;
-        reg_params.atlas_to_image.TransformParameters{j}.Spacing = [s,s,s];
-    end
-
-    % Transform atlas
-    I_mask = transformix(I_mask,reg_params.atlas_to_image,[s,s,s], []);
-    
-    % Save mask as variable
-    save_name = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat'));
-    save(save_name,'I_mask','-v7.3')
-
-    % Save a copy in registered directory
-    if isequal(config.save_registered_images,"true")
-        fprintf('%s\t Saving annotation mask to registered directory \n',datetime('now'))
-        if ~isfolder(reg_dir)
-            mkdir(reg_dir)
-        end
-        I_mask_small = imresize3(I_mask,size(I_reg),...
-            'Method','nearest');
-        niftiwrite(uint16(I_mask_small),annot_file)
-    end
-    
-    fprintf('%s\t Annotations generated! \n',datetime('now'))
-else
-    error('%s\t No registration parameters to transform annotation mask',string(datetime('now')))
+% Adjust sizes and spacing
+reg_trans = reg_params.(direction);
+s = 1;    % Default: brain registration performed at 25um, mask at 10um
+size1 = reg_trans.ref_size;%reg_params.native_img_size;
+for j = 1:length(reg_trans.TransformParameters)
+    reg_trans.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
+    reg_trans.TransformParameters{j}.Size = size1;
+    reg_trans.TransformParameters{j}.Spacing = [s,s,s];
 end
 
-% Measure structure volumes
+% Transform atlas
+I_mask_trans = transformix(I_mask,reg_trans,[s,s,s], []);
+fprintf('%s\t Annotations generated! \n',datetime('now'))
+
+% Save mask as variable only if mapped to image
+if isequal(direction,"atlas_to_image") || isequal(direction,"mri_to_image")
+    I_mask = permute_orientation(I_mask_trans,'ail',config.orientation); 
+    save_name = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat'));
+    save(config.res_name,'-append','I_mask')
+    save(save_name,'I_mask','-v7.3')
+end
+
+% Save a copy in registered directory
+if isequal(config.save_registered_images,"true")
+    fprintf('%s\t Saving annotation mask to registered directory \n',datetime('now'))
+    annot_file = fullfile(reg_dir,sprintf('%s_MASK_%s_%d_%s.nii',...
+        config.sample_id,strjoin(annot_marker,"_"),....
+        target_res,structures));
+    I_mask = permute_orientation(I_mask_trans,'ail',target_or);
+    I_mask = imresize3(I_mask,25/target_res,'Method','nearest');
+    niftiwrite(uint16(I_mask),annot_file)
+end
+
+% Measure structure volumes and save into summary structure
 fprintf('%s\t Measuring structure volumes \n',datetime('now'))
-measure_structure_volumes(config);
-        
+volumes = measure_structure_volumes(config);
+summary.volumes = [1:length(volumes);volumes]';
+save(config.res_name,'-append','summary')
+
 end
 
 
@@ -477,7 +507,16 @@ if isequal(config.count_nuclei,"false")
     fprintf('%s\t No cell counting selected\n',datetime('now'))
     return
 elseif isequal(config.count_nuclei,"true") && isfile(path_centroids)
-    fprintf('%s\t Centroids already detected. Skipping cell counting\n',datetime('now'))
+    fprintf('%s\t Centroids already detected. Skipping cell counting and saving to results structure \n',...
+        datetime('now'))
+    load(path_centroids,'centroids')
+    results = load(config.res_name);
+    results.centroids = centroids.coordinates;
+    results.annotations = centroids.annotations;
+    if isfield(results,'classes')
+        results = rmfield(results,'classes');
+    end
+    save(config.res_name,'-struct','results')
     return
 end
    
@@ -533,7 +572,15 @@ if isequal(config.classify_cells,"false")
     fprintf('%s\t No cell classification selected\n',datetime('now'))
     return
 elseif isequal(config.classify_cells,"true") && isfile(path_classes)
-    fprintf('%s\t Centroids already classified. Skipping cell classification\n',datetime('now'))
+    fprintf('%s\t Centroids already classified. Skipping cell classification and saving to results structure \n',...
+        datetime('now'))
+    load(path_classes,'classes')
+    centroids = classes.centroids;
+    annotations = classes.annotations;
+    classes = classes.classes;
+    save(config.res_name,'-append','centroids')
+    save(config.res_name,'-append','annotations')
+    save(config.res_name,'-append','classes')
     return
 end
 
@@ -580,8 +627,6 @@ end
 
 % Name class file
 path_classes = fullfile(config.var_directory,'classes.mat');
-path_save = fullfile(config.output_directory, sprintf('%s_classes.csv',config.sample_id));
-
 if isequal(config.classify_method,'gmm')
     % Not supported anymore. Might add later
 
