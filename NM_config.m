@@ -99,15 +99,22 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
     if isempty(results_directory)
         results_directory = fullfile(home_path,'results');
     end
-    
-    if isempty([samples{:}])
+
+    % Check if 1 or more samples
+    n_samples = length(samples);
+    if n_samples == 0
+        prefix = [];
         warning("No samples present to evaluate")
+    elseif n_samples > 1
+        prefix = groups{1}(1);
+    else
+        prefix = samples(1);
     end
     
     output_directory = results_directory;
     use_processed_images = "false";
     clear sample;
-    save(tmp_path,'samples','s_fields','results_path','groups','results_directory','-mat','-append')
+    save(tmp_path,'prefix','samples','s_fields','results_path','groups','results_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end

@@ -18,7 +18,7 @@ res_adj = res/registration_resolution;
 centroids = round(results.centroids.*res_adj,2);
 centroids = centroids(:,[2,1,3]);
 fprintf("Transforming centroid coordinates...\n")
-centroids = transformix(centroids,results.reg_params.atlas_to_img,[1,1,1],[]);
+centroids = transformix(centroids,results.reg_params.atlas_to_image,[1,1,1],[]);
 centroids = centroids(:,[2,1,3]);
 
 res_adj = 25/bin_resolution;

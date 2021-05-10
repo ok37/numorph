@@ -1,14 +1,8 @@
 %% Specify Directory Information
 % These are the key parameters
-% Set flags to indicate how/whether to run process
-% Directory to save results
-results_directory = [];                 % Output directory for summary (default: numorph/results)
-combine_counts = 'true';                % Combine cell counts from multiple samples
-combine_volumes = 'true';               % Combine volumes from multiple samples
-calculate_stats = 'true';               % Create summary table with statistics
 
-%%
 % Specify which structures to compare
+results_directory = [];                                 % Output directory for summary (default: numorph/results)
 compare_structures_by = "csv";                          % index, csv, depth; Select which structures for multiple comparisons.
 structure_csv = "harris_cortical_groupings_w_iso.csv";  % csv file containing structures to compare if comparing by .csv
 structure_depth = [];                                   % minimum structure graph order for comparisons (1-10) if comparing by depth

@@ -46,10 +46,7 @@ for i = 1:length(markers)
     end
     for j = 1:size(img,4)
         if j==1
-            c = 1/squeeze(img(:,:,:,j))*100-100;
-            c(c<-100) = -100;
-            c(c>100) = 100;
-            vox.voxel(i).img{j} = c;
+            vox.voxel(i).img{j} = 1/squeeze(img(:,:,:,j))*100-100;
         else
             vox.voxel(i).img{j} = -log10(squeeze(img(:,:,:,j)));
         end
@@ -125,23 +122,18 @@ vox.markers(idx).(colname).values(:,8) = values(:,8);
 
 vox.markers(idx).(colname).cmin = min(values);
 vox.markers(idx).(colname).cmin(6:8) = 0;
-vox.markers(idx).(colname).cmin(6:8) = 1.301;
 vox.markers(idx).(colname).cmax = max(values);
 vox.markers(idx).(colname).cmax(6:7) = max(-log10(values(:,6:7)));
 vox.markers(idx).(colname).cmax(8) = 4;  
 
 pchange_max = max(abs(vox.markers(idx).(colname).cmin(5)),vox.markers(idx).(colname).cmax(5))*1.1;
-%vox.markers(idx).(colname).cmin(5) = -pchange_max;
-%vox.markers(idx).(colname).cmax(5) = pchange_max;
-
-vox.markers(idx).(colname).cmin(5) = -100;
-vox.markers(idx).(colname).cmax(5) = 100;
-
+vox.markers(idx).(colname).cmin(5) = -pchange_max;
+vox.markers(idx).(colname).cmax(5) = pchange_max;
 
 % Set colors
 vox.markers(idx).colors(1:4) = {brewermap(201,'YlOrBr')};    
 vox.markers(idx).colors(5) = {brewermap(201,'*RdBu')};
-vox.markers(idx).colors(6:7) = {brewermap(401,'*plasma')};    
+vox.markers(idx).colors(6:7) = {brewermap(201,'*plasma')};    
 vox.markers(idx).colors(8) = {brewermap(5,'Purples')};
     
 end

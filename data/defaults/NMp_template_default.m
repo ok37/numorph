@@ -24,7 +24,8 @@ laser_y_displacement = 0;               % [-0.5,0.5]; Displacement of light-shee
 % Parameters for BaSIC shading_correction (i.e. adjust_tile_shading = "basic") 
 sampling_frequency = 0.2;               % [0,1]; Fraction of images to read and sample from. Setting to 1 means use all images
 shading_correction_tiles = [];          % integer vector; Subset tile positions for calculating shading correction (row major order). It's recommended that bright regions are avoid
-shading_smoothness = 1;                 % numeric; Factor for adjusting smoothness of shading correction. Greater values mean smoother flatfield image
+shading_smoothness = 2;                 % numeric >= 1; Factor for adjusting smoothness of shading correction. Greater values lead to a smoother flatfield image
+shading_intensity = 1;                  % numeric >= 1; Factor for adjusting the total effect of shading correction. Greater values lead to a smaller overall adjustment
 
 %% Z Alignment Parameters
 % Used for stitching and alignment by translation steps
@@ -61,7 +62,7 @@ overlap = 0.10;                         % 0:1; overlap between tiles as fraction
 
 stitch_sub_stack = [];                  % z positions; If only stitching a cetrain z range from all the images
 stitch_sub_channel = [];                % channel index; If only stitching certain channels
-use_middle = "false";                   % true, false; Recommended: false. Start stitching from the slice or optimize based on image features
+stitch_start_slice = [];                % z index; Start stitching from specific position. Otherwise this will be optimized
 
 blending_method = "sigmoid";            % sigmoid, linear, max
 sd = 0.05;                              % 0:1; Recommended: ~0.05. Steepness of sigmoid-based blending. Larger values give more block-like blending

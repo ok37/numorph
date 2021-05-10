@@ -12,7 +12,6 @@ peaks = 3;
 usfac = 1;
 min_overlap = 50;
 min_signal = 0.025;       % Minimum fraction of signal pixels for registering
-z_window = 3;
 z_window_narrow = 1;
 
 % Adjust signalThresh to 16 bit
@@ -65,7 +64,7 @@ ref_img = zeros(overlap_max{1}(2)-overlap_max{1}(1)+1,...
 for i = 1:z_positions    
     img = imread(path_ref.file{i},'PixelRegion',overlap_max);
     % Measure number of positive pixels
-    f(i) = round(numel(img(img>signalThresh))/numel(img),3);
+    f(i) = round(numel(img(img>signalThresh))/numel(img),3);    
     ref_img(:,:,i) = img;
 end
 
@@ -127,6 +126,6 @@ q = (q1-max(sum(cc,1)));
 low_flag = 0;
 
 % Display average cross correlation
-fprintf("Mean cross correlation: %.3f \n",mean_cc);
-
+fprintf("\t\t\t Z displacement: %d \t Mean cross correlation: %.3f \n",z_displacement,mean_cc);
+%disp(z_initial)
 end

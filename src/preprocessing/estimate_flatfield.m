@@ -54,5 +54,6 @@ end
 
 fprintf('%s\t Running BaSIC on %d images \n',datetime('now'),height(path_sub))
 [S,B] = BaSiC(I,'darkfield','true','smooth',config.shading_smoothness); 
+S = ((S-1)/config.shading_intensity)+1;
 
 end

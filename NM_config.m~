@@ -34,24 +34,13 @@ home_path = fileparts(which('NM_config'));
 addpath(genpath(home_path))
 cd(home_path)
 
-% Load variables
-switch stage
-    case {'process','stitch','align','intensity'}
-        NMp_template
-        main_stage = 'process';
-    case {'analyze','resample','register','count','classify'}
-        NMa_template
-        main_stage = 'analyze';
-    case 'evaluate'
-        NMe_template
-        main_stage = 'evaluate';
-    otherwise
-        error("Invalid stage input")
+% Save template variables
+if isequal(stage, 'evaluate')
+    [main_stage, results_directory] = save_vars(stage);
+else
+    main_stage = save_vars(stage);
 end
-
-% Save config structure
 tmp_path = fullfile(home_path,'data','tmp','NM_variables.mat');
-save(tmp_path,'-mat')
 
 % Load and append sample info
 if nargin > 1 && ~isequal(main_stage,'evaluate')
@@ -82,20 +71,27 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
             output_directory = output_directory(idx);
         end
         
-        [samples,groups,res_path,s_fields] = munge_results(output_directory);
+        [samples,groups,results_path,s_fields] = munge_results(output_directory);
         assert(length(samples) == length(output_directory),...
             "Missing results structures for some samples")
     else        
         % Directory input containing multiple results structures
-        [samples,groups,res_path,s_fields] = munge_results(sample);
+        [samples,groups,results_path,s_fields] = munge_results(sample);
     end
     
+    % Check parameters
     if size(unique(s_fields,'rows'),1) ~= 1
         idx = any(s_fields,1);
         for i = 1:size(samples,1)
             if samples(i,1) && idx(1)
                 warning("Volume information missing for sample %s",samples{i})
-            
+            end
+            if samples(i,2) && idx(2)
+                warning("Cell count information missing for sample %s",samples{i})
+            end
+            if samples(i,3) && idx(3)
+                warning("Cell class information missing for sample %s",samples{i})
+            end
         end
     end
     
@@ -103,15 +99,26 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
     if isempty(results_directory)
         results_directory = fullfile(home_path,'results');
     end
-    
-    if isempty(samples)
+    if isempty([samples{:}])
         warning("No samples present to evaluate")
     end
+    
+    % Check if 1 or more samples
+    n_samples = length(samples);
+    if n_samples > 1
+        config.prefix = config.groups{1}(1);
+    else
+    config.prefix = config.samples(1);
+end
+    
+    
+    
+    
     
     output_directory = results_directory;
     use_processed_images = "false";
     clear sample;
-    save(tmp_path,'samples','centroids_directory','groups','results_directory','-mat','-append')
+    save(tmp_path,'prefix','samples','s_fields','results_path','groups','results_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
@@ -125,7 +132,7 @@ if ~isequal(use_processed_images,"false")
     if ~exist(process_directory,'dir')
         error("Could not locate processed image directory %s\n",process_directory)
     else
-        save(fullfile('data','tmp','NM_variables.mat'),'process_directory','-mat','-append')
+        save(tmp_path,'process_directory','-mat','-append')
     end
 elseif ~isequal(main_stage,'evaluate')
     if ~isfolder(img_directory)
@@ -353,5 +360,28 @@ end
 % Resave these variables
 variable_names = who;
 save(fullfile('data','tmp','NM_variables.mat'),variable_names{:},'-mat','-append')
+
+end
+
+
+function [main_stage, results_directory] = save_vars(stage)
+
+% Load config variables
+switch stage
+    case {'process','stitch','align','intensity'}
+        NMp_template
+        main_stage = 'process';
+    case {'analyze','resample','register','count','classify'}
+        NMa_template
+        main_stage = 'analyze';
+    case {'evaluate','stats','visualize'}
+        NMe_template
+        main_stage = 'evaluate';
+    otherwise
+        error("Invalid stage input")
+end
+
+% Save config structure
+save(fullfile('data','tmp','NM_variables.mat'),'-mat')
 
 end

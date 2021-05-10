@@ -69,10 +69,13 @@ end
 assert(length(unique(yxz_in)) == 3,"All 3 axes not specified correctly")
 
 % Permute
+if length(size(img)) == 4
+    yxz_in = [yxz_in,4];
+end
 img = permute(img,yxz_in);
 
-% Flip last axis
-if ismember(or_in(idx),s)
+% Flip last axis (not sure if 2nd part works for all cases)
+if ismember(or_in(idx),s) && or_in(3) ~= or_out(3)
     img = flip(img,idx);
 end
 
