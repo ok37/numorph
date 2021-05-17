@@ -82,9 +82,13 @@ switch ext
         else
             img = imread(filepath);
         end
-    case {'.nii','.mhd'}
+    case {'.nii'}
         img{1} = niftiread(filepath);
         img{2} = niftiinfo(filepath);
+
+    case {'.mhd'}
+        img{1} = mhd_read(filepath);
+        img{2} = mhd_read_header(filepath);
 
     case {'.nrrd','.nhdr'}
         out = nhdr_nrrd_read(filepath,true);        

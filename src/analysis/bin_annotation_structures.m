@@ -8,9 +8,9 @@ home_path = fileparts(which('NM_config'));
 
 % Default read harris cortical groupings
 if isequal(struct_table,'cortex')
-    struct_table = readtable(fullfile(home_path,'annotations','harris_cortical_groupings.csv'));
+    struct_table = readtable(fullfile(home_path,'annotations','custom_annotations','harris_cortical_groupings.xls'));
 elseif isequal(struct_table,'cortex_large')
-    struct_table = readtable(fullfile(home_path,'annotations','cortex_17regions.xls'));
+    struct_table = readtable(fullfile(home_path,'annotations','custom_annotations','cortex_17regions.xls'));
 elseif isequal(struct_table,'layers')
     [output,index] = bin_annotation_layers(input);
     return

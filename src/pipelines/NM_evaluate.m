@@ -215,10 +215,11 @@ switch main_plot
             end
             
             % Read voxel images
+            class_names2 = arrayfun(@(s) strrep(s,'./',''),config.class_names);
             for i = 1:length(config.class_names)
                 voxel_imgs(i).marker = config.class_names(i);
                 voxel_imgs(i).data =  niftiread(fullfile(config.results_directory,...
-                    config.prefix + "_" + config.class_names(i) + "_voxels.nii"));
+                    config.prefix + "_" + class_names2(i) + "_voxels.nii"));
             end
 
             % Create visualization volume
@@ -233,9 +234,9 @@ switch main_plot
         % marker: annotation, c1,c2,c3...
         % category: volume, counts, density, voxel
         % stat: Mean WT, Mean KO, StDev WT, StDev KO, Fold Change, p, p.adj, sig
-        % [30,50,70,90]
-        key{1} = [90,4,4,5];
-        key{2} = [90,4,4,7];
+        % [30,50,70,90] 
+        key{1} = [56,3,4,5];
+        key{2} = [56,3,4,6];
 
         close(gcf)
         [p1, p2] = display_slice2(vox,key);
@@ -248,10 +249,11 @@ switch main_plot
             load(plot_path,'flatmap')
         else        
             % Read saved flatmap images
+            class_names2 = arrayfun(@(s) strrep(s,'./',''),config.class_names);
             for i = 1:length(config.class_names)
                 flatmap(i).marker = config.class_names(i);
                 flatmap(i).data =  niftiread(fullfile(config.results_directory,...
-                    config.prefix + "_" + config.class_names(i) + "_flatmap.nii"));
+                    config.prefix + "_" + class_names2(i) + "_flatmap.nii"));
             end
             save(plot_path,'-append','flatmap')
         end

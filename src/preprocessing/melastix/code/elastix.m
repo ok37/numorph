@@ -295,6 +295,9 @@ elseif iscell(paramFile) %we have a cell array of elastix parameter files
     paramFname = paramFile;
      if ~strcmp(outputDir,'.') 
         for ii=1:length(paramFname)
+            if ~isfile(paramFname{ii})
+                error("Parameter filename path does not exist")
+            end
             copyfile(paramFname{ii},outputDir)
             %So paramFname is now:
             [~,f,e] = fileparts(paramFname{ii});

@@ -20,7 +20,11 @@ end
 % Remove tiles where not all z positions are present
 v = sum(path_table.z_adj==path_table.z_adj');
 path_table(v ~= max(v),:) = [];
-path_table.z_adj = path_table.z_adj-min(path_table.z_adj)+1;
+
+% Set the lowest adjusted z value to z = 1
+if min(path_table.z_adj) < 1
+    path_table.z_adj = path_table.z_adj-min(path_table.z_adj)+1;
+end
 z_adj = [path_table(:,1) path_table(:,end)];
 
 % Attach to path_table

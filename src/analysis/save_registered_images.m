@@ -50,7 +50,7 @@ for i = 1:nref
         img = convert_nii_16(img, ref, true);
         [nrows,ncols,nslices] = size(img);
     end
-    niftiwrite(img,fname)
+    niftiwrite(uint16(img),fname)
 end
 
 % Load moving image

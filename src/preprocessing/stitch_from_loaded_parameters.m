@@ -37,7 +37,7 @@ path_table = sortrows(path_table,["z_adj","channel_num","x","y"],'ascend');
 if ~isempty(config.stitch_sub_stack)
     z_range = config.stitch_sub_stack;
     path_table = path_table(ismember(path_table.z_adj,z_range),:);    
-    img_name_grid = img_name_grid(:,:,:,z_range);
+    img_name_grid = img_name_grid(:,:,:,z_range);    
 else
     z_range = 1:size(img_name_grid,4);
 end

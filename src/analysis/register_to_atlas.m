@@ -12,7 +12,6 @@ Gamma = 0.9;                    % Gamma to apply for intensity adjustment
 
 % Unpack config variables
 params = config.registration_parameters;
-orientation = config.orientation;
 output_directory = config.output_directory;
 use_mask = config.mask_cerebellum_olfactory;
 direction = config.registration_direction;
@@ -58,14 +57,16 @@ for i = 1:length(mov_img_path)
     
     % Standardize and save into array
     mov_img_array{i} = standardize_nii(mov_img, config.mov_direction,...
-        config.mov_res, config.mov_orientation, config.hemisphere, 'double');
+        config.mov_res, config.mov_orientation, config.mov_hemisphere,...
+        25, 'ail', config.ref_hemisphere,'double');
 end
 for i = 1:length(ref_img_path)
     ref_img = read_img(ref_img_path{i});
     
     % Standardize and save into array
     ref_img_array{i} = standardize_nii(ref_img, config.ref_direction,...
-        config.ref_res, config.ref_orientation, config.hemisphere, 'double');
+        config.ref_res, config.ref_orientation, config.ref_hemisphere,...
+        25, 'ail', config.ref_hemisphere,'double');
 end
 size_mov = size(mov_img_array{1});
 size_ref = size(ref_img_array{1});

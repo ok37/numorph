@@ -36,36 +36,36 @@ else:
 
 ################################
 ## Extra options for running model on GPU with limited memory
-import tensorflow as tf
-from keras import backend as k
+#import tensorflow as tf
+#from keras import backend as k
  
-config = tf.ConfigProto()
+#config = tf.ConfigProto()
  
 # Don't pre-allocate memory; allocate as-needed
-config.gpu_options.allow_growth = True
+#config.gpu_options.allow_growth = True
  
 # Only allow a total of half the GPU memory to be allocated
-config.gpu_options.per_process_gpu_memory_fraction = 0.5
+#config.gpu_options.per_process_gpu_memory_fraction = 0.25
  
 # Create a session with the above options specified.
-k.tensorflow_backend.set_session(tf.Session(config=config))
+#k.tensorflow_backend.set_session(tf.Session(config=config))
 ################################
 
 ##### Set parameters
 # Not called from matlab these are default parameters
 # Otherwise parameters are overwritten by a matlab 'config.mat' structure
 input_img_directory = '/nas/longleaf/home/ok37/pine/NF1/NF1R4M3R'
-acquired_img_resolution = [1.21, 1.21, 4]  # Resolution of acquired images in um/pixel
+output_directory = '/nas/longleaf/home/ok37/pine/NF1/NF1R4M3R/output'
 
-output_directory = '/media/SteinLab4/TOP16R/output'
-save_name = 'TOP16R_centroids33.csv'
+acquired_img_resolution = [1.21, 1.21, 4]  # Resolution of acquired images in um/pixel
+save_name = 'NF1R4M3R_centroids1.csv'
 
 use_mask = False  # Whether to use mask during prediction
 mask_file = '/media/SteinLab4/TOP16R/output/variables/I_mask.mat'
 mask_resolution = [10, 10, 10]  # Resolution of mask in um/pixel
 
 model_file = os.path.join(os.getcwd(), 'models', '128_model.h5')  # Path to 3dunet model
-trained_img_resolution = [0.75, 0.75, 2.5]  # Resolution the model was trained in um/voxel
+trained_img_resolution = [1.21, 1.21, 4]  # Resolution the model was trained in um/voxel
 
 # Image and model configuration parameters
 # Dimensions should correspond to [x,y,z]
@@ -79,6 +79,7 @@ tree_radius = 2     # Pixel radius for removing centroids near each other
 
 measure_coloc = False  # Measure intensity of co-localizaed channels
 n_channels = 3  # Total number of channels
+img_list = []   # Empty image list
 
 ##### Load parameters from config.mat matlab structure
 if args.mat:
@@ -88,6 +89,8 @@ if args.mat:
 
     input_img_directory = config['config']['img_directory']
     output_directory = config['config']['output_directory']
+    img_list = config['config']['img_list']
+    img_list = [[item for sublist in img_list for item in sublist]]
 
     model_file = os.path.join(os.getenv('PYTHONPATH'), 'nuclei', 'models', config['config']['model_file'])
 
@@ -138,8 +141,7 @@ else:
 res = [i / j for i, j in zip(acquired_img_resolution, trained_img_resolution)]
 mask_res = [i / j for i, j in zip(acquired_img_resolution, mask_resolution)]
 
-load_chunk_size = [i / j for i, j in zip(chunk_size, res)]
-load_chunk_size = [round(s) for s in load_chunk_size]
+load_chunk_size = [round(i / j) for i, j in zip(chunk_size, res)]
 
 # Taking only channel 1 images (assumed to be cell nuclei)
 files = os.listdir(input_img_directory)
@@ -148,12 +150,12 @@ files = os.listdir(input_img_directory)
 if not measure_coloc:
     n_channels = 1
 
-img_list = []
-for i in range(n_channels):
-    matching = [s for s in files if "C" + str(i + 1) in s]
-    matching = sorted(matching)
-    # Read only the number of images for each chunk
-    img_list.append([input_img_directory + '/' + s for s in matching])
+if not img_list:
+    for i in range(n_channels):
+        matching = [s for s in files if "C" + str(i + 1) in s]
+        matching = sorted(matching)
+        # Read only the number of images for each chunk
+        img_list.append([input_img_directory + '/' + s for s in matching])
 
 total_slices = len(img_list[0])
 

@@ -5,12 +5,12 @@ s = config.patch_size(2);
 markers = config.markers(config.classify_channels);
 
 % Get patch features for remaining centroids
-z_pos = unique(centroids(:,3));
+z_pos = unique(centroids.coordinates(:,3));
 stable = cell(length(z_pos),length(markers));
 for i = 1:length(z_pos)
     fprintf("Working on z position %d \n",z_pos(i))
-    idx = centroids(:,3) == z_pos(i);
-    cen_sub = centroids(idx,:);
+    idx = centroids.coordinates(:,3) == z_pos(i);
+    cen_sub = centroids.coordinates(idx,:);
     
     % Load images and get features
     for j = 1:length(markers)

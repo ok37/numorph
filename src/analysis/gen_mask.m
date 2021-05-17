@@ -28,7 +28,8 @@ end
 
 % Check for default structure
 % These have have masks already precomputed
-mat_files = dir(fullfile(annotation_path,'*.mat'));
+structure_path = fullfile(home_path,'annotations');
+mat_files = dir(fullfile(structure_path,'/*','*.mat'));
 major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
 [~,fname] = fileparts(structures);
 idx = ismember(major_structures,fname);
@@ -91,6 +92,8 @@ function annotationVolume = reshape_mask(annotationVolume, hemisphere, orientati
 if isequal(hemisphere,"both")
     img = flip(annotationVolume,2);
     annotationVolume = cat(2,annotationVolume,img);
+elseif isequal(hemisphere,"left")
+    annotationVolume = flip(annotationVolume,2);
 end
     
 % Permute

@@ -9,14 +9,12 @@ imgs = cell(1,n_samples);
 for i = 1:length(imgs)
     var_names = who('-file',config.results_path(i));
     if ~ismember('voxel_volume',var_names)
-        results = load(config.results_path(i));
-        results = create_voxel_volume(results);
-        
-        
-        %error("No voxel volume found for sample %s",config.samples(i))
+        error("No voxel volume found for sample %s",config.samples(i))
     end
     load(config.results_path(i),'voxel_volume')
     voxel_volume = voxel_volume(config.keep_classes);
+    %figure; imagesc(voxel_volume{2}(:,:,21))
+    
     if isequal(config.contains_nuclear_channel,"true")
         imgs{i} = [voxel_volume,{sum(cat(4,voxel_volume{:}),4)}];
     else
@@ -58,9 +56,10 @@ vox2 = arrayfun(@(s) s{:}(:),cat(1,vox2{:}),'UniformOutput',false);
 
 % For each class, generate vox
 n_classes = length(imgs{1});
+config.class_names = arrayfun(@(s) strrep(s,'./',''),config.class_names);
 
 % Get samples
-for i = 1:n_classes
+for i = 4:n_classes
     vox_res = ones(prod(img_sizes{i}),3);
     fvox_res = ones(1360*1360,3);
     
@@ -68,6 +67,12 @@ for i = 1:n_classes
     set1 = cat(2,vox1{:,i});
     set2 = cat(2,vox2{:,i});
     
+    set1(all(isnan(set1),2),:) = 0.5;
+    set2(all(isnan(set2),2),:) = 0.5;
+    
+    set1(any(isnan(set1),2),:) = 1;
+
+
     % Generate flatmaps
     fset1 = cell(1,size(set1,2));
     for j = 1:size(set1,2)
@@ -92,9 +97,11 @@ for i = 1:n_classes
     % Remove voxels with low cells
     idx = find(max(m_set1,[],2) & max(m_set2,[],2) >config.minimum_cell_number);
     fidx = find(max(fm_set1,[],2) & max(fm_set2,[],2) >config.minimum_cell_number);
-    
+
     % Fold change
-    vox_res(idx,1) = m_set2(idx)./m_set1(idx);
+    %vox_res(idx,1) = m_set2(idx)./m_set1(idx);
+    vox_res(idx,1) = m_set1(idx);
+    
     fvox_res(fidx,1) = fm_set2(fidx)./fm_set1(fidx);
     
     % p value

@@ -7,6 +7,7 @@ function [reg_params_inv,reg_img] = get_inverse_registration_transform(reg_param
 home_path = fileparts(which('NM_config'));
 
 % Create blank moving image
+target_img_size = target_img_size[2,1,3];
 mov_img = zeros(target_img_size);
 
 % Create temporary directory for saving images

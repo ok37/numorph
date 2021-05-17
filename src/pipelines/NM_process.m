@@ -30,6 +30,7 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 if ischar(config) || isstring(config)
     config = NM_config('process',char(config));
 end
+config.home_path = fileparts(which('NM_config'));
 
 % Check config structure to make sure it's correct
 if ~isfield(config,'adjust_intensity') || ~isfield(config,'align_channels')

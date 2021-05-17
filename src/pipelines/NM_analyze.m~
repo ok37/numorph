@@ -621,10 +621,10 @@ if isequal(config.classify_cells,"false")
 elseif isequal(config.classify_cells,"true") && isfile(path_classes)
     fprintf('%s\t Centroids already classified. Skipping cell classification and saving to results structure \n',...
         datetime('now'))
-    load(path_classes,'centroids')
-    load(path_classes,'annotations')
     load(path_classes,'classes')
-
+    centroids = classes.centroids;
+    annotations = classes.annotations;
+    classes = classes.classes;
     save(config.res_name,'-append','centroids')
     save(config.res_name,'-append','annotations')
     save(config.res_name,'-append','classes')
@@ -774,12 +774,10 @@ for i = 1:length(u_classes)
 end
 
 % Save to structure
-centroids = cen_classes(:,1:3);
-save(path_classes,'centroids')
-annotations = cen_classes(:,4);
-save(path_classes,'-append','annotations')
-classes = cen_classes(:,5);
-save(path_classes,'-append','classes')
+classes.centroids = cen_classes(:,1:3);
+classes.annotations = cen_classes(:,4);
+classes.classes = cen_classes(:,5);
+save(path_classes,'classes')
 counts = measure_cell_counts(config);
 save_to_summary(config.res_name,counts,'counts')
 

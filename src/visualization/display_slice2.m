@@ -308,7 +308,7 @@ else
     if ud.pos == 1
        cmin = -100*1.02;cmax=100*1.02; 
     else
-        cmin = 1.301*1.02; cmax = 5*1.02;
+        cmin = 1*1.02; cmax = 5*1.02;
     end
 
     
@@ -388,7 +388,7 @@ elseif isequal(ud.category(a),4)
     slice = imresize(slice,10,'bilinear');
     slice = imgaussfilt(slice,10,'FilterSize',15);
     if ud.stat(ud.pos) == 7
-        slice(slice<1.301) = 1.301;
+        slice(slice<1) = 1;
     end
     title = vs.markers(ud.marker(a)).Counts.title(ud.stat(a));
     colors = vs.markers(ud.marker(a)).colors{ud.stat(a)};

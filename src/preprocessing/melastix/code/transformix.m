@@ -104,6 +104,10 @@ end
 
 verbose=0;
 
+if nargin<3
+    elementSpacing = [1,1,1];
+end
+
 if nargin<4
     threads = [];
 end

@@ -1,0 +1,13 @@
+function def_field = get_deformation_field(reg_params)
+% Compute the deformation field at voxel position from registration 
+% parameters by calculating the determinants of the spatial jacobian in 
+% elastix
+
+% Direction should be image to atlas
+def_field = transformix([],reg_params,[1,1,1],[],'jac');
+
+% Negative values are not good.
+% Set negative value to 0
+def_field(def_field<0) = 0;
+
+end

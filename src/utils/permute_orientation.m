@@ -76,7 +76,7 @@ img = permute(img,yxz_in);
 
 % Flip last axis (not sure if 2nd part works for all cases)
 if ismember(or_in(idx),s) && or_in(3) ~= or_out(3)
-    img = flip(img,idx);
+    %img = flip(img,idx);
 end
 
 % Flip if opposite axis

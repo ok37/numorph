@@ -7,9 +7,11 @@ function visualize_flat_cortex(input, key, flatview)
 %
 %--------------------------------------------------------------------------
 % Inputs:
-% input: flatmap structure containg voxelized cortex data for heatmap
-% representation. Table containing fold change and p values by cortical
-% annotation index.
+% input:    1. Flatmap structure containg voxelized cortex data for heatmap
+%              representation. 
+%           2. Table containing fold change and p values by cortical 
+%              annotation index.
+%           3. 2D image at the same size as 10um flatmap (1360x1360)
 %
 % key: (1x3 integer) First index indicates cell class index. Second index
 % indicates statistic (1=fold change, 2=p-value, 3=p.adj). Third index
@@ -21,7 +23,7 @@ function visualize_flat_cortex(input, key, flatview)
 
 %rescale_flag = true;
 n_colors = 201;
-limits = [-100,0];
+limits = [-100,100];
 adj = (limits(2)-limits(1))/(n_colors);
 
 if nargin<2
@@ -35,7 +37,7 @@ if nargin<3
 end
 
 if key(2) == 1
-    %limits = [-100,100];
+    limits = [-100,100];
 elseif key(2) > 1
     if key(3) == 0
         limits = [0,5];
@@ -44,9 +46,6 @@ elseif key(2) > 1
     end
 end
 
-
-%results2 = imgaussfilt(results2,10,'FilterSize',13);
-%results2(results2<1.301) = 1.301;
 %figure;imagesc(results2)
 
 % Load flatview cortex
@@ -104,16 +103,23 @@ elseif istable(input)
     for i = 1:length(indexes)
         img(fc.flatCtx==indexes(i)) = v(i);
     end
+elseif isnumeric(input)
+    img = input;
+    img(isnan(img)) = 0;
+    
+    
+    
+    img = imgaussfilt(img,10,'FilterSize',13);    
+    p = [];
+    t_disp = "Flatview Image";
+    
 end
 
 % Get mask and boundaries
 boundaries = fc.boundaries;
 bw = fc.flatCtx==0 & ~boundaries;
-
-
 %lowerThresh = min(1,min(v));
 %upperThresh = max(1,max(img(:)));
-
 
 if ishandle(1)
     close(gcf)
@@ -121,13 +127,12 @@ end
 ax1 = axes;
 imagesc(img);
 
-
-
 %%img(bw) = limits(2)+adj;
 %%img(fc.boundaries) = limits(2)+adj*2;
 
 % Load colors
 colors = brewermap(n_colors,'*RdBu');
+
 %x1 = linspace(limits(1),limits(2),n_colors);
 %idx = x1>=lowerThresh & x1<=upperThresh;
 %colors = colors(idx,:);
@@ -187,7 +192,6 @@ h = colorbar;
 h.Limits = [limits(1),limits(2)];
 h.Ticks = limits(1):diff(limits)/4:limits(2);
 h.Position(1) = 0.85;
-
 
 
 end

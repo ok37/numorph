@@ -75,6 +75,7 @@ end
 fclose(fid);
 
 V = reshape(V,headerInfo.Dimensions);
+%V = reshape(V,[headerInfo.Dimensions,str2double(headerInfo.ElementNumberOfChannels)]);
 
 %flip the first two axes as MHD appears to expect this
 V = permute(V,[2,1,3]);

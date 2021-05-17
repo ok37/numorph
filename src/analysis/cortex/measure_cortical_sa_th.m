@@ -21,6 +21,7 @@ end
 if nargin<4
     flatview = 'harris';
 end
+home_path = fileparts(which('NM_config'));
 
 % If string, find all mask files in directory
 if ischar(input)
@@ -47,11 +48,11 @@ else
 end
 
 % Read cortical structure indexes
-all_struct = readtable(fullfile(fileparts(which('NM_config')),'annotations','structure_template.csv'));
+all_struct = readtable(fullfile(home_path,'annotations','structure_template.csv'));
 if isequal(flatview,'seventeen')
-    ctx_harris = readtable(fullfile(fileparts(which('NM_config')),'annotations','cortex_17regions.xls'));
+    ctx_harris = readtable(fullfile(home_path,'annotations','custom_annotations','cortex_17regions.xls'));
 elseif isequal(flatview,'harris')
-   ctx_harris = readtable(fullfile(fileparts(which('NM_config')),'annotations','harris_cortical_groupings.csv'));
+   ctx_harris = readtable(fullfile(home_path,'annotations','custom_annotations','harris_cortical_groupings.xls'));
 end
 
 
@@ -88,7 +89,7 @@ for i = 1:n_samples
     if isequal(use_l1_border,'true')
         % Read l1 indexes
         fprintf("Using pial surface for SA calculation\n")
-        l1_tbl = readtable(fullfile('annotations','cortical_layers','layer1.csv'));
+        l1_tbl = readtable(fullfile(home_path,'annotations','default_annotations','cortical_layers','layer1.csv'));
         BW2 = I_mask;
         BW2(~ismember(BW2,l1_tbl.index)) = 0;
         BW2 = BW2>0;
