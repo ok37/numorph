@@ -1,4 +1,4 @@
-function img = permute_orientation(img, or_in, or_out)
+function img = permute_orientation(img, or_in, or_out, hemisphere)
 %--------------------------------------------------------------------------
 % Permute sample anotomical orientation. Orientations are specified as 1x3 
 % character vectors. Row, column, slice at idx=1 in the image should match 
@@ -24,6 +24,15 @@ function img = permute_orientation(img, or_in, or_out)
 %
 % or_out: (1x3 char) Output image orientation.
 %--------------------------------------------------------------------------
+
+% Check for full brain
+if nargin<4
+    hemisphere = true;
+end
+
+%if ~hemisphere
+% 'rsa','sar','ars','rip','pri','ipr'
+% 'lsp','pls','sla','las','ali','pri','srp','ial','ipr'
 
 % Check orientation characters
 if isstring(or_in)
@@ -74,8 +83,8 @@ if length(size(img)) == 4
 end
 img = permute(img,yxz_in);
 
-% Flip last axis (not sure if 2nd part works for all cases)
-if ismember(or_in(idx),s) && or_in(3) ~= or_out(3)
+% Flip last axis
+if ismember(or_in(idx),s)
     %img = flip(img,idx);
 end
 
@@ -87,7 +96,7 @@ for i = 1:3
         idx = idx+1;
     end
     if idx == 3
-        %img = flip(img,1);
+        %img = flip(img,3);
     end
 end
 

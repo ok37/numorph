@@ -24,9 +24,9 @@ end
 home_path = fileparts(which('NM_config'));
 
 % If string, find all mask files in directory
-if ischar(input)
+if ischar(input) || isstring(input)
     files = dir(input);
-    files = files(arrayfun(@(s) contains(s.name,"mask.mat"),files));
+    files = files(arrayfun(@(s) endsWith(s.name,".mat"),files));
     n_samples = length(files);
     if isempty(n_samples)
         error("First input should be a single 3D image of ARA annotations or " +...
@@ -67,11 +67,11 @@ harris_ids = ctx_harris.id;
 n_structures = length(harris_ids);
 
 for i = 1:n_samples
-    if ischar(input) || isstruct(input)
-        [~,sample_name] = fileparts(files(i));
+    if ischar(input) || isstring(input) || isstruct(input)
+        [~,sample_name] = fileparts(files(i).name);
         sample_name = extractBefore(sample_name,"_");
         fprintf("Reading sample %s\n",sample_name)
-        I_mask = load(files(i),'I_mask');
+        I_mask = load(files(i).name,'I_mask');
         I_mask = I_mask.I_mask;
     else
         I_mask = input;

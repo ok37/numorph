@@ -172,6 +172,8 @@ if ismember(plot_type,{'coronal','saggital','axial','voxel'})
     if isequal(string(plot_type),"voxel")
         plot_type = 'coronal';
     end
+elseif ismember(plot_type,{'thickness','flatmap'})
+    main_plot = 'flatmap';
 else
     main_plot = plot_type;
 end
@@ -256,6 +258,11 @@ switch main_plot
                     config.prefix + "_" + class_names2(i) + "_flatmap.nii"));
             end
             save(plot_path,'-append','flatmap')
+            
+            
+            
+            
+            
         end
         
         % Visualize flat cortex

@@ -428,10 +428,10 @@ end
 %%%%%%%
 % Now working on making an annotation mask to overlay light-sheet images
 % Get which structures
-if isempty(config.structures)
+if isempty(config.structures_include)
     structures = "full";
 else
-    [~,structures] = fileparts(config.structures);
+    [~,structures] = fileparts(config.structures_include);
 end
 
 % Name mask image based on direction
@@ -484,8 +484,7 @@ fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
 
 % Adjust sizes and spacing
 reg_trans = reg_params.(direction);
-s = 1;    % Default: brain registration performed at 25um, mask at 10um
-size1 = reg_trans.ref_size;%reg_params.native_img_size;
+size1 = reg_trans.ref_size;
 for j = 1:length(reg_trans.TransformParameters)
     reg_trans.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
     reg_trans.TransformParameters{j}.Size = size1;
@@ -650,7 +649,7 @@ if ~isfile(path_centroids)
     error("Could not locate centroids file in the output directory");
 else
     fprintf('%s\t Loading centroid list \n',datetime('now'))
-    load(path_centroids,'centroids');
+    centroids = load(path_centroids);
 end
 
 % Check if all channel intensity have been measured
@@ -659,7 +658,7 @@ if ~isfield(centroids,'intensities') || isequal(config.remeasure_centroids,'true
     % No intensities measured
     centroids.intensities = remeasure_centroids(centroids.coordinates,path_table,config,class_markers);
     centroids.intensities = round(centroids.intensities);
-    save(path_centroids,'centroids')
+    save(path_centroids,'-struct','centroids')
 end
 
 % Calculate automatic minimum threshold if unspecified

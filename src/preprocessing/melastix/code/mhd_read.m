@@ -59,6 +59,7 @@ switch(headerInfo.DataType)
     case 'short'
         V = int16(fread(fid,datasize,'short')); 
     case {'ushort','uint16'}
+        %V = uint16(fread(fid,datasize,'ushort')); 
         V = uint16(fread(fid,datasize,'ushort')); 
     case {'int','int32'}
         V = (fread(fid,datasize,'int')); 

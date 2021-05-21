@@ -1,32 +1,37 @@
-function I_final = plot_centroid_stack(config, spacing, plot_classes, save_image)
+function [L,z] = plot_centroid_stack(config, spacing, plot_classes, save_image)
 %--------------------------------------------------------------------------
 % Visualize image centroids on a corresponding z slice.
 %--------------------------------------------------------------------------
 % Usage:
-% I_final = plot_centroid_stack(config, spacing, plot_classes, save_image)
+% L = plot_centroid_stack(config, spacing, plot_classes, save_image)
 %
 %--------------------------------------------------------------------------
 % Inputs:
 % config: Analyis configuration structure. 
 %
 % spacing: (1x3 integer) Amount of downsampling for each dimension. 
-% (default: [10,10,100])
+% (default: [3,3,100])
 % 
-% plot_classes: (logical) Color by classificaiton if they exist. 
-% (default: true)
+% plot_classes: (int,'none','all') Color by classificaiton if they exist.
+% Specify cell class index. 'none': plot all cells as 1 class. 'all': plot
+% all unique cell classes present. (default: 'all')
 % 
 % save_image: (logical) Save image to 'samples' directory. (default: true,
 % if no output, false otherwise)
 % 
 %--------------------------------------------------------------------------
 % Outputs:
-% I_final: (mxnx2 uint) Contains raw image in slice 1 and associated
-% centroid calls in slice 2. To create overlayed image run:
-% img = labeloverlay(I_final(:,:,1),I_final(:,:,2),'ColorMap','prism');
+% L: (uint8) 3D label image containing annotated centroid and class 
+% coordinates.
+%
+%
+% z: (numeric) z positions that were sampled.
 %
 %--------------------------------------------------------------------------
-
-if nargin<3; plot_classes = true; end
+if nargin<2
+    spacing = [3,3,100];
+end
+if nargin<3; plot_classes = 'all'; end
 if nargin<4
     if nargout == 1
         save_image = false;
@@ -46,65 +51,76 @@ else
     else
         error("No centroids detected in results structure")
     end
-    if plot_classes
+    if ~isequal(plot_classes,'none')
         if ismember('classes',res_path)
             load(res_path,'classes')
             assert(length(classes) == size(centroids,1),...
                 "Number of centroids and classes do not match")
         else
             warning("No classes detected in results structure")
-            plot_classes = false;
+            plot_classes = 'none';
         end
     end
 end
-    
+
 % Get image paths
 path_table = path_to_table(config);
-path_table = path_table(path_table.channel_num == 1,:);
 
-% Get z position at current slice and slices above/below
-z_position = z_position-1:z_position+1;
-idx = ismember(centroids(:,3),z_position);
+% Get z positions after adjusting for spacing
+z = path_table.z;
+z = round(linspace(min(z),max(z),ceil(length(z)/spacing(3))+2));
+z = z(2:end-1);
+idx = ismember(centroids(:,3),z);
 cen = centroids(idx,:);
-if plot_classes
-    class = classes(idx,:);
+if isequal(plot_classes,'none')
+    classes = ones(1,size(cen,1));
 else
-    class = ones(1,size(cen,1));
+    classes = classes(idx,:);
+    if isnumeric(plot_classes)
+        classes(~ismember(classes,plot_classes)) = 0;
+    end
 end
-I = read_img(path_table,[1,z_position(2)]);
+
+% Read a sample image to get dimensions
+tempI = read_img(path_table);
+dims = round(size(tempI)./spacing([1,2]));
 
 % Create label image
-L = zeros(size(I));
-se = strel([0 1 0;1 1 1;0 1 0]);
-for i = 1:3
-    img = zeros(size(I));
-    idx = cen(:,3) == z_position(i);
-    val = class(idx);
-    idx = sub2ind(size(I),cen(idx,1),cen(idx,2));
-    img(idx) = val;
-    if i == 2
-        img = imdilate(img,se);
-    end
-    L = L + img;
+L = zeros([dims,length(z)]);
+se = strel('disk',5);
+for i = 1:length(z)
+    img = zeros(dims);
+    idx = cen(:,3) == z(i);
+    val = classes(idx);
+    c = round(cen(idx,1:2)./spacing([1,2]));
+    k_idx = all(c>1,2);
+    k_idx = k_idx & c(:,1)<=dims(1) & c(:,2)<=dims(2);
+    c = c(k_idx,:);
+    val = val(k_idx);
+    v_idx = sub2ind(dims,c(:,1),c(:,2));
+    img(v_idx) = val;
+    img = imdilate(img,se);
+    L(:,:,i) = img;
 end
 
 % Save image
 if save_image
-    I = imadjust(I);
-    save_img = labeloverlay(I,L,'ColorMap','prism');
-    save_name = sprintf('%s_slice_%d.png',config.sample_id,z_position(2));
+    save_name = sprintf('%s_stack_labels.tif',config.sample_id);
     sample_dir = fullfile(config.output_directory,'samples');
     if ~isfolder(sample_dir)
         mkdir(sample_dir)
     end
     save_name = fullfile(sample_dir,save_name);
     fprintf('%s\t Writing image %s \n',datetime('now'),save_name)
-    imwrite(save_img,save_name)
+    options.overwrite = true;
+    saveastiff(uint8(L),char(save_name),options);
 end
 
-% Create nxmx2 image
-if nargout == 1
-    I_final = cat(3,I,L);
+if nargout<2
+    clear z
+end
+if nargout<1
+    clear L
 end
 
 end

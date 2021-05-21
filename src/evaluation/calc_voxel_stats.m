@@ -72,7 +72,6 @@ for i = 4:n_classes
     
     set1(any(isnan(set1),2),:) = 1;
 
-
     % Generate flatmaps
     fset1 = cell(1,size(set1,2));
     for j = 1:size(set1,2)

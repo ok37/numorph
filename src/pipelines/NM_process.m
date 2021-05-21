@@ -559,7 +559,7 @@ elseif isequal(config.align_method,'elastix')
             datetime('now'),config.markers{1},y,x);
 
         alignment_results = elastix_channel_alignment(config,path_align,true);
-        disp(alignment_results(end,:))
+        %disp(alignment_results(end,:))
         
         % Save with the exception of only aligning slices
         if isequal(config.channel_alignment,"update") && ~isempty(config.align_slices)

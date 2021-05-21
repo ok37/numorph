@@ -21,8 +21,9 @@ home_path = config.home_path;
 align_channels = config.align_channels;
 
 % Parameters not found in NMp_template. Defaults
-img_gamma_adj = repmat(0.8,1,length(markers)); % Apply gamma during intensity adjustment. Decrease for channels with low background
+img_gamma_adj = repmat(0.5,1,length(markers)); % Apply gamma during intensity adjustment. Decrease for channels with low background
 smooth_blobs = "false"; % Smooth blobs using gaussian filter
+apply_dog = "true"; % Apply difference of gaussian
 
 % Registration-specific parameters
 elastix_params = config.elastix_params;
@@ -409,7 +410,16 @@ if ~using_loaded_parameters || update_stack
         end
         
         % Adjust intensity 
-        I{i} = imadjustn(I{i},[lowerThresh(i) upperThresh(i)],[],img_gamma_adj(i));
+        I{i} = imadjustn(I{i},[signalThresh(i) upperThresh(i)],[],img_gamma_adj(i));
+        
+        % Smooth blobs using Guassian filter to reduce effects of
+        % noise. Not a big impact if resampling
+        if isequal(apply_dog,"true")
+            for j = 1:length(z_range_adj)
+                I{i}(:,:,z_range_adj(j)) = dog_adjust(I{i}(:,:,z_range_adj(j)),...
+                    config.nuc_radius);
+            end
+        end
         
         % Resample image
         I{i} = im2int16(imresize3(I{i},dim_adj));

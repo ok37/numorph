@@ -3,7 +3,6 @@ function ct = classify_cells_threshold(centroids, config)
 % Classify cell-types using intensity thresholding
 %--------------------------------------------------------------------------
 remove_l1 = 'false';
-stratify_structures = 'false';
 remove_background = 'false';
 
 % Get parameters
@@ -63,14 +62,14 @@ end
 
 % Remove selected indexes
 centroids = centroids(~rm_idx,:);
+intensities1 = intensities(~rm_idx,:);
 
 % Intitialize matrices and models
 count = zeros(size(centroids,1),n_markers);
 a = ref_n-1;
 for i = ref_n:n_markers
     % Clustering using thresholds
-    %idx = 4+i;
-    intensities = centroids(:,i);
+    intensities = intensities1(:,i);
 
     % Load background intensities from background images
     if isequal(remove_background,'true')
@@ -121,12 +120,6 @@ for i = ref_n:n_markers
         fprintf('%s\t Applying z normalization \n',datetime('now'))
         thresh = (thresh - mean(values))/std(values);
         values = (values - mean(values))/std(values);
-        %if ~isempty(config.log_outliers) || config.log_outliers ~= 0
-        %    fprintf('%s\t Supressing outliers \n',datetime('now'))
-        %    l = config.log_outliers;
-        %    values(values>l) = l + log2(values(values>l));
-        %    values(values<-l) = -l - log2(abs(values(values<-l)));
-        %end
     end
     
     % Count cells above threshold
@@ -139,33 +132,10 @@ end
 [~,idx] = sort(sum(classes,2));
 classes = classes(idx,:);
 
-
 % Calculate classes
 [~,c] = ismember(count,classes,'rows');
 ct(~rm_idx) = c;
 ct(rm_idx) = 0;
-
-%if n_markers > 2
-%    % Count cells positive for all markers and add to last column
-%    count(:,end) = all(count(:,2:end-1),2);
-%    count(:,2:end-1) = count(:,2:end-1) - count(:,end);
-%end
-
-% Calculate all negative cells
-%count(:,1) = ~any(count(:,2:end),2);
-
-% Save cell type counts
-%[r,c] = find(count);
-%v1(r) = c;
-%ct(~rm_idx) = c;
-
-% Calculate sums
-%max_ct = max(unique(ct));
-%sums = histcounts(ct,-0.5:max_ct+0.5);
-%sums = sums(2:end);
-%sums(1) = sums(1) + sum(l1_idx);
-%pct = sums/sum(sums(:));
-%disp(pct)
 
 end
 

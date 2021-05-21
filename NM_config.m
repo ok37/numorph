@@ -19,6 +19,11 @@ function [config, path_table] = NM_config(stage, sample, run)
 %
 %--------------------------------------------------------------------------
 
+if nargin<1
+    addpath(genpath(pwd))
+    return
+end
+
 if nargin<3
     run = false;
 end
