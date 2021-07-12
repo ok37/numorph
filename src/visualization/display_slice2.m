@@ -390,7 +390,7 @@ elseif isequal(ud.category(a),4)
     if ud.stat(ud.pos) == 7
         slice(slice<1) = 1;
     end
-    title = vs.markers(ud.marker(a)).Counts.title(ud.stat(a));
+    title = vs.markers(ud.marker(a)).Counts.title;
     colors = vs.markers(ud.marker(a)).colors{ud.stat(a)};
     return
     %stats = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));

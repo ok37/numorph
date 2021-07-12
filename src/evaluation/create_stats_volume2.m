@@ -45,20 +45,36 @@ for i = 1:length(markers)
         img = permute_orientation(img,"ail","als");
     end
     for j = 1:size(img,4)
-        if j==1
-            c = 1/squeeze(img(:,:,:,j))*100-100;
-            c(c<-100) = -100;
-            c(c>100) = 100;
-            vox.voxel(i).img{j} = c;
+        if j == 1
+            a = squeeze(img(:,:,:,j));
+            a(a>1) = 1;
+            vox.voxel(i).img{j} = a*100;
         else
-            vox.voxel(i).img{j} = -log10(squeeze(img(:,:,:,j)));
+            a = squeeze(img(:,:,:,j));
+            a(a>5) = 5;
+            vox.voxel(i).img{j} = a;
         end
     end
 end
 
 % Bin to correct structures
-df_stats = trim_to_deepest_structure(df_stats);
-[aV,aI] = bin_annotation_structures(av.annotationVolume,df_stats,'true');
+f = fieldnames(df_stats);
+for i = 1:length(f)
+    if isequal(f{i},'Cortex')
+        continue
+    end
+    s = trim_to_deepest_structure(df_stats.(f{i}));
+    if i == 1
+        df_stats_new.info = s.info;
+        df_stats_new.category = string(f{i});
+        df_stats_new.stats = s.stats;
+    else
+        df_stats_new.category = cat(2,df_stats_new.category,repmat(string(f{i}),1,length(s.stats)));
+        df_stats_new.stats = cat(2,df_stats_new.stats,s.stats);
+    end
+end
+
+[aV,aI] = bin_annotation_structures(av.annotationVolume,df_stats_new.info,'true');
 binnedMask = ismember(aV,aI);
 % Potentially edit
 vox.av = aV+1;
@@ -83,14 +99,15 @@ vox.bin_idx = cellfun(@(s) ismember(s-1,av.annotationIndexes),vox.av_idx,...
     'UniformOutput',false);
 
 % Now for each marker, add counts and densities
-stats_headers = df_stats.Properties.VariableNames(10:end);
-for i = 1:nmarkers    
-    % First add volume only to the first channel
-    if i == 1 && any(contains(stats_headers,"Volume"))
-        vox = add_stats_to_vs(vox,df_stats,markers(i),"Volume",i);
+for i = 1:length(df_stats_new.stats)  
+    if i == 1
+        idx = 1;
+        marker = "Volume";
+    else
+        idx = find(df_stats_new.stats(i).marker == markers);
+        marker = replace(df_stats_new.stats(i).marker,{'/','.'},'');
     end
-    vox = add_stats_to_vs(vox,df_stats,markers(i),"Counts",i);
-    vox = add_stats_to_vs(vox,df_stats,markers(i),"Density",i);
+    vox = add_stats_to_vs(vox,df_stats_new.stats(i).stats,marker,df_stats_new.category(i),idx);
 end
 
 % Update indexes to match volume
@@ -99,25 +116,11 @@ vox.indexes = vox.indexes+1;
 end
 
 
-function vox = add_stats_to_vs(vox,df_stats,marker,colname,idx)
+function vox = add_stats_to_vs(vox,values,marker,colname,idx)
 
 % Add calculated statistics for each marker
-stats_columns = table2array(df_stats(:,10:end));
-stats_headers = df_stats.Properties.VariableNames(10:end);
-
-header = stats_headers(contains(stats_headers,colname));
-vox.markers(idx).(colname).title = string(strrep(header,'_',' '));
+vox.markers(idx).(colname).title = marker + " " + colname;
 vox.markers(idx).(colname).name = colname;
-
-if isequal(colname,"Volume")
-    values = stats_columns(:,contains(stats_headers,colname));
-elseif isequal(colname,"Custom")
-    values = stats_columns(:,contains(stats_headers,colname)...
-        & contains(stats_headers,marker));
-else
-    values = stats_columns(:,contains(stats_headers,colname)...
-        & contains(stats_headers,marker));
-end
 
 vox.markers(idx).(colname).values(:,1:5) = values(:,1:5);
 vox.markers(idx).(colname).values(:,6:7) = -log10(values(:,6:7));
@@ -127,7 +130,7 @@ vox.markers(idx).(colname).cmin = min(values);
 vox.markers(idx).(colname).cmin(6:8) = 0;
 vox.markers(idx).(colname).cmin(6:8) = 1.301;
 vox.markers(idx).(colname).cmax = max(values);
-vox.markers(idx).(colname).cmax(6:7) = max(-log10(values(:,6:7)));
+vox.markers(idx).(colname).cmax(6:7) = 5;
 vox.markers(idx).(colname).cmax(8) = 4;  
 
 pchange_max = max(abs(vox.markers(idx).(colname).cmin(5)),vox.markers(idx).(colname).cmax(5))*1.1;
@@ -136,7 +139,6 @@ pchange_max = max(abs(vox.markers(idx).(colname).cmin(5)),vox.markers(idx).(coln
 
 vox.markers(idx).(colname).cmin(5) = -100;
 vox.markers(idx).(colname).cmax(5) = 100;
-
 
 % Set colors
 vox.markers(idx).colors(1:4) = {brewermap(201,'YlOrBr')};    

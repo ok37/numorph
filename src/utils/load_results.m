@@ -1,14 +1,17 @@
-function results = load_results(input,sample)
+function results = load_results(input,variable,sample)
 %--------------------------------------------------------------------------
 % Load results summary for a given sample. 
 %--------------------------------------------------------------------------
 % Usage:
-% results = load_results(input, sample_id)
+% results = load_results(input,variable,sample)
 %
 %--------------------------------------------------------------------------
 % Inputs:
 % input: String specifying sample in NM_samples or path to output
 % directory. Also accepts configuration structure.
+%
+% variable: (char) Load just specific variable from results structure. 
+% (default: [])
 %
 % sample: Optional string specifying sample if NM_evaluate structure
 % provided.
@@ -18,9 +21,15 @@ function results = load_results(input,sample)
 % results: Results structure.
 %
 %--------------------------------------------------------------------------
-if nargin>1 && isstruct(input)
+if nargin<2 
+    variable = [];
+end
+
+if nargin>2 && isstruct(input)
     input.output_directory = input.results_path(input.samples == string(sample));
 end
+
+home_path = fileparts(which('NM_config'));
 
 if isstruct(input)
     if isfield(input,'output_directory')
@@ -56,7 +65,12 @@ if endsWith(var_path,'.mat')
 else
     files = dir(fullfile(var_path,"*_results.mat"));
     if length(files) == 1
-        results = load(fullfile(files.folder,files.name));
+        if isempty(variable)
+            results = load(fullfile(files.folder,files.name));
+        else
+            results = load(fullfile(files.folder,files.name),variable);
+            results = results.(variable);
+        end
     elseif length(files) > 1
         error("More than one results structure detected in the output directory")
     else

@@ -30,9 +30,13 @@ end
 % These have have masks already precomputed
 structure_path = fullfile(home_path,'annotations');
 mat_files = dir(fullfile(structure_path,'/*','*.mat'));
-major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
-[~,fname] = fileparts(structures);
-idx = ismember(major_structures,fname);
+if ~isempty(mat_files)
+    major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
+    [~,fname] = fileparts(structures);
+    idx = ismember(major_structures,fname);
+else
+    idx = [];
+end
 if any(idx)
     if sum(idx) < length(structures)
         error("Structure names not specified correctly")
@@ -55,7 +59,7 @@ end
 
 % Check for custom structures
 % Generate and apply mask, this will take a while
-files = dir(fullfile(home_path,'annotations','custom_structures'));
+files = dir(fullfile(home_path,'annotations','custom_annotations'));
 id = cell(1,length(structures));
 for i = 1:length(structures)    
     idx = files(arrayfun(@(s) s.name == structures(i),files));
@@ -80,7 +84,7 @@ id = id.index;
 % Set structures not found in the table to 0
 C(~ismember(C,id)) = 0;
 
-% Reshape linearized matrix back to its original size
+% Reshape back to original size
 I_mask = reshape(C(ic),size(annotationVolume));
 
 end

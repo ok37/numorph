@@ -1,4 +1,4 @@
-function counts = get_custom_class(counts,single_class,custom_class)
+function [custom, counts] = get_custom_class(counts,single_class,custom_class)
 % Combine counts from multiple classes based on specified function handle
 % and append to counts matrix
 
@@ -28,6 +28,8 @@ for n = 1:length(custom_class)
 end
 
 % Append to counts matrix
-counts = cat(2,counts,custom);
+if nargout == 2
+    counts = cat(2,counts,custom);
+end
 
 end

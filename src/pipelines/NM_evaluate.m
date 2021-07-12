@@ -1,4 +1,4 @@
-function NM_evaluate(config, step, plot_type)
+function NM_evaluate(config, step, varargin)
 %--------------------------------------------------------------------------
 % NuMorph evaluation pipeline to merge analysis results from multiple
 % grouped samples and perform pairwise statistical comparisons between WT
@@ -11,10 +11,6 @@ config.temp_file = fullfile(fileparts(which('NM_config')),'annotations','structu
 % Default to run full pipeline
 if nargin<2
     step = 'stats';
-end
-
-if nargin<3
-    plot_type = 'coronal';
 end
 
 % Make an output directory
@@ -33,11 +29,6 @@ else
         "Number of class names does not match number of classes selected")
 end
 
-% Check for nuclear channel
-%if isequal(config.contains_nuclear_channel,"true")
-%    config.class_names = ["nuclei",config.class_names];
-%end
-
 % Check if 1 or more samples
 n_samples = length(config.samples);
 if n_samples > 1
@@ -51,9 +42,9 @@ end
 % Name summary file
 if isequal(config.compare_structures_by,'table')
     [~,a] = fileparts(config.structure_table);
-    config.stats_results = fullfile(config.results_directory,sprintf('%s_%s_stats.csv',config.prefix,a));
+    config.stats_results = fullfile(config.results_directory,config.prefix,'tables',sprintf('%s_%s_stats.xls',config.prefix,a));
 else
-    config.stats_results = fullfile(config.results_directory,strcat(config.prefix,'_summary_stats.csv'));
+    config.stats_results = fullfile(config.results_directory,config.prefix,'tables',strcat(config.prefix,'_summary_stats.xls'));
 end
 
 %% Run single step and return if specified
@@ -63,7 +54,7 @@ if isequal(step,'stats')
     fprintf('%s\t All statistics generated! \n',datetime('now'))
     return
 elseif isequal(step,'plot')
-    visualize_results(config,plot_type);
+    visualize_results(config,varargin);
     return
 end
 
@@ -72,32 +63,67 @@ end
 
 function perform_stats(config,multi)
 
+% Start combining regions statistics
+config.tab_directory = fullfile(config.results_directory,config.prefix,'tables');
+if ~isfolder(config.tab_directory)
+    mkdir(config.tab_directory)
+end
+
+config.vox_directory = fullfile(config.results_directory,config.prefix,'voxels');
+if ~isfolder(config.vox_directory)
+    mkdir(config.vox_directory)
+end
+
+config.flat_directory = fullfile(config.results_directory,config.prefix,'flatmaps');
+if ~isfolder(config.flat_directory)
+    mkdir(config.flat_directory)
+end
+
 n_samples = length(config.samples);
+
 % Measure cell-types
-count_results = fullfile(config.results_directory,strcat(config.prefix,"_summary_counts.csv"));
+count_results = fullfile(config.tab_directory,strcat(config.prefix,"_summary_counts.csv"));
 if ~isfile(count_results)
     fprintf('%s\t Quantifying cell counts for %d samples\n',datetime('now'),n_samples)    
     combine_counts(config,count_results);
 else
-    fprintf('%s\t Cell count results already quantified \n',datetime('now'))        
+    fprintf('%s\t Cell count results already quantified \n',datetime('now'))
 end
 
 % Measure volumes
-vol_results = fullfile(config.results_directory,strcat(config.prefix,"_summary_volumes.csv"));
+vol_results = fullfile(config.tab_directory,strcat(config.prefix,"_summary_volumes.csv"));
 if ~isfile(vol_results)
     fprintf('%s\t Quantifying structure volumes for %d samples\n',datetime('now'),n_samples)
     combine_volumes(config,vol_results);
 else
-    fprintf('%s\t Structure volumes already quantified \n',datetime('now'))        
+    fprintf('%s\t Structure volumes already quantified \n',datetime('now'))
 end
 
 % Measure densities
-dense_results = fullfile(config.results_directory,strcat(config.prefix,"_summary_densities.csv"));
+dense_results = fullfile(config.tab_directory,strcat(config.prefix,"_summary_densities.csv"));
 if ~isfile(dense_results)
     fprintf('%s\t Quantifying cell densities for %d samples\n',datetime('now'),n_samples)
     combine_densities(config,count_results,vol_results,dense_results);
 else
     fprintf('%s\t Cell densities already quantified \n',datetime('now'))        
+end
+
+% Measure cortex 
+cortex_results = fullfile(config.tab_directory,strcat(config.prefix,"_summary_ctxVolSATH.csv"));
+if isequal(config.measure_cortex,"true")
+    if ~isfile(cortex_results)
+        fprintf('%s\t Measuring cortical structure for %d samples\n',datetime('now'),n_samples)
+        ctx_idx = arrayfun(@(s) {who('-file',s)},config.results_path);
+        ctx_idx = cellfun(@(s) any(ismember(s,{'cortex'})),ctx_idx);
+        if ~all(ctx_idx)
+            measure_cortical_sa_th(config.results_path(~ctx_idx));
+        end
+        combine_cortexes(config,cortex_results);
+        
+    else
+        fprintf('%s\t Cortical structures already quantified. Loading measurments  \n',datetime('now'))        
+        
+    end
 end
 
 % Statistics run on mutliple samples
@@ -107,20 +133,26 @@ if ~multi || isempty(config.groups)
 end
 
 % Read counts and volume data directly from csv file
-df_results = cell(1,2);
-fname = fullfile(config.results_directory,strcat(config.prefix,"_summary_counts.csv"));
-if isfile(fname)
+df_results = cell(1,3);
+if isfile(count_results)
     fprintf('%s\t Loading cell counts \n',datetime('now'))    
-    df_results{1} = readtable(fname,'PreserveVariableNames',true);
+    df_results{1} = readtable(count_results,'PreserveVariableNames',true);
 else
-    error('Could not locate %s in results directory',fname)
+    error('Could not locate %s in results directory',count_results)
 end
-fname = fullfile(config.results_directory,strcat(config.prefix,"_summary_volumes.csv"));
-if isfile(fname)
+if isfile(vol_results)
     fprintf('%s\t Loading structure volumes \n',datetime('now'))    
-    df_results{2} = readtable(fname);
+    df_results{2} = readtable(vol_results);
 else
-    error('Could not locate %s in results directory',fname)
+    error('Could not locate %s in results directory',vol_results)
+end
+if isequal(config.measure_cortex,"true")
+    if isfile(cortex_results)
+        fprintf('%s\t Loading cortex measurements \n',datetime('now'))    
+        df_results{3} = readtable(cortex_results);
+    else
+        error('Could not locate %s in results directory',cortex_results)
+    end
 end
 
 % Get sample info from 
@@ -153,20 +185,24 @@ if n_groups>2
     end
 end
 
-% Calculate statistics
+% Calculate region statistics
 config.groups = config.groups';
 config.samples = config.samples';
-%calc_stats(df_results, config);
+calc_table_stats(df_results, config);
 
 % Calculate voxel image
-calc_voxel_stats(config)
+%calc_voxel_stats(config)
+
+% Calculate flatmap stats
+calc_flatmap_stats(config)
 
 end
 
 
-function visualize_results(config,plot_type)
+function visualize_results(config,plot_params)
 % Visualize Results
 
+plot_type = plot_params{1};
 if ismember(plot_type,{'coronal','saggital','axial','voxel'})
     main_plot = 'voxel';
     if isequal(string(plot_type),"voxel")
@@ -179,7 +215,7 @@ else
 end
 
 % Check for previous structure
-plot_path = fullfile(config.results_directory,sprintf("%s_plotData.mat",config.prefix));
+plot_path = fullfile(config.results_directory,config.prefix,sprintf("%s_plotData.mat",config.prefix));
 if ~isfile(plot_path)
     plotData = struct;
     save(plot_path,'-struct','plotData')
@@ -190,9 +226,6 @@ end
 
 % Check if pre-loading existing munged data
 new_data = false;
-if isequal(config.update_plotdata,"true")
-    new_data = true;
-end
 
 % Pick what to plot
 switch main_plot
@@ -211,22 +244,29 @@ switch main_plot
             fprintf('%s\t Generating visualization volume\n',datetime('now'))
             % Read stats table
             if isfile(config.stats_results)
-                df_stats = readtable(config.stats_results,'PreserveVariableNames',true);
+                df_stats = munge_stats(config.stats_results);
             else
-                error("Could not locate stats table %s",stats_results)
+                error("Could not locate stats table %s",config.stats_results)
+            end
+            
+            % Set markers
+            markers = config.class_names;
+            if isequal(config.sum_all_classes,"true")
+                markers = [markers,"all"];
             end
             
             % Read voxel images
-            class_names2 = arrayfun(@(s) strrep(s,'./',''),config.class_names);
-            for i = 1:length(config.class_names)
-                voxel_imgs(i).marker = config.class_names(i);
+            markers2 = arrayfun(@(s) strrep(s,'./',''),markers);
+            for i = 1:length(markers)
+                voxel_imgs(i).marker = markers(i);
                 voxel_imgs(i).data =  niftiread(fullfile(config.results_directory,...
-                    config.prefix + "_" + class_names2(i) + "_voxels.nii"));
+                    config.prefix,'voxels',...
+                    config.prefix + "_" + markers2(i) + "_voxels.nii"));
             end
-
+            
             % Create visualization volume
             vox_results.(plot_type) = create_stats_volume2(df_stats,voxel_imgs,...
-                config.class_names,string(plot_type));
+                markers,string(plot_type));
             save(plot_path,'-append','-struct','vox_results',plot_type)
             vox = vox_results.(plot_type);
         end
@@ -237,37 +277,31 @@ switch main_plot
         % category: volume, counts, density, voxel
         % stat: Mean WT, Mean KO, StDev WT, StDev KO, Fold Change, p, p.adj, sig
         % [30,50,70,90] 
-        key{1} = [56,3,4,5];
-        key{2} = [56,3,4,6];
-
-        close(gcf)
-        [p1, p2] = display_slice2(vox,key);
+        
+        
+        
+        
     case 'cloud'
         
     case 'flatmap'
         % Create plot data structure and save for later
-        if ~new_data && ismember(plot_type,var_names)
-            fprintf('%s\t Loading visualization volume\n',datetime('now'))
-            load(plot_path,'flatmap')
-        else        
-            % Read saved flatmap images
-            class_names2 = arrayfun(@(s) strrep(s,'./',''),config.class_names);
-            for i = 1:length(config.class_names)
-                flatmap(i).marker = config.class_names(i);
-                flatmap(i).data =  niftiread(fullfile(config.results_directory,...
-                    config.prefix + "_" + class_names2(i) + "_flatmap.nii"));
-            end
-            save(plot_path,'-append','flatmap')
-            
-            
-            
-            
-            
-        end
-        
+        %if ~new_data && ismember(plot_type,var_names)
+        %    fprintf('%s\t Loading visualization volume\n',datetime('now'))
+        %    load(plot_path,'flatmap')
+        %else        
+        %    % Read saved flatmap images
+        %    class_names2 = arrayfun(@(s) strrep(s,'./',''),config.class_names);
+        %    for i = 1:length(config.class_names)
+        %        flatmap(i).marker = config.class_names(i);
+        %        flatmap(i).data =  niftiread(fullfile(config.results_directory,...
+        %            config.prefix + "_" + class_names2(i) + "_flatmap.nii"));
+        %    end
+        %    save(plot_path,'-append','flatmap')
+        %end
+
         % Visualize flat cortex
         key = [1,1];
-        visualize_flat_cortex(flatmap, key)
+        plot_flat_cortex(flatmap, key)
 
     case 'volume'
         

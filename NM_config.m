@@ -77,6 +77,8 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
         end
         
         [samples,groups,results_path,s_fields] = munge_results(output_directory);
+        
+        assert(~isempty(samples),"No samples found for input %s",sample)
         assert(length(samples) == length(output_directory),...
             "Missing results structures for some samples")
     else        

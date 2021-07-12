@@ -3,8 +3,8 @@ function results = create_voxel_volume(results, bin_resolution)
 
 registration_resolution = 25;
 
-if isfield(results.config,'resolution')
-    res = results.config.resolution{1};
+if isfield(results.sample_data,'resolution')
+    res = results.sample_data.resolution;
 else
     res = [1.21,1.21,4];
 end

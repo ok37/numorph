@@ -3,144 +3,154 @@ function calc_voxel_stats(config)
 % Create 4D voxel volume representing fold change, p, q values
 %--------------------------------------------------------------------------
 
+fdr_thresh = 0.05;
+generate_flatmaps = true;
+
 % Load voxel volumes
 n_samples = length(config.results_path);
 imgs = cell(1,n_samples);
+f_imgs = cell(1,n_samples);
 for i = 1:length(imgs)
     var_names = who('-file',config.results_path(i));
     if ~ismember('voxel_volume',var_names)
         error("No voxel volume found for sample %s",config.samples(i))
     end
     load(config.results_path(i),'voxel_volume')
-    voxel_volume = voxel_volume(config.keep_classes);
-    %figure; imagesc(voxel_volume{2}(:,:,21))
-    
-    if isequal(config.contains_nuclear_channel,"true")
-        imgs{i} = [voxel_volume,{sum(cat(4,voxel_volume{:}),4)}];
-    else
-        imgs{i} = voxel_volume;
+    imgs{i} = voxel_volume(config.keep_classes);
+    imgs{i} = cellfun(@(s) s(:),imgs{i},'UniformOutput',false);
+    if generate_flatmaps
+        f_imgs{i} = cellfun(@(s) convert_to_flatmap(s,'sum'),voxel_volume(config.keep_classes),'UniformOutput',false);
+        f_imgs{i} = cellfun(@(s) s(:),f_imgs{i},'UniformOutput',false);
     end
 end
 
-% Add custom classes
-if ~isempty(config.custom_class)
-    n_single = length(config.class_names(config.keep_classes));
-    n_custom = length(config.custom_class);
-    for i = 1:length(imgs)
-        counts = cellfun(@(s) s(:),imgs{i},'UniformOutput',false);
-        counts = cat(2,counts{:});
-        counts = get_custom_class(counts,1:n_single,...
-            config.custom_class);
-        for j = 1:n_custom
-            a = {reshape(counts(:,n_single+j),size(imgs{i}{1}))};
-            imgs{i} = [imgs{i},a];
+% Sum all classes
+sums = {};
+f_sums = {};
+if isequal(config.sum_all_classes,"true")
+    config.class_names = ["all",config.class_names];
+    sums = cell(1,length(imgs));
+    for i = 1:length(sums)
+        sums{i} = sum(cat(4,imgs{i}{:}),4);
+    end
+    if generate_flatmaps
+        f_sums = cell(1,length(f_imgs));
+        for i = 1:length(sums)
+            f_sums{i} = sum(cat(4,f_imgs{i}{:}),4);
         end
     end
 end
 
-% Check all images are the same size
-n_vox = cellfun(@(s) numel(s),[imgs{:}]);
-assert(length(unique(n_vox)) == 1,"Voxel volume sizes are not the same for all volumes")
+% Add custom classes
+cust = {};
+f_cust = {};
+if ~isempty(config.custom_class)
+    n_single = length(config.class_names(config.keep_classes));
+    cust = cell(1,length(imgs));    
+    for i = 1:length(imgs)
+        counts = cellfun(@(s) s(:),imgs{i},'UniformOutput',false);
+        cust{i} = get_custom_class(cat(2,counts{:}),1:n_single,config.custom_class);
+        cust{i}(isnan(cust{i})) = 0;
+    end
+    if generate_flatmaps
+        f_cust = cell(1,length(f_imgs));
+        for i = 1:length(f_imgs)  
+            counts = cellfun(@(s) s(:),f_imgs{i},'UniformOutput',false);
+            f_cust{i} = get_custom_class(cat(2,counts{:}),1:n_single,config.custom_class);
+            f_cust{i}(isnan(f_cust{i})) = 0;
+        end
+    end
+end
+
+imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), sums, imgs, cust, 'UniformOutput', false);
+f_imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), f_sums, f_imgs, f_cust, 'UniformOutput', false);
 
 % Assign samples to groups
 group_delimiters = cat(2,config.samples,cat(1,config.groups{:}));
 set1 = group_delimiters(group_delimiters(:,3) == config.compare_groups(1),1);
 vox1 = imgs(ismember(config.samples,set1));
+f_vox1 = f_imgs(ismember(config.samples,set1));
+
 set2 = group_delimiters(group_delimiters(:,3) == config.compare_groups(2),1);
 vox2 = imgs(ismember(config.samples,set2));
+f_vox2 = f_imgs(ismember(config.samples,set2));
 
-img_sizes = cellfun(@(s) size(s),vox1{1},'UniformOutput',false);
-
-vox1 = arrayfun(@(s) s{:}(:),cat(1,vox1{:}),'UniformOutput',false);
-vox2 = arrayfun(@(s) s{:}(:),cat(1,vox2{:}),'UniformOutput',false);
+img_sizes = size(voxel_volume{1});
 
 % For each class, generate vox
-n_classes = length(imgs{1});
+n_classes = size(imgs{1},2);
 config.class_names = arrayfun(@(s) strrep(s,'./',''),config.class_names);
 
 % Get samples
-for i = 4:n_classes
-    vox_res = ones(prod(img_sizes{i}),3);
+for i = 1:n_classes
+    vox_res = ones(prod(img_sizes),3);
     fvox_res = ones(1360*1360,3);
     
     % Seperate groups
-    set1 = cat(2,vox1{:,i});
-    set2 = cat(2,vox2{:,i});
+    set1 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox1,'UniformOutput',false)));
+    set2 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox2,'UniformOutput',false)));
     
-    set1(all(isnan(set1),2),:) = 0.5;
-    set2(all(isnan(set2),2),:) = 0.5;
-    
-    set1(any(isnan(set1),2),:) = 1;
-
-    % Generate flatmaps
-    fset1 = cell(1,size(set1,2));
-    for j = 1:size(set1,2)
-        s = convert_to_flatmap(reshape(set1(:,j),img_sizes{i}));
-        fset1{j} = s(:);
-    end
-    fset1 = cat(2,fset1{:});
-    
-    fset2 = cell(1,size(set2,2));
-    for j = 1:size(set2,2)
-        s = convert_to_flatmap(reshape(set2(:,j),img_sizes{i}));
-        fset2{j} = s(:);
-    end
-    fset2 = cat(2,fset2{:});
+    f_set1 = cat(2,cell2mat(cellfun(@(s) s(:,i),f_vox1,'UniformOutput',false)));
+    f_set2 = cat(2,cell2mat(cellfun(@(s) s(:,i),f_vox2,'UniformOutput',false)));
     
     % Calculate means
     m_set1 = mean(set1,2);
     m_set2 = mean(set2,2);
-    fm_set1 = mean(fset1,2);
-    fm_set2 = mean(fset2,2);
+    m_fset1 = mean(f_set1,2);
+    m_fset2 = mean(f_set2,2);
     
-    % Remove voxels with low cells
-    idx = find(max(m_set1,[],2) & max(m_set2,[],2) >config.minimum_cell_number);
-    fidx = find(max(fm_set1,[],2) & max(fm_set2,[],2) >config.minimum_cell_number);
+    % Threshold counts
+    if max([f_set1,f_set2],[],'all') <=1
+        idx = find(m_set1>0.03 & m_set2>0.03);
+       
+       % Threshold counts
+        fidx = find(m_fset1>0.03 & m_fset2>0.03);
+    else
+        idx = find(m_set1>config.minimum_cell_number &...
+           m_set2>config.minimum_cell_number);
+       
+           % Threshold counts
+        fidx = find(m_fset1>config.minimum_cell_number &...
+           m_fset2>config.minimum_cell_number);
+    end
 
-    % Fold change
-    %vox_res(idx,1) = m_set2(idx)./m_set1(idx);
-    vox_res(idx,1) = m_set1(idx);
-    
-    fvox_res(fidx,1) = fm_set2(fidx)./fm_set1(fidx);
-    
+   % Fold change
+    vox_res(:,1) = 0;
+    vox_res(idx,1) = (m_set2(idx)-m_set1(idx))./m_set1(idx); 
+
+   % Fold change
+    fvox_res(:,1) = 0;
+    fvox_res(fidx,1) = (m_fset2(fidx)-m_fset1(fidx))./m_fset1(fidx); 
+
     % p value
     [~,p] = ttest2(set1(idx,:)',set2(idx,:)');
-    vox_res(idx,2) = p;
-
-    [~,pf] = ttest2(fset1(fidx,:)',fset2(fidx,:)');
-    fvox_res(fidx,2) = pf;
-
-    %p = zeros(1,length(idx));
-    %for j = 1:length(idx)
-    %    [~,p(j)] = ttest2(set1(idx(j),:),set2(idx(j),:)); 
-    %end
-    %vox_res(idx,2) = p;
+    vox_res(idx,2) = -log10(p);
     
-    %for j = 1:length(fidx)
-    %    [~,pf(j)] = ttest2(fset1(fidx(j),:),fset2(fidx(j),:)); 
-    %end
-    %fvox_res(fidx,2) = pf;
+    [~,fp] = ttest2(f_set1(fidx,:)',f_set2(fidx,:)');
+    fvox_res(fidx,2) = -log10(fp);
 
     % Adjusted p value. Apply threshold to adjusted p value
     [~,~,~, adj_p] = fdr_bh(p);
-    adj_p(adj_p>0.05) = 1;
+    adj_p = -log10(adj_p);
+    adj_p(adj_p<-log10(fdr_thresh)) = -log10(fdr_thresh);
     vox_res(idx,3) = adj_p;
     
-    [~,~,~, adj_p] = fdr_bh(pf);
-    adj_p(adj_p>0.05) = 1;
-    fvox_res(fidx,3) = adj_p;
+    [~,~,~, adj_fp] = fdr_bh(fp);
+    adj_fp = -log10(adj_fp);
+    adj_fp(adj_fp<-log10(fdr_thresh)) = -log10(fdr_thresh);
+    fvox_res(fidx,3) = adj_fp;
     
     % Reshape and save to file
-    vox_res = reshape(vox_res,[img_sizes{i},3]);
-    fvox_res = reshape(fvox_res,[1360,1360,3]);    
+    vox_res = reshape(vox_res,[img_sizes,3]);
+    fvox_res = reshape(fvox_res,[1360,1360,3]);
     
     % Save file
-    fname = fullfile(config.results_directory,sprintf("%s_%s_voxels.nii",...
+    fname = fullfile(config.vox_directory,sprintf("%s_%s_voxels.nii",...
         config.prefix,config.class_names(i)));
     niftiwrite(vox_res,fname)
-        
-    fname = fullfile(config.results_directory,sprintf("%s_%s_flatmap.nii",...
-        config.prefix,config.class_names(i)));
+    
+    fname = fullfile(config.flat_directory,sprintf("%s_%s_flatmap.nii",...
+        config.prefix,config.class_names{i}));
     niftiwrite(fvox_res,fname)
 end
 

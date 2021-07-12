@@ -430,24 +430,15 @@ end
 % Get which structures
 if isempty(config.structures_include)
     structures = "full";
-else
+elseif ~isnumeric(config.structures_include)
     [~,structures] = fileparts(config.structures_include);
+else
+    
+    
 end
-
-% Name mask image based on direction
-%if isequal(config.ref_direction,"image")
-    annot_marker = config.markers(config.registration_channels);
-    target_res = config.resample_resolution;
-    target_or = config.orientation;
-%elseif isequal(config.ref_direction,"atlas")
-%    annot_marker = "atlas";
-%    target_res = 25;
-%    target_or = 'ail';
-%elseif isequal(config.ref_direction,"mri")
-%    annot_marker = config.mri_channels(1);
-%    target_res = config.mri_resolution;
-%    target_or = config.mri_orientation;
-%end
+annot_marker = config.markers(config.registration_channels);
+target_res = config.resample_resolution;
+target_or = config.orientation;
 
 % Permute mask to match atlas file
 if ~isempty(I_mask)
@@ -484,7 +475,7 @@ fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
 
 % Adjust sizes and spacing
 reg_trans = reg_params.(direction);
-size1 = reg_trans.ref_size;
+size1 = reg_trans.ref_size; s = 1;
 for j = 1:length(reg_trans.TransformParameters)
     reg_trans.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
     reg_trans.TransformParameters{j}.Size = size1;
@@ -598,7 +589,7 @@ if size(centroids,2)>3
     save(config.res_name,'annotations','-append')
     centroids = centroids(:,1:3);
 end
-save(path_centroids,'centroids')
+save(path_centroids,'centroids','-v7.3')
 delete(path_save)
 save(config.res_name,'centroids','-append')
 

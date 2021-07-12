@@ -1,4 +1,4 @@
-function tblSATH = measure_cortical_sa_th(input,res,use_l1_border,flatview)
+function tblSATH = measure_cortical_sa_th(input,res,use_l1_border,flatview,save_table)
 %--------------------------------------------------------------------------
 % Calculate the volume, surface area, and thickness of each major structure
 % in the cortex (according to Harris et al, Nature 2019. Input is a
@@ -17,24 +17,31 @@ if nargin<3
     use_l1_border = 'true';
 end
 
-% Use 17 or 43 cortical structures
+% Use 17 or 43 or both cortical structures
 if nargin<4
-    flatview = 'harris';
+    flatview = 'both';
+end
+
+if nargin<5
+    save_table = false;
 end
 home_path = fileparts(which('NM_config'));
 
 % If string, find all mask files in directory
 if ischar(input) || isstring(input)
-    files = dir(input);
-    files = files(arrayfun(@(s) endsWith(s.name,".mat"),files));
+    if isfolder(input)
+        files = dir(input);
+        files = string(fullfile(files.folder,{files.name}));
+    else
+        files = input;
+    end
+    files = files(arrayfun(@(s) endsWith(s,".mat"),files));
     n_samples = length(files);
     if isempty(n_samples)
         error("First input should be a single 3D image of ARA annotations or " +...
             " a config structure from NM_evaluate to measure multiple samples")
     end
-    if isfolder(input)
-        files = arrayfun(@(s) string(fullfile(input,s.name)),files);
-    end
+    
 elseif isstruct(input)
     if ~isfield(input,'main_stage') || ~isequal(input.main_stage,'evaluate')
         error("If providing structure, call NM_config('evaluate',group) to generate "+...
@@ -42,6 +49,7 @@ elseif isstruct(input)
     end
     files = fullfile(input.centroids_directory,'variables',strcat(input.samples','_mask.mat'));
     n_samples = length(files);
+    
 else
     n_samples = 1;
     sample_name = 'SAMPLE';
@@ -51,10 +59,17 @@ end
 all_struct = readtable(fullfile(home_path,'annotations','structure_template.csv'));
 if isequal(flatview,'seventeen')
     ctx_harris = readtable(fullfile(home_path,'annotations','custom_annotations','cortex_17regions.xls'));
+    adj = 1;
 elseif isequal(flatview,'harris')
    ctx_harris = readtable(fullfile(home_path,'annotations','custom_annotations','harris_cortical_groupings.xls'));
+   adj = 1;
+elseif isequal(flatview,'both')
+    ctx1 = readtable(fullfile(home_path,'annotations','custom_annotations','cortex_17regions.xls'));
+    ctx2 = readtable(fullfile(home_path,'annotations','custom_annotations','harris_cortical_groupings.xls'));
+    ctx_harris = [ctx1;ctx2];
+    ctx_harris = unique(ctx_harris,'rows');
+    adj = 2;
 end
-
 
 % Get cortex ids from structure path 
 all_ids = all_struct.structure_id_path;
@@ -68,13 +83,18 @@ n_structures = length(harris_ids);
 
 for i = 1:n_samples
     if ischar(input) || isstring(input) || isstruct(input)
-        [~,sample_name] = fileparts(files(i).name);
+        [~,sample_name] = fileparts(files(i));
         sample_name = extractBefore(sample_name,"_");
         fprintf("Reading sample %s\n",sample_name)
-        I_mask = load(files(i).name,'I_mask');
-        I_mask = I_mask.I_mask;
+        load(files(i),'I_mask');
+        if endsWith(files(i),"_results.mat")
+            res_struct = true;
+        else
+            res_struct = false;
+        end
     else
         I_mask = input;
+        res_struct = false;
     end
 
     % Unique indexes in volume
@@ -120,7 +140,7 @@ for i = 1:n_samples
     th = vol;
     sa = vol;
     for j = 1:n_structures
-       fprintf('Working on structure %d out of %d\n',j,n_structures)
+       %fprintf('Working on structure %d out of %d\n',j,n_structures)
 
        % Get ids for this structure
        b = cellfun(@(s) any(ismember(s,harris_ids(j))), a);
@@ -178,22 +198,38 @@ for i = 1:n_samples
     sa = sa*(res/1E3)^2;
     vol = vol*(res/1E3)^3;
     
-    % Save results to table
-    tbl = table();
-    tbl.Sample = repmat({sample_name},1,n_structures)';
-    tbl.Acronym = ctx_harris.acronym;
-    tbl.Volume = vol';
-    tbl.SA = sa';
-    tbl.TH = th';
-    if i ==1
-        tblSATH = tbl;
-    else
-        tblSATH = vertcat(tblSATH,tbl);
+    % Save to structure
+    if res_struct
+        cortex.index = ctx_harris.index;
+        cortex.volume = vol';
+        cortex.sa = sa';
+        cortex.th = th';
+        save(files(i),'-append','cortex')
     end
-    fprintf("Volume, SA, TH: %f %f %f\n" ,sum(vol),sum(sa),mean(th))
+    
+    if nargout<1
+        % Save results to table
+        tbl = table();
+        tbl.index = ctx_harris.index;
+        tbl.Sample = repmat({sample_name},1,n_structures)';
+        tbl.Acronym = ctx_harris.acronym;
+        tbl.Volume = vol';
+        tbl.SA = sa';
+        tbl.TH = th';
+        if i ==1
+            tblSATH = tbl;
+        else
+            tblSATH = vertcat(tblSATH,tbl);
+        end
+    end
+    
+    fprintf("Volume, SA, TH: %f %f %f\n" ,sum(vol)/adj,sum(sa)/adj,mean(th))
 end
 
-writetable(tblSATH,'Vol_SA_TH_measurements.csv')
+if save_table
+    writetable(tblSATH,'ctxVolSATH_measurements.csv')
+end
+
 end
 
 
@@ -249,12 +285,4 @@ c = cross(a, b, 2);
 sa = 1/2 * sum(sqrt(sum(c.^2, 2)));
 
 end
-
-function rp = use_regionprops(I_mask)
-
-rp = regionprops3(BW,'SurfaceArea');
-
-end
-
-
 

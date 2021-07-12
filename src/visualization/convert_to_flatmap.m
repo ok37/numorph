@@ -1,10 +1,15 @@
-function fm = convert_to_flatmap(img)
+function fm = convert_to_flatmap(img,combine_method)
 
+if nargin<2
+    combine_method = 'mean';
+elseif ~ismember(combine_method,{'mean','sum','max'})
+    error("Invalid voxel merging function")
+end
 
 home_path = fileparts(which('NM_config'));
-fc_path = fullfile(home_path,'data','annotation_data','flatviewCortex.mat');
-load(fc_path,'voxelmap')
-load(fc_path,'voxelpaths')
+fc_path = load(fullfile(home_path,'data','annotation_data','flatviewCortex.mat'));
+voxelmap = fc_path.voxelmap_100;
+voxelpaths = fc_path.voxelpaths_100;
 
 if length(size(img)) == 4
     img = squeeze(img);
@@ -17,7 +22,14 @@ img = flip(img,1);
 results = zeros(1,length(voxelpaths));
 for j = 1:length(voxelpaths)
     c = voxelpaths(:,j);
-    results(j) = mean(img(c(c>1)));
+    
+    if isequal(combine_method,'mean')
+        results(j) = mean(img(c(c~=0)));
+    elseif isequal(combine_method,'sum')
+        results(j) = sum(img(c(c~=0)));
+    else
+        results(j) = max(img(c(c~=0)));
+    end
 end
 
 fm = zeros(1,length(voxelmap(:)));

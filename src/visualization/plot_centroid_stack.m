@@ -1,9 +1,9 @@
 function [L,z] = plot_centroid_stack(config, spacing, plot_classes, save_image)
 %--------------------------------------------------------------------------
-% Visualize image centroids on a corresponding z slice.
+% Visualize image centroids at a corresponding z slice.
 %--------------------------------------------------------------------------
 % Usage:
-% L = plot_centroid_stack(config, spacing, plot_classes, save_image)
+% [L,z] = plot_centroid_stack(config, spacing, plot_classes, save_image)
 %
 %--------------------------------------------------------------------------
 % Inputs:
@@ -24,8 +24,7 @@ function [L,z] = plot_centroid_stack(config, spacing, plot_classes, save_image)
 % L: (uint8) 3D label image containing annotated centroid and class 
 % coordinates.
 %
-%
-% z: (numeric) z positions that were sampled.
+% z: (int) z positions that were sampled.
 %
 %--------------------------------------------------------------------------
 if nargin<2
@@ -113,6 +112,7 @@ if save_image
     save_name = fullfile(sample_dir,save_name);
     fprintf('%s\t Writing image %s \n',datetime('now'),save_name)
     options.overwrite = true;
+    options.compress = 'lzw';
     saveastiff(uint8(L),char(save_name),options);
 end
 
