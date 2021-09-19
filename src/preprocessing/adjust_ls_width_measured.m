@@ -1,26 +1,33 @@
-function y_adj = adjust_ls_width_measured(single_sheet,tempI,ls_width,res,laser_y_displacement)
+function y_adj = adjust_ls_width_measured(single_sheet, tempI, ls_width,...
+    res, laser_y_displacement)
 %--------------------------------------------------------------------------
 % Adjust for laser width using measured intensity profiles specifically for
 % the LaVision Ultramicroscope II. Measurements are based on intensity
 % profiles from fluorescent dyes across multiple magngifications. Note this
 % function requires Curve Fitting Toolbox.
 %--------------------------------------------------------------------------
-% 
+% Usage:
+% y_adj = adjust_ls_width_measured(single_sheet, tempI, ls_width, res,
+%                                  laser_y_displacement)
+%
+%--------------------------------------------------------------------------
 % Inputs:
-% single_sheet - ('true','false') whether to use profile from single or
+% single_sheet: ('true','false') Whether to use profile from single or 
 % multiple light-sheet(s).
 % 
-% tempI - example image for calculating image dimensions.
+% tempI: Example image for calculating image dimensions.
 %
-% ls_width - light-sheet width setting as percentage.
+% ls_width: Light-sheet width setting as percentage.
 %
-% res - vector for image resolution as (um/voxel).
+% res: 1x3 double for image resolution as (um/voxel).
 %
-% laser_y_displacement - (default = 0) a value between -0.5 and 0.5
-% specifying a known shift in laser position along the y axis. 
+% laser_y_displacement: A value between -0.5 and 0.5 specifying a known 
+% shift in laser position along the y axis. (default: 0)
 %
+%--------------------------------------------------------------------------
 % Outputs:
-% y_adj - vector containing adjusted image intensity profile.
+% y_adj: Vector containing adjusted image intensity profile.
+%
 %--------------------------------------------------------------------------
 
 % Set laser displacement
@@ -56,21 +63,21 @@ I_pix = [4.16, 3.69, 2.98, 2.4, 1.86, 1.51, 1.21, 0.94, 0.75, 0.60, 0.49];
 
 % Size of acuqisition window height
 I_width = [20, 40, 60, 80, 100];
-%I_y = 1280.*I_pix;
+I_y = 1280.*I_pix;
 
-%stdev = zeros(1,5);
-%v = 1:round(I_pix(1)*1280);
-%for i = 1:size(I_int,2)
-%    % Take inverse intensity
-%    I_current = 1./I_int(:,i);
-%    % Fit a gaussian curve
-%    f=fit(I_y',I_current,'gauss1');
-%    g = feval(f,v);
-%    % Find FWHM
-%    [~,gg] = min(abs(g-0.5));
-%    % Calculate approximate std
-%    stdev(i) = 2*gg/2.355;
-%end
+stdev = zeros(1,5);
+v = 1:round(I_pix(1)*1280);
+for i = 1:size(I_int,2)
+    % Take inverse intensity
+    I_current = 1./I_int(:,i);
+    % Fit a gaussian curve
+    f=fit(I_y',I_current,'gauss1');
+    g = feval(f,v);
+    % Find FWHM
+    [~,gg] = min(abs(g-0.5));
+    % Calculate approximate std
+    stdev(i) = 2*gg/2.355;
+end
 
 % Evaluate stdev at given width and scale
 I_std = polyval(polyfit(I_width,stdev,1),ls_width)/res(1);

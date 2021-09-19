@@ -33,11 +33,11 @@ img = read_img(atlas_file);
 annotations = read_img(annotation_file);
 
 % Standardize
-img = standardize_nii(img, "raw", resolution, orientation, hemisphere,...
+img = standardize_nii(img, resolution, orientation, hemisphere, false,...
     out_resolution, 'ail', hemisphere, 'uint16');
 
-annotations = standardize_nii(annotations, "mask", resolution,...
-    orientation, hemisphere, out_resolution, 'ail', hemisphere, 'uint16');
+annotations = standardize_nii(annotations, resolution, orientation, ....
+    hemisphere, true, out_resolution, 'ail', hemisphere, 'uint16');
 
 annotationData.annotationVolume = annotations;
 annotationData.annotationIndexes = unique(annotationData.annotationVolume);

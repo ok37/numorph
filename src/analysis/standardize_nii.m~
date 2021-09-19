@@ -16,21 +16,14 @@ function img = standardize_nii(img, in_res, in_or, in_hem, is_mask,...
 %
 % in_or: 3 character vector specifying input orientation. 
 %
-% in_hem: Input hemisphere. ('left', 'right', 'both')
+% in_hem: Input hemisphere. ('left'
 %
-% is_mask: Logical specifying whether input is a mask.
-%
-% out_res: Output voxel resolution. (default: 25)
-%
-% out_or: Output orientation. (default: 'ail')
-%
-% out_hem: Ouput hemisphere. (default: "left")
-%
-% out_type: Output data type. (default: same input data)
+% is_mask: 
+% a: (string) ddd (default: 'sods')
 %
 %--------------------------------------------------------------------------
 % Outputs:
-% img: Output 3D image.
+% b: (string) eeee (default: 'dasd')
 %
 %--------------------------------------------------------------------------
 

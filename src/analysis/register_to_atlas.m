@@ -56,17 +56,17 @@ for i = 1:length(mov_img_path)
     mov_img = read_img(mov_img_path{i});
     
     % Standardize and save into array
-    mov_img_array{i} = standardize_nii(mov_img, config.mov_direction,...
-        config.mov_res, config.mov_orientation, config.mov_hemisphere,...
-        25, 'ail', config.ref_hemisphere,'double');
+    mov_img_array{i} = standardize_nii(mov_img, false, config.mov_res,...
+        config.mov_orientation, config.mov_hemisphere, 25, 'ail',...
+        config.ref_hemisphere,'double');
 end
 for i = 1:length(ref_img_path)
     ref_img = read_img(ref_img_path{i});
     
     % Standardize and save into array
-    ref_img_array{i} = standardize_nii(ref_img, config.ref_direction,...
-        config.ref_res, config.ref_orientation, config.ref_hemisphere,...
-        25, 'ail', config.ref_hemisphere,'double');
+    ref_img_array{i} = standardize_nii(ref_img, false, config.ref_res,...
+        config.ref_orientation, config.ref_hemisphere, 25, 'ail',...
+        config.ref_hemisphere,'double');
 end
 size_mov = size(mov_img_array{1});
 size_ref = size(ref_img_array{1});
@@ -127,7 +127,7 @@ end
 mask = [];
 if isequal(use_mask,"true") && contains(direction,"atlas")
     load(fullfile(home_path,'data','annotation_data','olf_cer.mat'),'bw_mask')
-    mask = standardize_nii(single(~bw_mask),"mask",25,'ail',config.hemisphere);
+    mask = standardize_nii(single(~bw_mask), 25,'ail',config.hemisphere, true);
 end
 
 % Perform pairwise registration

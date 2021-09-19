@@ -73,9 +73,9 @@ for i = 1:nmov
     end
     
     % Apply transformation
-    img = standardize_nii(img, mov, params.mov_res, params.mov_orientation,...
-        config.hemisphere, 'double');
-    img = transformix(img, params, [1,1,1], []);
+    img = standardize_nii(img, params.mov_res, params.mov_orientation,...
+        config.hemisphere, false);
+    img = transformix(double(img), params, [1,1,1], []);
 
     % Permute and resize to match reference
     img = permute_orientation(img,'ail',char(params.ref_orientation));
@@ -127,14 +127,16 @@ end
 end
 
 
-function img = apply_prealignment(img, tforms, img_type, resolution, orientation, hemisphere)
+function img = apply_prealignment(img, tforms, resolution, orientation, hemisphere)
 % Apply pre-alignments 
 % Images need to be converted to 25 um/voxel and permuteed to 'ail'
 % orientation to maintain consistency with register_to_atlas
 
 % Standardize image
 [nrows, ncols, nslices] = size(img);
-img = standardize_nii(img, img_type, resolution, orientation, hemisphere, 'double');
+
+img = standardize_nii(img, resolution, orientation, hemisphere, false);
+img = doulbe(img);
 
 % Apply transformation
 img = transformix(img, tforms, [1,1,1], []);

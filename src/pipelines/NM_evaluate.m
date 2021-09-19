@@ -54,8 +54,9 @@ if isequal(step,'stats')
     fprintf('%s\t All statistics generated! \n',datetime('now'))
     return
 elseif isequal(step,'plot')
-    visualize_results(config,varargin);
+    % Using apps as main method for plotting
     return
+    %visualize_results(config,varargin);
 end
 
 end
