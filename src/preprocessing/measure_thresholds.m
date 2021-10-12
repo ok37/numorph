@@ -15,9 +15,9 @@ function [lowerThresh, upperThresh, signalThresh] = measure_thresholds(stack,def
 %--------------------------------------------------------------------------
 
 % Load defaults
-low_prct = defaults.low_prct;   % Low percentile for sampling background pixels
-high_prct = defaults.high_prct; % High percentile for sampling bright pixels
-image_sampling = defaults.image_sampling;   % Fraction of all images to sample    
+low_prct = defaults.low_prct;                   % Low percentile for sampling background pixels
+high_prct = defaults.high_prct;                 % High percentile for sampling bright pixels
+image_sampling = defaults.image_sampling*0.2;   % Fraction of all images to sample    
 
 % Count number of images and measure image dimensions
 x_tiles = length(unique(stack.x));

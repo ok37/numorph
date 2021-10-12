@@ -19,6 +19,19 @@ if ~exist(fname)
     return
 end
 
+%%%% Updated to improve speed
+% Output points are in columns 31,32,33
+opts  = delimitedTextImportOptions('NumVariables',42);
+opts.Delimiter = {'\t'  ' '};
+opts.Whitespace = '\b';
+opts.LineEnding = {'\n'  '\r'  '\r\n'};
+opts.ConsecutiveDelimitersRule = 'join';
+opts.SelectedVariableNames = {'Var31','Var32','Var33'};
+opts.VariableTypes = repmat({'double'},1,42);
+out = readmatrix(fname,opts);
+
+return
+
 fid = fopen(fname,'r');
 
 

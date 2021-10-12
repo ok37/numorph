@@ -1,8 +1,9 @@
 function [scat] = make_plot(df2,s2,disp_channel,sample_freq,colors)
 
-marker_size = 0.75;
+marker_size = 0.1;
 %colors = [0.4940 0.1840 0.5560];
 %colors = [0.4660 0.6740 0.1880];
+colors = [1, 0, 0];
 
 if nargin<5
     colors = [];
@@ -49,11 +50,11 @@ hold off
 
 %drawnow
 %get marker handles
-   %markers=scat.MarkerHandle;
+%   markers=scat.MarkerHandle;
 %change transparency by altering 4th element
-    %markers.EdgeColorType = 'truecoloralpha';
-    %markers.EdgeColorData=uint8(255*[0.4940 0.1840 0.5565 0.1])';
-exportgraphics(fig,'test.png','BackgroundColor','white','ContentType','image', 'Resolution',100)
+%    markers.EdgeColorType = 'truecoloralpha';
+%    markers.EdgeColorData=uint8(255*[0.4940 0.1840 0.5565 0.1])';
+exportgraphics(fig,'test.png','BackgroundColor','white','ContentType','image', 'Resolution',150)
 
 end
 
@@ -67,7 +68,8 @@ end
 
 switch disp_channel
     case 1
-        
+        scat.MarkerEdgeColor = [1 0 0];
+        scat.MarkerEdgeColor = [1 0 0];  
     case 2
         scat.MarkerEdgeColor = [0.4660 0.6740 0.1880];
         scat.MarkerEdgeColor = [0.4660 0.6740 0.1880];               

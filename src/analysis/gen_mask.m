@@ -1,4 +1,4 @@
-function I_mask = gen_mask(structures, hemisphere, orientation, res_adj)
+function I_mask = gen_mask(structures, hemisphere, orientation, resolution)
 % -------------------------------------------------------------------------
 %This function generates a mask from Allen atlas based on CCF ids in a csv
 %file
@@ -6,6 +6,8 @@ function I_mask = gen_mask(structures, hemisphere, orientation, res_adj)
 
 if nargin<4
     res_adj = [];
+else
+    res_adj = 10/resolution;
 end
 
 % Load annotation volume and indexes
@@ -18,6 +20,7 @@ annotationVolume = reshape_mask(annotationVolume,hemisphere,orientation,res_adj)
 % Return whole brain mask
 if nargin < 2 || isequal(structures,"structure_template.csv") ||...
         isequal(structures,"structure_template") ||...
+        isequal(structures,"full") ||...
         isempty(structures)
     I_mask = annotationVolume;
     return
@@ -25,10 +28,15 @@ end
 
 % Check for default structure
 % These have have masks already precomputed
-mat_files = dir(fullfile(annotation_path,'*.mat'));
-major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
-[~,fname] = fileparts(structures);
-idx = ismember(major_structures,fname);
+structure_path = fullfile(home_path,'annotations');
+mat_files = dir(fullfile(structure_path,'/*','*.mat'));
+if ~isempty(mat_files)
+    major_structures = arrayfun(@(s) string(s.name(1:end-4)),mat_files);
+    [~,fname] = fileparts(structures);
+    idx = ismember(major_structures,fname);
+else
+    idx = [];
+end
 if any(idx)
     if sum(idx) < length(structures)
         error("Structure names not specified correctly")
@@ -51,7 +59,7 @@ end
 
 % Check for custom structures
 % Generate and apply mask, this will take a while
-files = dir(fullfile(home_path,'annotations','custom_structures'));
+files = dir(fullfile(home_path,'annotations','custom_annotations'));
 id = cell(1,length(structures));
 for i = 1:length(structures)    
     idx = files(arrayfun(@(s) s.name == structures(i),files));
@@ -76,7 +84,7 @@ id = id.index;
 % Set structures not found in the table to 0
 C(~ismember(C,id)) = 0;
 
-% Reshape linearized matrix back to its original size
+% Reshape back to original size
 I_mask = reshape(C(ic),size(annotationVolume));
 
 end
@@ -88,6 +96,8 @@ function annotationVolume = reshape_mask(annotationVolume, hemisphere, orientati
 if isequal(hemisphere,"both")
     img = flip(annotationVolume,2);
     annotationVolume = cat(2,annotationVolume,img);
+elseif isequal(hemisphere,"left")
+    annotationVolume = flip(annotationVolume,2);
 end
     
 % Permute

@@ -20,7 +20,7 @@ if  ismac || isunix
     
     for i = 1:length(locations)
         if isfile(fullfile(userDir,locations{i}))
-            fid = fopen('~/.bash_profile');
+            fid = fopen(fullfile(userDir,locations{i}));
             c = textscan(fid,'%s');
             fclose(fid);
             

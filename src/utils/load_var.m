@@ -9,13 +9,14 @@ function varargout = load_var(config,variable,var_name)
 % Inputs:
 % config: Configuration structure containg output directory location.
 %
-% variable: (string,char) Name of mat file containing variable. Leave
-% '.mat' ending off. 
+% variable: (string) Name of mat file containing variable. Leave '.mat' 
+% ending off. 
 % 
-% var_name: (string,char) Name of variable. (default: same as variable)
+% var_name: (string) Name of variable. (default: same as variable)
 %--------------------------------------------------------------------------
 % Outputs:
 % varargout: Collected variable.
+%
 %--------------------------------------------------------------------------
 
 if ~ischar(variable) && ~isstring(variable)

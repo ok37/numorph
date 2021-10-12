@@ -4,8 +4,13 @@ function ct = classify_cells_svm(centroids,stable,config)
 %--------------------------------------------------------------------------
 
 % Define outlier classes
+classify_by_annotation = false;
 outlierTypes = 1:9;
-outlierTypes = outlierTypes(~ismember(outlierTypes,config.keep_classes));
+if ~isempty(config.keep_classes)
+    outlierTypes = outlierTypes(~ismember(outlierTypes,config.keep_classes));
+else
+    outlierTypes = [];
+end
 
 % Read classifications + patch feautre info
 itable = readtable(fullfile(config.output_directory,'classifier',...
@@ -43,7 +48,7 @@ assert(height(itable) == n_classified, "Number of rows in the info table do not 
 
 % Combine manual classifications with patch features
 ctable.Properties.VariableNames = {'Type'};
-if ~isequal(config.classify_by_annotations,"false")
+if classify_by_annotation
     ftable.Layer = num2str(ftable.Layer);
     ftable.Structure = num2str(ftable.Structure);
 else
@@ -133,16 +138,16 @@ partitionedModel = crossval(trainedClassifier.ClassificationSVM, 'KFold', 5);
 [validationPredictions, score] = kfoldPredict(partitionedModel);
 
 % Display validation accuracy
-validationPredictions(ismember(validationPredictions,outlierTypes)) = min(outlierTypes);
-response(ismember(response,outlierTypes)) = min(outlierTypes);
+%validationPredictions(ismember(validationPredictions,outlierTypes)) = min(outlierTypes);
+%response(ismember(response,outlierTypes)) = min(outlierTypes);
 fprintf("Correctly classified %.2f%% of cells after cross validation \n",...
     sum(validationPredictions==response)*100/length(response))
 
-responses = unique(response)';
-for i = 1:length(responses)
-fprintf("Classifying at rate of %.2f%% of true predictions for class %d \n",...
-    sum(validationPredictions==responses(i))*100/sum(response == i),responses(i))
-end
+%responses = unique(response)';
+%for i = 1:length(responses)
+%fprintf("Classifying at rate of %.2f%% of true predictions for class %d \n",...
+%    sum(validationPredictions==responses(i))*100/sum(response == i),responses(i))
+%end
 
 % Compute validation accuracy
 validationAccuracy = 1 - kfoldLoss(partitionedModel, 'LossFun', 'ClassifError');

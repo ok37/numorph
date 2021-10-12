@@ -104,6 +104,14 @@ end
 
 verbose=0;
 
+if nargin<3
+    elementSpacing = [1,1,1];
+end
+
+if nargin<4
+    threads = [];
+end
+
 if nargin<5
     target = 'none';
 end
@@ -216,7 +224,7 @@ if nargin>1
         movingFname=fullfile(outputDir,'tmp_moving');
         mhd_write(movingImage,movingFname,elementSpacing);
         CMD = sprintf('transformix -in %s.mhd ',movingFname);
-    elseif size(movingImage,2)==2 | size(movingImage,2)==3 %It's sparse points
+    elseif size(movingImage,2)==2 || size(movingImage,2)==3 %It's sparse points
         movingFname=fullfile(outputDir,'tmp_moving.txt');
         writePointsFile(movingFname,movingImage)
         CMD = sprintf('transformix -def %s ',movingFname);

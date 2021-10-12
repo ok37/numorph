@@ -40,7 +40,7 @@ switch sample
         ls_width = 50;                                       % Light sheet width as percentage
         overlap = 0.15;                                      % Overlap between tiles as fraction
         
-        % (a/p):anterior/posterior, (s/i):superior/inferior, (l/r):left/right
+        % Orientation key: anterior(a)/posterior(p), superior(s)/inferior(i), left(l)/right(r)
         % Specified as location at row(y)=0, column(x)=0, slice(z)=0
         orientation = "ail";                                 % 1x3 string specifying sample orientation
         hemisphere = "left";                                 % "left","right","both","none"

@@ -8,7 +8,7 @@ function predict_centroids_3dunet(config)
 % Use the default chunk sizes for the default 3D-Unet trained model
 config.chunk_size = [112,112,32];          % Chunk size of unet model
 config.chunk_overlap = [16,16,8];          % Overlap between chunks
-config.trained_resolution = [0.75,0.75,2.5]; % Resolution at which the model was trained. Only required if resampling
+config.trained_resolution = [1.21,1.21,4]; % Resolution at which the model was trained. Only required if resampling
 config.resample_chunks = "false";          % Resample images to match model resolution. This process takes significantly longer
 
 % Save matlab's config structure in the directory
@@ -43,10 +43,17 @@ setenv('PYTHONPATH', pythonpath)
 % Run prediction
 fprintf('%s\t Running 3D-Unet prediction on GPU %s \n',datetime('now'),config.gpu)
 
-command = sprintf("source activate 3dunet-centroid; "+...
-    "export PYTHONPATH=%s; "+...
-    "python %s --mat %s",...
-    pythonpath,fullfile(pythonpath,'nuclei','generate_chunks.py'),save_path);
+if isunix
+    command = sprintf("source activate 3dunet-centroid; "+...
+        "export PYTHONPATH=%s; "+...
+        "python %s --mat %s",...
+        pythonpath,fullfile(pythonpath,'nuclei','generate_chunks.py'),save_path);
+else
+    command = sprintf("conda activate 3dunet-centroid && "+...
+        "SET PYTHONPATH=%s&& "+...
+        "python %s --mat %s",...
+        pythonpath,fullfile(pythonpath,'nuclei','generate_chunks.py'),save_path);
+end
 
 if ~isempty(config.gpu)
     command = sprintf("%s --g %s",command,config.gpu);

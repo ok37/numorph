@@ -12,8 +12,11 @@ paths_sub = paths_sub(arrayfun(@(x) contains(x.name,'.nii'),paths_sub));
 
 % Create new field for file location
 C = arrayfun(@(x) fullfile(paths_sub(1).folder,x.name),paths_sub,'UniformOutput',false);
-[paths_sub.file] = C{:};
-
+if length(C) > 1
+    [paths_sub.file] = C{:};
+else
+    [paths_sub.file] = C(:);
+end
 paths_sub = rmfield(paths_sub,fields_to_remove);
 
 % Generate table components

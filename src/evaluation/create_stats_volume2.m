@@ -1,144 +1,149 @@
-function vs = create_stats_volume2(df_stats, markers, orientation, custom_comp)
+function vox = create_stats_volume2(df_stats, voxel_imgs, markers, plot_type)
 % Create a new annotation volume where each structure index is colored with
 % a new field from the summary stats table
 home_path = fileparts(which('NM_config.m'));
-av = load(fullfile(home_path,'data','annotationData.mat'));
+av = load(fullfile(home_path,'data','annotation_data','annotationData.mat'));
 downsample_factor = 0.1;
+nmarkers = length(markers);
 
 % Permute the annotation volume based on desired brain orientation
-if isequal(orientation,"sagittal")
+if isequal(plot_type,"sagittal")
     av.annotationVolume = permute(av.annotationVolume,[1,3,2]);
-elseif isequal(orientation, "axial")
+elseif isequal(plot_type, "axial")
     av.annotationVolume = permute(av.annotationVolume,[3,2,1]);
 end
 
 % Add annotation info for all structures
 temp_tbl = readtable(fullfile(home_path,'annotations','structure_template.csv'));
-vs.info = table2struct(temp_tbl(:,1:9));
+vox.info = table2struct(temp_tbl(:,1:9));
 
 % Subset slices to reduce data sizes and make things smoother
 [nrows,ncols,nslices] = size(av.annotationVolume);
 nslices = round(nslices*downsample_factor);
 av.annotationVolume = imresize3(av.annotationVolume,[nrows,ncols,nslices],'Method','nearest');
 
-% Calculate number of markers
-nmarkers = length(markers);
-
 % Begin building visualization structure
 % Add structure info + initial slice positions
-vs.z = round(size(av.annotationVolume,3)/2);
-vs.bregma = (540/1320)*downsample_factor;
-vs.marker_names = markers;
+vox.z = round(size(av.annotationVolume,3)/2);
+vox.bregma = (540/1320)*downsample_factor;
+vox.marker_names = markers;
 
 % Add colors with indexes for major structure divisions in Allen reference
 c = load(fullfile(home_path,'src','utils','allen_ccf_colormap_2017.mat'));
-vs.av_colors = c.cmap;
-vs.av_cmap_labels = ["Isocortex","OLF","HPF","CTXsp","STR","PAL","TH","HY","MB","HB","CB","FT"];
-vs.av_cmap_pos = [5,379,454,555,573,608,641,715,806,882,1014,1101];
+vox.av_colors = c.cmap;
+vox.av_cmap_labels = ["Isocortex","OLF","HPF","CTXsp","STR","PAL","TH","HY","MB","HB","CB","FT"];
+vox.av_cmap_pos = [5,379,454,555,573,608,641,715,806,882,1014,1101];
+
+% Create voxel images
+for i = 1:length(markers)
+    img = voxel_imgs([voxel_imgs.marker] == markers(i)).data;
+    if isequal(plot_type,"coronal")
+        img = permute_orientation(img,"ail","sra");
+    elseif isequal(plot_type,"sagittal")
+        img = permute_orientation(img,"ail","sal");
+    elseif isequal(plot_type,"axial")
+        img = permute_orientation(img,"ail","als");
+    end
+    for j = 1:size(img,4)
+        if j == 1
+            a = squeeze(img(:,:,:,j));
+            a(a>1) = 1;
+            vox.voxel(i).img{j} = a*100;
+        else
+            a = squeeze(img(:,:,:,j));
+            a(a>5) = 5;
+            vox.voxel(i).img{j} = a;
+        end
+    end
+end
 
 % Bin to correct structures
-df_stats = trim_to_deepest_structure(df_stats);
-[aV,aI] = bin_annotation_structures(av.annotationVolume,df_stats,'true');
+f = fieldnames(df_stats);
+for i = 1:length(f)
+    if isequal(f{i},'Cortex')
+        continue
+    end
+    s = trim_to_deepest_structure(df_stats.(f{i}));
+    if i == 1
+        df_stats_new.info = s.info;
+        df_stats_new.category = string(f{i});
+        df_stats_new.stats = s.stats;
+    else
+        df_stats_new.category = cat(2,df_stats_new.category,repmat(string(f{i}),1,length(s.stats)));
+        df_stats_new.stats = cat(2,df_stats_new.stats,s.stats);
+    end
+end
+
+[aV,aI] = bin_annotation_structures(av.annotationVolume,df_stats_new.info,'true');
 binnedMask = ismember(aV,aI);
 % Potentially edit
-vs.av = aV+1;
-vs.indexes = aI;
-vs.binMask = binnedMask;
+vox.av = aV+1;
+vox.indexes = aI;
+vox.binMask = binnedMask;
 
 % Precompute annotation indexes for each slice
 % Add boundary image for each slice
 % Add AP position of Bregma
-vs.boundaries = zeros(size(av.annotationVolume),'logical');
-vs.av_stat_idx = cell(1,nslices);
+vox.boundaries = zeros(size(av.annotationVolume),'logical');
+vox.av_stat_idx = cell(1,nslices);
 for i = 1:nslices
-    vs.av_idx(i) = {unique(vs.av(:,:,i))};
-    vs.av_stat_idx{i} = find(ismember(aI+1,vs.av_idx{i}));
-    vs.boundaries(:,:,i) = boundarymask(aV(:,:,i),8);
-    if isequal(orientation,"coronal")
-        vs.ap(i) = ((540*downsample_factor) - i)/(100*downsample_factor);
+    vox.av_idx(i) = {unique(vox.av(:,:,i))};
+    vox.av_stat_idx{i} = find(ismember(aI+1,vox.av_idx{i}));
+    vox.boundaries(:,:,i) = boundarymask(aV(:,:,i),8);
+    if isequal(plot_type,"coronal")
+        vox.ap(i) = ((540*downsample_factor) - i)/(100*downsample_factor);
     end
 end
 
-vs.bin_idx = cellfun(@(s) ismember(s-1,av.annotationIndexes),vs.av_idx,...
+vox.bin_idx = cellfun(@(s) ismember(s-1,av.annotationIndexes),vox.av_idx,...
     'UniformOutput',false);
 
 % Now for each marker, add counts and densities
-stats_headers = df_stats.Properties.VariableNames(10:end);
-for i = 1:nmarkers    
-    % First add volume only to the first channel
-    if i == 1 && any(contains(stats_headers,"Volume"))
-        vs = add_stats_to_vs(vs,df_stats,markers(i),"Volume",i);
+for i = 1:length(df_stats_new.stats)  
+    if i == 1
+        idx = 1;
+        marker = "Volume";
+    else
+        idx = find(df_stats_new.stats(i).marker == markers);
+        marker = replace(df_stats_new.stats(i).marker,{'/','.'},'');
     end
-    vs = add_stats_to_vs(vs,df_stats,markers(i),"Counts",i);
-    vs = add_stats_to_vs(vs,df_stats,markers(i),"Density",i);
+    vox = add_stats_to_vs(vox,df_stats_new.stats(i).stats,marker,df_stats_new.category(i),idx);
 end
-
-for i = 1:length(custom_comp)
-    vs = add_stats_to_vs(vs,df_stats,custom_comp(i),"Custom",i+nmarkers);
-end
-
 
 % Update indexes to match volume
-vs.indexes = vs.indexes+1;
-
-% Save volume
-if isequal(orientation,"coronal")
-    save_path = fullfile(fileparts(which('NM_config')),'data','coronalSliceVol.mat');
-elseif isequal(orientation,"sagittal")
-    save_path = fullfile(fileparts(which('NM_config')),'data','sagittalSliceVol.mat');
-elseif isequal(orientation,"axial")
-    save_path = fullfile(fileparts(which('NM_config')),'data','axialSliceVol.mat');
-end
-save(save_path,'vs')
+vox.indexes = vox.indexes+1;
 
 end
 
 
-function vs = add_stats_to_vs(vs,df_stats,marker,colname,idx)
+function vox = add_stats_to_vs(vox,values,marker,colname,idx)
 
 % Add calculated statistics for each marker
-stats_columns = table2array(df_stats(:,10:end));
-stats_headers = df_stats.Properties.VariableNames(10:end);
+vox.markers(idx).(colname).title = marker + " " + colname;
+vox.markers(idx).(colname).name = colname;
 
-header = stats_headers(contains(stats_headers,colname));
-vs.markers(idx).(colname).title = string(strrep(header,'_',' '));
-vs.markers(idx).(colname).name = colname;
+vox.markers(idx).(colname).values(:,1:5) = values(:,1:5);
+vox.markers(idx).(colname).values(:,6:7) = -log10(values(:,6:7));
+vox.markers(idx).(colname).values(:,8) = values(:,8);
 
-if isequal(colname,"Volume")
-    values = stats_columns(:,contains(stats_headers,colname));
-elseif isequal(colname,"Custom")
-    values = stats_columns(:,contains(stats_headers,colname)...
-        & contains(stats_headers,marker));
-else
-    values = stats_columns(:,contains(stats_headers,colname)...
-            & contains(stats_headers,marker));
-end
+vox.markers(idx).(colname).cmin = min(values);
+vox.markers(idx).(colname).cmin(6:8) = 0;
+vox.markers(idx).(colname).cmin(6:8) = 1.301;
+vox.markers(idx).(colname).cmax = max(values);
+vox.markers(idx).(colname).cmax(6:7) = 5;
+vox.markers(idx).(colname).cmax(8) = 4;  
 
-vs.markers(idx).(colname).values(:,1:5) = values(:,1:5);
-vs.markers(idx).(colname).values(:,6:7) = -log10(values(:,6:7));
-vs.markers(idx).(colname).values(:,8) = values(:,8);
+pchange_max = max(abs(vox.markers(idx).(colname).cmin(5)),vox.markers(idx).(colname).cmax(5))*1.1;
+%vox.markers(idx).(colname).cmin(5) = -pchange_max;
+%vox.markers(idx).(colname).cmax(5) = pchange_max;
 
-vs.markers(idx).(colname).cmin = min(values);
-vs.markers(idx).(colname).cmin(6:8) = 0;
-vs.markers(idx).(colname).cmax = max(values);
-vs.markers(idx).(colname).cmax(6:7) = max(-log10(values(:,6:7)));
-vs.markers(idx).(colname).cmax(8) = 4;  
-
-pchange_max = max(abs(vs.markers(idx).(colname).cmin(5)),vs.markers(idx).(colname).cmax(5))*1.1;
-vs.markers(idx).(colname).cmin(5) = -pchange_max;
-vs.markers(idx).(colname).cmax(5) = pchange_max;
+vox.markers(idx).(colname).cmin(5) = -100;
+vox.markers(idx).(colname).cmax(5) = 100;
 
 % Set colors
-brew1 = brewermap(201,'YlOrBr');
-vs.markers(idx).colors(1:4) = {brew1};
-    
-brew2 = brewermap(201,'*RdBu');
-vs.markers(idx).colors(5) = {brew2};
-    
-brew3 = brewermap(201,'BuPu');
-vs.markers(idx).colors(6:7) = {brew3};
-    
-brew4 = brewermap(5,'Purples');
-vs.markers(idx).colors(8) = {brew4};
+vox.markers(idx).colors(1:4) = {brewermap(201,'YlOrBr')};    
+vox.markers(idx).colors(5) = {brewermap(201,'*RdBu')};
+vox.markers(idx).colors(6:7) = {brewermap(401,'*plasma')};    
+vox.markers(idx).colors(8) = {brewermap(5,'Purples')};
     
 end

@@ -1,7 +1,7 @@
 function df = trim_to_deepest_structure(df)
 
-ids = df.id;
-a = cellfun(@(s) strsplit(s,'/'),df.structure_id_path,'UniformOutput',false);
+ids = df.info.id;
+a = cellfun(@(s) strsplit(s,'/'),df.info.structure_id_path,'UniformOutput',false);
 a = cellfun(@(s) rmmissing(str2double(s)),a,'UniformOutput',false);
 
 % Count id instances in structure tree 
@@ -11,6 +11,9 @@ for i = 1:length(x)
 end
 
 % Remove rows id appears more than once
-df = df(x==1,:);
+df.info = df.info(x==1,:);
+for i = 1:length(df.stats)
+    df.stats(i).stats = df.stats(i).stats(x==1,:);
+end
 
 end

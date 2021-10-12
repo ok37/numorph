@@ -30,6 +30,7 @@ function [config, path_table] = NM_process(config, step, use_adjustments)
 if ischar(config) || isstring(config)
     config = NM_config('process',char(config));
 end
+config.home_path = fileparts(which('NM_config'));
 
 % Check config structure to make sure it's correct
 if ~isfield(config,'adjust_intensity') || ~isfield(config,'align_channels')
@@ -558,7 +559,7 @@ elseif isequal(config.align_method,'elastix')
             datetime('now'),config.markers{1},y,x);
 
         alignment_results = elastix_channel_alignment(config,path_align,true);
-        disp(alignment_results(end,:))
+        %disp(alignment_results(end,:))
         
         % Save with the exception of only aligning slices
         if isequal(config.channel_alignment,"update") && ~isempty(config.align_slices)
@@ -762,8 +763,7 @@ if isequal(config.update_z_adjustment,"true") || ~isfile(var_file)
     % Calculate z displacements
     fprintf("%s\t Calculating z displacement matrix for stitching \n",datetime('now'));
     z_adj = calculate_adjusted_z(path_table,nrows,ncols,config.markers,...
-            config.overlap,config.z_positions,config.z_window,config.lowerThresh,...
-            config.output_directory);
+            config.overlap,config.lowerThresh,config.output_directory);
     [~,z_idx] = setdiff(path_table.file,z_adj.file);
     path_table(z_idx,:) = [];
     path_table.z_adj = z_adj.z_adj;

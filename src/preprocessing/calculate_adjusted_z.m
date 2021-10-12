@@ -1,9 +1,13 @@
-function z_adj = calculate_adjusted_z(path_table, nrows, ncols, markers, overlap, z_positions, z_window, lowerThresh, output_directory)
+function z_adj = calculate_adjusted_z(path_table, nrows, ncols, markers, overlap, lowerThresh, output_directory)
 %--------------------------------------------------------------------------
 % Calculate adjusted z positions for iterative 2D image stitching based on
 % cross-correlation of overlapping horizontal and vertial regions in
 % adjacent tiles.
 %--------------------------------------------------------------------------
+
+z_positions = 0.02;
+z_window = 10;
+remove_outliers = true;
 
 % If no window selected, set all displacements to zero and return 
 if z_window == 0
@@ -35,10 +39,9 @@ fprintf('%s\t Performing horizontal pairwise z alignment \n',datetime('now'))
 direction = 1;
 for i = 1:nrows
     for j = 2:ncols
-        fprintf('%s\t Aligning tiles 0%dx0%d \n',datetime('now'),i,j)
+        fprintf('%s\t Aligning tiles 0%dx0%d\t 0%dx0%d\n',datetime('now'),i,j-1,i,j)
         path_ref = path_table_ref(path_table_ref.x==tiles_x(j-1) & path_table_ref.y==tiles_y(i),:);
         path_mov = path_table_ref(path_table_ref.x==tiles_x(j) & path_table_ref.y==tiles_y(i),:);
-        
         [z_displacement, q, low_flag] = z_align_stitch(path_mov,path_ref,overlap,z_positions,z_window,direction,lowerThresh(1));
 
         %Store results
@@ -59,7 +62,7 @@ fprintf('%s\t Performing vertical pairwise z alignment \n',datetime('now'))
 direction = 2;
 for i = 1:ncols
     for j = 2:nrows
-        fprintf('%s\t Aligning tiles 0%dx0%d \n',datetime('now'),i,j)
+        fprintf('%s\t Aligning tiles 0%dx0%d\t 0%dx0%d\n',datetime('now'),i,j-1,i,j)
         path_ref = path_table_ref(path_table_ref.x==tiles_x(i) & path_table_ref.y==tiles_y(j-1),:);
         path_mov = path_table_ref(path_table_ref.x==tiles_x(i) & path_table_ref.y==tiles_y(j),:);
         [z_displacement, q, low_flag] = z_align_stitch(path_mov,path_ref,overlap,z_positions,z_window,direction,lowerThresh(1));
@@ -79,20 +82,22 @@ fprintf('%s\t Final vertical displacement matrix: %s \n',datetime('now'),mat2str
 
 % Final check to remove outliers based on stage movement error approximated by
 % the standard deviation of all displacements
-a = abs(h_disp_matrix(:,2:end));
-b = abs(v_disp_matrix(2:end,:));
-n_a = numel(a);
-n_b = numel(b);
-if n_a; s_a = std(a(:)); else; s_a=0; end
-if n_b; s_b = std(b(:)); else; s_b=0; end
-thresh = (s_a*n_a + s_b*n_b)/(n_a+n_b);
+if remove_outliers
+    a = abs(h_disp_matrix(:,2:end));
+    b = abs(v_disp_matrix(2:end,:));
+    n_a = numel(a);
+    n_b = numel(b);
+    if n_a; s_a = std(a(:)); else; s_a=0; end
+    if n_b; s_b = std(b(:)); else; s_b=0; end
+    thresh = (s_a*n_a + s_b*n_b)/(n_a+n_b);
 
-s1 = abs(h_disp_matrix-median(h_disp_matrix(:,2:end),'all')) > thresh;
-s1(:,1) = 0;
-h_disp_matrix(s1) = median(h_disp_matrix(:,2:end),'all');
-s1 = abs(v_disp_matrix-median(v_disp_matrix(2:end,:),'all')) > thresh;
-s1(1,:) = 0;
-v_disp_matrix(s1) = median(v_disp_matrix(2:end,:),'all');
+    s1 = abs(h_disp_matrix-median(h_disp_matrix(:,2:end),'all')) > thresh;
+    s1(:,1) = 0;
+    h_disp_matrix(s1) = median(h_disp_matrix(:,2:end),'all');
+    s1 = abs(v_disp_matrix-median(v_disp_matrix(2:end,:),'all')) > thresh;
+    s1(1,:) = 0;
+    v_disp_matrix(s1) = median(v_disp_matrix(2:end,:),'all');
+end
 
 % Use minimum spanning tree to get final z displacement matrix
 z_disp_matrix = min_span_tree_2(v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix);

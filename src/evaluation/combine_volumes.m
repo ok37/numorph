@@ -1,33 +1,45 @@
-function df_results = combine_volumes(sample_files,config)
-% Take a registered annotation volume and calculate structure voxel
-% volumes. Input is a string array of fullfile locations
-
-vol_results = fullfile(config.results_directory,"NMe_summary_volumes.csv");
-temp_file = fullfile(fileparts('NM_config'),'annotations','structure_template.csv');
+function df_results = combine_volumes(config,vol_results)
+%--------------------------------------------------------------------------
+% Measure structure volumes and calculate cell densities if counts are 
+% present. Append to full multi-sample dataset for all annotated
+% structures.
+%--------------------------------------------------------------------------
 
 % Read annotation indexes
-df_temp = readtable(temp_file);
+df_temp = readtable(config.temp_file);
+df_temp = df_temp(df_temp.index>0,:);
 annotation_indexes = df_temp.index;
 
-% Create matrix for storing volumes
-df_volumes = zeros(length(annotation_indexes),length(sample_files));
-for i = 1:length(sample_files)
-    tbl = readtable(sample_files(i));
-    df_volumes(:,i) = tbl{:,end};
+% Read results structures
+df_volumes = zeros(length(annotation_indexes),length(config.results_path));
+for i = 1:length(config.results_path)
+    var_names = who('-file',config.results_path(i));
+    load(config.results_path(i),'summary')
+    if ~ismember('summary',var_names) || ~isfield(summary,'volumes')
+         summary.volumes = measure_structure_volumes(config.results_path(i));
+         save(config.results_path(i),'-append','summary')
+    end
+    df_volumes(summary.volumes(:,1),i) = summary.volumes(:,2);
 end
 
-% Set top row equal to 0 as this is the background
-df_volumes(1,:) = 0;
+% Sum according to structure level order
+ids = df_temp.id;
+path = df_temp.structure_id_path;
+df_new = zeros(size(df_volumes));
+for i = 1:length(ids)
+    idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
+    df_new(i,:) = sum(df_volumes(idx,:),1);
+end
+df_volumes = df_new;
 
 % Create header name
-groups = cat(1,config.groups{:});
-df_header = config.samples' + "_" + groups(:,2)'+ "_Volume";
+df_header = config.samples + "_" + "Volume";
 
 % Convert to table
 volumes_table = array2table(df_volumes,'VariableNames',df_header);
 
-% Concatenate counts to results table
-df_results = horzcat(df_temp, volumes_table);
+% Concatenate volumes to annotations
+df_results = horzcat(df_temp(:,[1,end-1,end]), volumes_table);
 
 % Write new results file
 writetable(df_results,vol_results)

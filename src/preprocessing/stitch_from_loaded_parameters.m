@@ -37,7 +37,7 @@ path_table = sortrows(path_table,["z_adj","channel_num","x","y"],'ascend');
 if ~isempty(config.stitch_sub_stack)
     z_range = config.stitch_sub_stack;
     path_table = path_table(ismember(path_table.z_adj,z_range),:);    
-    img_name_grid = img_name_grid(:,:,:,z_range);
+    img_name_grid = img_name_grid(:,:,:,z_range);    
 else
     z_range = 1:size(img_name_grid,4);
 end
@@ -259,7 +259,9 @@ for i = 1:length(c_idx)
 end
 
 %Crop or pad images based on ideal size
-I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',false);
+%I = cellfun(@(s) crop_to_ref(zeros(full_height,full_width),s),I,'UniformOutput',false);
+I = cellfun(@(s) uint16(crop_to_ref(zeros(full_height+border_pad,full_width+border_pad),s)),I,'UniformOutput',false);
+
 
 %Save images as individual channels (will be large)
 for i = 1:length(c_idx)

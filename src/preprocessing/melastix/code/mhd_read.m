@@ -59,6 +59,7 @@ switch(headerInfo.DataType)
     case 'short'
         V = int16(fread(fid,datasize,'short')); 
     case {'ushort','uint16'}
+        %V = uint16(fread(fid,datasize,'ushort')); 
         V = uint16(fread(fid,datasize,'ushort')); 
     case {'int','int32'}
         V = (fread(fid,datasize,'int')); 
@@ -75,6 +76,7 @@ end
 fclose(fid);
 
 V = reshape(V,headerInfo.Dimensions);
+%V = reshape(V,[headerInfo.Dimensions,str2double(headerInfo.ElementNumberOfChannels)]);
 
 %flip the first two axes as MHD appears to expect this
 V = permute(V,[2,1,3]);

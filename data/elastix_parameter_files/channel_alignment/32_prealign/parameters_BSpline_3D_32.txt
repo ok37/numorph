@@ -1,4 +1,4 @@
-v// Example parameter file for B-spline registration
+// Example parameter file for B-spline registration
 // C-style comments: //
 
 // The internal pixel type, used for internal computations

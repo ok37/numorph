@@ -81,17 +81,6 @@ for i = 1:nchannels
     % Then resample in z 
     fprintf('Resampling Z\n')            
     re_I = imresize3(re_I,[re_height,re_width,re_z]);
-    
-    % Change the orientation
-    if isequal(config.normalize_orientation,"true")
-        or_out = config.orientation{1};
-        if length(config.orientation)>1
-            or_in = config.orientation{channels(i)};
-        else
-            or_in = config.orientation{1};
-        end
-        re_I = permute_orientation(re_I,or_in,or_out);
-    end    
 
     % Save as nii series
     marker = path_table(path_table.channel_num == channels(i),:).markers{1};

@@ -27,8 +27,9 @@ ud.imgR = zeros(size(vs.av(:,:,1)));
 
 f = figure;
 %f.Position = [5,600,855,600]; %AR = 1.425
-f.Position = [5,600,684,480];
 f.Position = [5,600,741,520];
+f.Position = [5,600,1710*1.1,1200*1.1];
+
 
 [p1,cmin,cmax,adj] = display_plot(ud,vs,f);
 ud.cmin(1) = cmin; ud.cmax(1) = cmax; ud.cmin(1) = cmin; ud.adj(1) = adj;
@@ -305,9 +306,9 @@ else
     end
     
     if ud.pos == 1
-       cmin = -100;cmax=100; 
+       cmin = -100*1.02;cmax=100*1.02; 
     else
-        cmin = 0; cmax = 5;
+        cmin = 1*1.02; cmax = 5*1.02;
     end
 
     
@@ -381,9 +382,19 @@ elseif isequal(ud.category(a),3)
     title = vs.markers(ud.marker(a)).Density.title(ud.stat(a));
 
 elseif isequal(ud.category(a),4)
-    %  Do Custom
-    stats = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));
-    title = vs.markers(ud.marker(a)).Custom.title(ud.stat(a));
+    %  Do Voxel
+    slice = vs.voxel(ud.marker(a)).img{ud.stat(a)-4}(:,:,ud.z);
+    slice = flip(slice,2);
+    slice = imresize(slice,10,'bilinear');
+    slice = imgaussfilt(slice,10,'FilterSize',15);
+    if ud.stat(ud.pos) == 7
+        slice(slice<1) = 1;
+    end
+    title = vs.markers(ud.marker(a)).Counts.title;
+    colors = vs.markers(ud.marker(a)).colors{ud.stat(a)};
+    return
+    %stats = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));
+    %title = vs.markers(ud.marker(a)).Custom.title(ud.stat(a));
 
 else
     error("Invalid stats category selected")
@@ -422,9 +433,9 @@ elseif isequal(ud.category(a),3)
     cmax = vs.markers(ud.marker(a)).Density.cmax(:,ud.stat(a));
     
 elseif isequal(ud.category(a),4)
-    % Do Density
-    cmin = vs.markers(ud.marker(a)).Custom.cmin(:,ud.stat(a));
-    cmax = vs.markers(ud.marker(a)).Custom.cmax(:,ud.stat(a));
+    % Do Voxel
+    cmin = vs.markers(ud.marker(a)).Counts.cmin(:,ud.stat(a));
+    cmax = vs.markers(ud.marker(a)).Counts.cmax(:,ud.stat(a));
 end
 
 if nargout<3
@@ -448,10 +459,9 @@ elseif isequal(ud.category(a),3)
     name = vs.markers(ud.marker(a)).Density.name;
 elseif isequal(ud.category(a),4)
     % Do Density
-    values = vs.markers(ud.marker(a)).Custom.values(:,ud.stat(a));
-    title = vs.markers(ud.marker(a)).Custom.title(ud.stat(a));   
-    name = vs.markers(ud.marker(a)).Custom.name;
-    
+    values = vs.markers(ud.marker(a)).Counts.values(:,ud.stat(a));
+    title = vs.markers(ud.marker(a)).Counts.title(ud.stat(a));   
+    name = vs.markers(ud.marker(a)).Counts.name;
 end
 
 end
@@ -488,7 +498,7 @@ if ud.marker(ud.pos) == 0
         c.TickLabels = acr(idxs);
     end
 else
-    c.Limits = [0 ud.cmax(ud.pos)];
+    c.Limits = [ud.cmin(ud.pos)*0.99 ud.cmax(ud.pos)*0.99];
 end
 
 end

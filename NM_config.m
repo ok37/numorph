@@ -19,6 +19,11 @@ function [config, path_table] = NM_config(stage, sample, run)
 %
 %--------------------------------------------------------------------------
 
+if nargin<1
+    addpath(genpath(pwd))
+    return
+end
+
 if nargin<3
     run = false;
 end
@@ -34,94 +39,89 @@ home_path = fileparts(which('NM_config'));
 addpath(genpath(home_path))
 cd(home_path)
 
-% Load variables
-switch stage
-    case {'process','stitch','align','intensity'}
-        NMp_template
-        main_stage = 'process';
-    case {'analyze','resample','register','count','classify'}
-        NMa_template
-        main_stage = 'analyze';
-    case 'evaluate'
-        NMe_template
-        main_stage = 'evaluate';
-    otherwise
-        error("Invalid stage input")
+% Save template variables
+if isequal(stage, 'evaluate')
+    [main_stage, results_directory] = save_vars(stage);
+else
+    main_stage = save_vars(stage);
 end
-
-% Save config structure
-save(fullfile('data', 'tmp', 'NM_variables.mat'),'-mat')
+tmp_path = fullfile(home_path,'data','tmp','NM_variables.mat');
 
 % Load and append sample info
 if nargin > 1 && ~isequal(main_stage,'evaluate')
     [img_directory, output_directory] = NM_samples(sample, true);
-    load(fullfile('data','tmp', 'NM_variables.mat'),'-mat')
+    load(tmp_path,'-mat')
     
 elseif nargin > 1 && isequal(main_stage,'evaluate')
-    fid = fopen('./templates/NM_samples.m');
+    fid = fopen(fullfile(home_path,'templates','NM_samples.m'));
     c = textscan(fid,'%s');
     fclose(fid);
+
+    % Get samples in group
+    if ~isfolder(sample)
+        samples = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
+        samples = cellfun(@(s) string(s(2:end-1)),samples);
+        if ismember(sample,samples)
+            % Sample input
+            fprintf('%s\t Evaluating single sample %s \n',datetime('now'),sample)
+            [~, output_directory] = NM_samples(sample, false);
+        else
+            % Group input
+            fprintf('%s\t Evaluating group %s \n',datetime('now'),sample)
+            groups = cell(1,length(samples));
+            for i = 1:length(samples)
+                [~, output_directory(i), groups{i}] = NM_samples(samples(i),false);
+            end
+            idx = cellfun(@(s) any(contains(s,sample)),groups);
+            output_directory = output_directory(idx);
+        end
+        
+        [samples,groups,results_path,s_fields] = munge_results(output_directory);
+        
+        assert(~isempty(samples),"No samples found for input %s",sample)
+        assert(length(samples) == length(output_directory),...
+            "Missing results structures for some samples")
+    else        
+        % Directory input containing multiple results structures
+        [samples,groups,results_path,s_fields] = munge_results(sample);
+    end
+    
+    % Check parameters
+    if size(unique(s_fields,'rows'),1) ~= 1
+        idx = any(s_fields,1);
+        for i = 1:size(samples,1)
+            if samples(i,1) && idx(1)
+                warning("Volume information missing for sample %s",samples{i})
+            end
+            if samples(i,2) && idx(2)
+                warning("Cell count information missing for sample %s",samples{i})
+            end
+            if samples(i,3) && idx(3)
+                warning("Cell class information missing for sample %s",samples{i})
+            end
+        end
+    end
     
     % Define output directory
     if isempty(results_directory)
-        reults_directory = home_path;
+        results_directory = fullfile(home_path,'results');
     end
 
-    % Get samples in group
-    samples = c{:}(find(cellfun(@(s) isequal(s,'case'),c{:}))+1);
-    samples = cellfun(@(s) string(s(2:end-1)),samples);
-    if ismember(sample,samples)
-        fprintf('%s\t Evaluating single sample %s \n',datetime('now'),sample)
-        [~, centroids_directory] = NM_samples(sample, false);
-        samples = {sample};
-        groups = {};        
-    else
-        groups = cell(1,length(samples));
-        for i = 1:length(samples)
-            [~, centroids_directory(i), groups{i}] = NM_samples(samples(i),false);
-        end
-        idx = cellfun(@(s) any(contains(s,sample)),groups);
-        centroids_directory = centroids_directory(idx);
-        samples = samples(idx);
-        groups = groups(idx);
-    end
-    
-    % Check if cell counts are present
-    idx = true(1,length(samples));
-    for i = 1:length(samples)
-        if ~isfolder(centroids_directory(i))
-            warning("Could not locate directory %s for sample %s",...
-                centroids_directory(i),samples(i))
-            idx(i) = false;
-        end
-        files = dir(centroids_directory(i));
-        if isequal(use_classes,"true")
-            cen_name = strcat(samples{i},'_classes');
-            if ~any(arrayfun(@(s) contains(s.name,cen_name),files))
-                warning("Could not locate classes file for sample %s",...
-                    samples(i))
-                idx(i) = false;            
-            end
-        else
-            cen_name = strcat(samples{i},'_centroids');
-            if ~any(arrayfun(@(s) contains(s.name,cen_name),files))
-                warning("Could not locate centroids file for sample %s",...
-                    samples(i))
-                idx(i) = false;            
-            end
-        end
-    end
-    centroids_directory = centroids_directory(idx);
-    %samples = samples(idx);
-    %groups = groups(idx);
-    
-    if isempty(samples)
+    % Check if 1 or more samples
+    n_samples = length(samples);
+    if n_samples == 0
+        prefix = [];
         warning("No samples present to evaluate")
+    elseif n_samples > 1
+        prefix = groups{1}(1);
+    else
+        prefix = samples(1);
     end
+    
     output_directory = results_directory;
     use_processed_images = "false";
     clear sample;
-    save('./data/tmp/NM_variables.mat','samples','centroids_directory','groups','output_directory','-mat','-append')
+    save(tmp_path,'prefix','samples','s_fields','results_path','groups','results_directory','-mat','-append')
 else
     error("Sample information is unspecified. Set 'sample' variable.")
 end
@@ -135,11 +135,11 @@ if ~isequal(use_processed_images,"false")
     if ~exist(process_directory,'dir')
         error("Could not locate processed image directory %s\n",process_directory)
     else
-        save(fullfile('data','tmp','NM_variables.mat'),'process_directory','-mat','-append')
+        save(tmp_path,'process_directory','-mat','-append')
     end
 elseif ~isequal(main_stage,'evaluate')
     if ~isfolder(img_directory)
-        error("Could not find image directory %s\n",img_directory)
+        error("Could not find image directory")
     end
 end
 
@@ -171,7 +171,7 @@ catch
 end
 
 % Reload config
-config = load(fullfile('data','tmp','NM_variables.mat'));
+config = load(tmp_path);
 config = orderfields(config);
 
 % Run
@@ -188,7 +188,7 @@ if run
     end
     
     % Copy variables to output destination
-    copyfile(fullfile('data','tmp', 'NM_variables.mat'),var_directory)
+    copyfile(tmp_path,var_directory)
     
     % Run pipeline
     switch stage
@@ -314,13 +314,13 @@ switch stage
     case 'analyze'
         % Variables to check
         variable_names = {'markers','resolution','lowerThresh','upperThresh','signalThresh',...
-            'direction'};
+            'registration_direction'};
         load(fullfile('data','tmp','NM_variables.mat'),variable_names{:});
         
         if exist('markers','var') ~= 1  || isempty(markers)
             error("Must provide unique marker names for channel");end
-        if exist('direction','var') ~= 1
-            if isempty(direction)
+        if exist('registration_direction','var') ~= 1
+            if isempty(registration_direction)
                 direction = "atlas_to_image";
             end
             assert(isequal(direction,"atlas_to_image") || isequal(direction,"image_to_atlas"),...
@@ -363,5 +363,28 @@ end
 % Resave these variables
 variable_names = who;
 save(fullfile('data','tmp','NM_variables.mat'),variable_names{:},'-mat','-append')
+
+end
+
+
+function [main_stage, results_directory] = save_vars(stage)
+
+% Load config variables
+switch stage
+    case {'process','stitch','align','intensity'}
+        NMp_template
+        main_stage = 'process';
+    case {'analyze','resample','register','count','classify'}
+        NMa_template
+        main_stage = 'analyze';
+    case {'evaluate','stats','visualize'}
+        NMe_template
+        main_stage = 'evaluate';
+    otherwise
+        error("Invalid stage input")
+end
+
+% Save config structure
+save(fullfile('data','tmp','NM_variables.mat'),'-mat')
 
 end

@@ -103,6 +103,12 @@ switch location
                 end
             end
         end 
+        % Return if no tif but nii files present
+        if isempty(path_table_raw) && ~isempty(path_table_nii)
+            path_table_series = [];
+            return
+        end
+        
     case 'aligned'
         if ~isempty(path_table) && quick_load
             fprintf("%s\t Quick loading from table \n",datetime('now'))

@@ -3,13 +3,17 @@ function ct = classify_cells_threshold(centroids, config)
 % Classify cell-types using intensity thresholding
 %--------------------------------------------------------------------------
 remove_l1 = 'false';
-stratify_structures = 'false';
 remove_background = 'false';
 
-% Get parameters from config structure
+% Get parameters
 markers = config.markers;
 n_markers = length(markers);
 
+annotations = centroids.annotations;
+intensities = centroids.intensities;
+centroids = centroids.coordinates;
+
+% Calculate class combinations from the number of markers
 if isequal(config.contains_nuclear_channel,"true")
     ref_n = 2;
     n = n_markers-1;
@@ -32,13 +36,15 @@ end
 ct = ones(size(centroids,1),1);
 
 % Remove any centroids without annotations
-rm_idx = centroids(:,4) == 0;
+rm_idx = annotations == 0;
 fprintf('%s\t Removed %d nuclei with no annotation \n',datetime('now'),sum(rm_idx))
 
 % Remove cells below minimum nuclei intensity threshold
-low_idx = centroids(:,5) < config.min_intensity;
-rm_idx = rm_idx | low_idx;
-fprintf('%s\t Removed %d low intensity nuclei \n',datetime('now'),sum(low_idx))
+if isequal(config.contains_nuclear_channel,"true")
+    low_idx = intensities(:,1) < config.min_intensity;
+    rm_idx = rm_idx | low_idx;
+    fprintf('%s\t Removed %d low intensity nuclei \n',datetime('now'),sum(low_idx))
+end
 
 % Ask if to remove layer 1 prior to analysis
 if isequal(remove_l1,"true")
@@ -52,20 +58,18 @@ if isequal(remove_l1,"true")
    l1_idx = s1 & s2 & l1_idx;
    rm_idx = rm_idx | l1_idx;
    fprintf('%s\t Removed %d cells \n',datetime('now'),sum(l1_idx))
-else
-    l1_idx = 0;
 end
 
 % Remove selected indexes
 centroids = centroids(~rm_idx,:);
+intensities1 = intensities(~rm_idx,:);
 
 % Intitialize matrices and models
 count = zeros(size(centroids,1),n_markers);
 a = ref_n-1;
 for i = ref_n:n_markers
     % Clustering using thresholds
-    idx = 4+i;
-    intensities = centroids(:,idx);
+    intensities = intensities1(:,i);
 
     % Load background intensities from background images
     if isequal(remove_background,'true')
@@ -107,7 +111,7 @@ for i = ref_n:n_markers
             expression = config.intensity_expression;
         end
         thresh = calculate_threshold_expression(values, expression);
-        fprintf('%s\t Using expression threshold %f on marker %s \n',...
+        fprintf('%s\t Using expression threshold %d on marker %s \n',...
             datetime('now'),thresh, markers(i))
     end
     
@@ -116,12 +120,6 @@ for i = ref_n:n_markers
         fprintf('%s\t Applying z normalization \n',datetime('now'))
         thresh = (thresh - mean(values))/std(values);
         values = (values - mean(values))/std(values);
-        %if ~isempty(config.log_outliers) || config.log_outliers ~= 0
-        %    fprintf('%s\t Supressing outliers \n',datetime('now'))
-        %    l = config.log_outliers;
-        %    values(values>l) = l + log2(values(values>l));
-        %    values(values<-l) = -l - log2(abs(values(values<-l)));
-        %end
     end
     
     % Count cells above threshold
@@ -134,33 +132,10 @@ end
 [~,idx] = sort(sum(classes,2));
 classes = classes(idx,:);
 
-
 % Calculate classes
 [~,c] = ismember(count,classes,'rows');
 ct(~rm_idx) = c;
 ct(rm_idx) = 0;
-
-%if n_markers > 2
-%    % Count cells positive for all markers and add to last column
-%    count(:,end) = all(count(:,2:end-1),2);
-%    count(:,2:end-1) = count(:,2:end-1) - count(:,end);
-%end
-
-% Calculate all negative cells
-%count(:,1) = ~any(count(:,2:end),2);
-
-% Save cell type counts
-%[r,c] = find(count);
-%v1(r) = c;
-%ct(~rm_idx) = c;
-
-% Calculate sums
-%max_ct = max(unique(ct));
-%sums = histcounts(ct,-0.5:max_ct+0.5);
-%sums = sums(2:end);
-%sums(1) = sums(1) + sum(l1_idx);
-%pct = sums/sum(sums(:));
-%disp(pct)
 
 end
 

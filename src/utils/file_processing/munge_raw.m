@@ -51,7 +51,7 @@ ext_here = ext(any(idx,2));
 
 % Read nifiti file formats if present
 nifti_ext = ext_here(~ismember(ext_here,[".tif",".tiff"]));
-if ~isempty(nifti_ext) && isfield(config,'mri_markers')
+if ~isempty(nifti_ext) && isfield(config,'mri_channels')
     nifti_files = all_files(any(idx(3:end,:)));
     path_table_nii = munge_nifti_raw(nifti_files,config);
 else
@@ -65,7 +65,7 @@ tiff_files = all_files(any(idx(1:2,:)));
 % Return if no .tif files present
 if isempty(tiff_files)
     warning("No raw .tif files detected in image directories") 
-    path_table_series = [];
+    table_series_final = [];
     return
 end
 
@@ -204,15 +204,15 @@ z_res = zeros(1,length(nifti_files));
 
 % Subset only images with marker present
 idx=1;
-for i = 1:length(config.mri_markers)
-    sub = nifti_files(arrayfun(@(s) contains(s.name,config.mri_markers(i)),nifti_files));
+for i = 1:length(config.mri_channels)
+    sub = nifti_files(arrayfun(@(s) contains(s.name,config.mri_channels(i)),nifti_files));
     for j = 1:length(sub)
        file{idx} = fullfile(sub(j).folder,sub(j).name);
-       marker(idx) = config.mri_markers(i);
+       marker(idx) = config.mri_channels(i);
        channel_num(idx) = i;
-       y_res(idx) = config.mri_resolution(1);
-       x_res(idx) = config.mri_resolution(2);
-       z_res(idx) = config.mri_resolution(3);
+       y_res(idx) = config.mri_resolution;
+       x_res(idx) = config.mri_resolution;
+       z_res(idx) = config.mri_resolution;
        idx = idx+1;
     end
 end
