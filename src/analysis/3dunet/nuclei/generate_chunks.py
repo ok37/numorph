@@ -49,23 +49,9 @@ else:
  
 # Create a session with the above options specified.
 #k.tensorflow_backend.set_session(tf.Session(config=config))
+
 ################################
-
 ##### Set parameters
-# Not called from matlab these are default parameters
-# Otherwise parameters are overwritten by a matlab 'config.mat' structure
-input_img_directory = '/nas/longleaf/home/ok37/pine/NF1/NF1R4M3R'
-output_directory = '/nas/longleaf/home/ok37/pine/NF1/NF1R4M3R/output'
-
-acquired_img_resolution = [1.21, 1.21, 4]  # Resolution of acquired images in um/pixel
-save_name = 'NF1R4M3R_centroids1.csv'
-
-use_mask = False  # Whether to use mask during prediction
-mask_file = '/media/SteinLab4/TOP16R/output/variables/I_mask.mat'
-mask_resolution = [10, 10, 10]  # Resolution of mask in um/pixel
-
-model_file = os.path.join(os.getcwd(), 'models', '128_model.h5')  # Path to 3dunet model
-trained_img_resolution = [1.21, 1.21, 4]  # Resolution the model was trained in um/voxel
 
 # Image and model configuration parameters
 # Dimensions should correspond to [x,y,z]
@@ -99,6 +85,9 @@ if args.mat:
 
     acquired_img_resolution = list(config['config']['resolution'])
     trained_img_resolution = list(config['config']['trained_resolution'])
+    
+    # Set acquired to trained resolution if calling from NuMorph
+    trained_img_resolution = acquired_img_resolution
 
     int_threshold = config['config']['min_intensity']
 
@@ -231,15 +220,15 @@ for n in range(n_chunks):
         images = np.pad(images, ((0, 0), (0, 0), (0, end_pad)), 'mean')
 
     # Rescale intensity
-    print('Rescaling Intensity...')
     if normalize_intensity:
+        print('Rescaling Intensity...')
         images_rescaled = rescale_intensity(images, in_range=intensity_values)
     else:
         images_rescaled = images
 
     # Rescale image size
-    print('Rescaling Size...')
     if rescale_factor is not None:
+        print('Rescaling Size...')
         images_rescaled = ndimage.zoom(images_rescaled, rescale_factor, order=1)
 
     [rows, cols, slices] = images_rescaled.shape

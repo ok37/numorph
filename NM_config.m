@@ -133,7 +133,9 @@ check_variable_lengths(main_stage)
 if ~isequal(use_processed_images,"false")
     process_directory = fullfile(output_directory,use_processed_images);
     if ~exist(process_directory,'dir')
-        error("Could not locate processed image directory %s\n",process_directory)
+        error("Could not locate processed image directory %s.\n" + ...
+            "If not running any processing steps, set use_processed_images "+...
+            "to ""false""", process_directory)
     else
         save(tmp_path,'process_directory','-mat','-append')
     end

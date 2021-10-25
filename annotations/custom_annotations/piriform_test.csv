@@ -1,6 +1,0 @@
-index,id,atlas_id,parent_structure_id,depth,structure_id_path,color_hex_triplet,name,acronym
-416,961,261,698,6,/997/8/567/688/695/698/961/,6ACBBA,Piriform area,PIR
-417,152,867,961,7,/997/8/567/688/695/698/961/152/,6ACBBA,Piriform area layers 1-3,PIR1-3
-418,276,741,961,7,/997/8/567/688/695/698/961/276/,6ACBBA,Piriform area molecular layer,PIR1
-419,284,742,961,7,/997/8/567/688/695/698/961/284/,6ACBBA,Piriform area pyramidal layer,PIR2
-420,291,743,961,7,/997/8/567/688/695/698/961/291/,6ACBBA,Piriform area polymorph layer,PIR3

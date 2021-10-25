@@ -25,6 +25,7 @@ switch sample
         % individual channel
         img_directory = "/test_images";                 % Input image directory        
         output_directory = "/test_images/output";       % Directory to save results
+        use_processed_images = false;
         group = ["TEST","WT","R1"];                     % Group name/id
         
         % Specify markers or channel_num or both based on which one is specified in the filename

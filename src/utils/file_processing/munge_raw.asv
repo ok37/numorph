@@ -239,9 +239,7 @@ function path_sub = get_table_struct(path_idx, sample_id, marker, channel, posit
 path_sub = cell2struct(fullfile({path_idx.folder},{path_idx.name}),'file');
 
 % Get tile and slice information from images
-if length(position_exp) == 1
-    position_exp = horzcat(["", ""],position_exp);
-end
+
 
 % Scan through each filename for relevant information
 for j = 1:length(path_idx)

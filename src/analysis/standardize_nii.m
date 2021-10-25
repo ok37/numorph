@@ -39,7 +39,7 @@ if nargin<6 || isempty(out_res)
     out_res = 25;
 end
 if nargin<7 || isempty(out_or)
-    out_res = 'ail';
+    out_or = 'ail';
 end
 if nargin<8 || isempty(out_hem)
     out_hem = "left";
@@ -91,7 +91,8 @@ end
 function img = adjust_hemisphere(img, in_hem, out_hem, orientation)
 % Transform 3D hemisphere to match desired orientation
 
-mid_axis = find(ismember(orientation,'lr'));
+orientation = char(orientation);
+mid_axis = find(orientation == 'l' | orientation == 'r');
 if isequal(in_hem,"left")
     if isequal(out_hem,"right")
         img = flip(img,mid_axis);

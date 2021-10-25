@@ -171,9 +171,9 @@ if c_idx ~= 0
     fprintf("Checking for 3D-Unet model files \n")
     model_files = dir(fullfile(home_path,'src','analysis','3dunet','nuclei','models'));
     if ~any(endsWith({model_files.name},'.h5'))
-       fprintf("Downloading 3D-Unet model 121_model.h5...\n")
+       fprintf("Downloading 3D-Unet model 075_121_model.h5...\n")
         out = websave(fullfile(model_files(1).folder,'075_121_model.h5'),...
-            "https://bitbucket.org/steinlabunc/numorph/downloads/121_model.h5",o);
+            "https://bitbucket.org/steinlabunc/numorph/downloads/075_121_model.h5",o);
     else
         fprintf("Model file %s already exists \n",...
             model_files(arrayfun(@(s) endsWith(s.name,'.h5'),model_files)).name)
@@ -189,10 +189,18 @@ if ~isfolder(template_path)
     reload_default_template('evaluate',true)
     reload_default_template('samples',true)
 else
-    %reload_default_template('process',false)
-    %reload_default_template('analyze',false)
-    %reload_default_template('evaluate',false)
-    %reload_default_template('samples',false)
+    if ~isfile(fullfile(template_path, 'NMp_template.m'))
+        reload_default_template('process',true)
+    end
+    if ~isfile(fullfile(template_path, 'NMa_template.m'))
+        reload_default_template('analyze',true)
+    end
+    if ~isfile(fullfile(template_path, 'NMe_template.m'))
+        reload_default_template('evaluate',true)
+    end
+    if ~isfile(fullfile(template_path, 'NM_samples.m'))
+        reload_default_template('samples',true)
+    end
 end
 addpath(template_path)
 
