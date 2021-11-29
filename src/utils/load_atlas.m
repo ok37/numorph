@@ -32,7 +32,7 @@ switch atlas_type
         img = imresize3(img,25/res_out);  
         
     case 'annotation'
-        img = load(fullfile(home_path,'data','annotation_data','annotationData.mat'),'annotationVolume');
+        img = load(fullfile(home_path,'data','annotation_data','ccfv3.mat'),'annotationVolume');
         img = img.annotationVolume;
         img = imresize3(img,10/res_out,'Method','nearest');  
         img = get_hemisphere(img,hemisphere,'annotation');

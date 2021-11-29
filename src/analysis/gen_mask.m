@@ -13,7 +13,7 @@ end
 % Load annotation volume and indexes
 home_path = fileparts(which('NM_config'));
 annotation_path = fullfile(home_path,'data','annotation_data');
-load(fullfile(annotation_path,'annotationData.mat'),'annotationVolume')
+load(fullfile(annotation_path,'ccfv3.mat'),'annotationVolume')
 annotationVolume = reshape_mask(annotationVolume,hemisphere,orientation,res_adj);
 
 % No structures provided

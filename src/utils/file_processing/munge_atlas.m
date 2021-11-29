@@ -1,7 +1,8 @@
 function munge_atlas(atlas_file, annotation_file, resolution, orientation, hemisphere, out_resolution)
 %--------------------------------------------------------------------------
 % Munge custom atlas files and associated annotations and save to /data for
-% use. 
+% continued use. Atlas and annotations are typically .nii files and should
+% already be perfectly registered to one another. 
 %--------------------------------------------------------------------------
 % Usage:
 % munge_atlas(atlas_file, annotation_file, resolution, orientation,
@@ -9,14 +10,17 @@ function munge_atlas(atlas_file, annotation_file, resolution, orientation, hemis
 %
 %--------------------------------------------------------------------------
 % Inputs:
-% atlas_file: (string) Path to atlas file.
+% atlas_file: (string) Full path to atlas file.
 %
-% annotation_file: (string) Path to associated annotations.
+% annotation_file: (string) Full path to associated annotations.
 %
 % resolution: (1x3 numeric) Atlas y,x,z resolution specified as micron per
-% voxel.
+% voxel. (i.e. [25, 25, 25] for 25 um^3 isotropic)
 %
-% orientation: (1x3 char) Atlas orientation (a/p,s/i,l/r).
+% orientation: (1x3 char) Atlas orientation (a/p,s/i,l/r). (i.e. the
+% default 'ara_nissl_25.nii' is specified as 'ail'. Note: orientation may
+% be flipped based on unit type. Open any .nii file in MATLAB to ensure
+% that you're looking at the orientation that would be read when munging.
 %
 % hemisphere: ("left","right","both","none") Which brain hemisphere.
 %
@@ -39,10 +43,13 @@ img = standardize_nii(img, resolution, orientation, hemisphere, false,...
 annotations = standardize_nii(annotations, resolution, orientation, ....
     hemisphere, true, out_resolution, 'ail', hemisphere, 'uint16');
 
+[~, fname] = fileparts(annotationFile);
+annotationData.name = string(fname);
 annotationData.annotationVolume = annotations;
 annotationData.annotationIndexes = unique(annotationData.annotationVolume);
-annotationData.hemisphere = hemisphere;
 annotationData.resolution = out_resolution;
+annotationData.orientation = 'ail';
+annotationData.hemisphere = hemisphere;
 
 % Save files
 home_path = fileparts(which('NM_config'));
@@ -50,7 +57,7 @@ home_path = fileparts(which('NM_config'));
 filepath = fullfile(home_path,'data','atlas',strcat(filename,'.nii'));
 niftiwrite(img,filepath)
 
-filepath = fullfile(home_path,'data','annotation_data',strcat(filename,'.mat'));
+filepath = fullfile(home_path,'data','annotation_data',strcat(fname,'.mat'));
 save(filepath,'-struct','annotationData')
 
 end

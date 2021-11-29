@@ -185,6 +185,7 @@ total_cells = 0
 total_time = datetime.now()
 
 for n in range(n_chunks):
+    n=7
     print('Working on chunk', n + 1, 'out of', n_chunks)
     startTime = datetime.now()
     z_start = chunk_start[n]
@@ -352,7 +353,7 @@ for n in range(n_chunks):
 
     # Get mask structure id's
     if use_mask:
-        structure_idx = [mask[tuple(np.floor(cent[c] * mask_res).astype(int))] for c, cents in enumerate(cent)]
+        structure_idx = [mask[tuple(np.floor(c * mask_res).astype(int))] for c in cent]
     else:
         structure_idx = np.ones(cent.shape[0])
     cent = np.append(cent, np.array(structure_idx)[:, None], axis=1)

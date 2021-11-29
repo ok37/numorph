@@ -440,17 +440,16 @@ elseif ~isequal(config.ref_direction,"image")
     return
 end
     
-%%%%%%%
-% Now working on making an annotation mask to overlay light-sheet images
+%%%%%%% Now working on making an annotation mask to overlay light-sheet images
 % Get which structures
-if isempty(config.structures_include)
+if isempty(config.use_structures)
     structures = "full";
-elseif ~isnumeric(config.structures_include)
-    [~,structures] = fileparts(config.structures_include);
+elseif ~isnumeric(config.use_structures)
+    [~,structures] = fileparts(config.use_structures);
 else
     % Get unique annotations in the volume and their indexes
     [C, ~, ic] = unique(I_mask(:));
-    C(~ismember(C,config.structures_include)) = 0;    
+    C(~ismember(C,config.use_structures)) = 0;    
     I_mask = reshape(C(ic),size(I_mask));
     structures = "indexed";
 end
@@ -602,13 +601,14 @@ end
 
 % Read centroids csv file and resave as MATLAB structure
 centroids = readmatrix(path_save);
+coordinates = centroids(:,1:3);
+save(path_centroids,'-v7.3','coordinates')
 if size(centroids,2)>3
     annotations = centroids(:,4);
     save(config.res_name,'annotations','-append')
-    centroids = centroids(:,1:3);
+    save(path_centroids,'annotations','-append')
 end
-save(path_centroids,'centroids','-v7.3')
-delete(path_save)
+%delete(path_save)
 save(config.res_name,'centroids','-append')
 
 % Save to results structure

@@ -13,19 +13,20 @@ use_processed_images = "stitched";  % false or name of sub-directory in output d
 resample_resolution = 25;           % Isotropic resample resolution. This is also the resolution at which registration is performed
 resample_channels = [];             % Resample specific channels. If empty, only registration channels will be resampled
 use_annotation_mask = "true";       % true, false; Use annotation mask for cell counting
-structures = "cortex.csv";          % Specify csv file in /annotations detailing which structures to analyze
+use_structures = "cortex.csv";      % Specify csv file in /annotations detailing which structures to analyze
 
 % For custom annotations
-% Custom annotations should match up precisely with input images or atlas file
-annotation_file = [];               % Full path to custom annotations (as .nii). Specify full path in NM_samples for each sample
-annotation_mapping = "image";       % image, mri, atlas; Specify whether annotation file is mapped to image (light-sheet), mri, or atlas
-annotation_resolution = 25;         % integer; Isotropic image resolution of custom annotations
+annotation_mapping = "atlas";       % atlas, image; Specify whether annotation file is mapped to the atlas or light-sheet image
+annotation_file = "ccfv3.mat";      % File for storing structure annotation data. Specify .mat file in /data/annotation_data if annotation_mapping is to the atlas
+                                    % To generate a new .mat file with
+                                    % custom annotations, see 'help
+                                    % munge_atlas'
 
 %% Registration Parameters
-registration_direction = "atlas_to_image";      % atlas_to_image, image_to_atlas, mri_to_image, image_to_mri, mri_to_atlas, atlas_to_mri; Direction to perform registration
+registration_direction = "atlas_to_image";      % atlas_to_image, image_to_atlas; Direction to perform registration
 registration_parameters = "default";            % default, points, or name of folder containing elastix registration parameters in /data/elastix_parameter_files/atlas_registration
 registration_channels = 1;                      % integer; Which light-sheet channels to register. Can select more than 1
-registration_prealignment = "image";            % image, mri, both. Pre-align multiple light-sheet or mri images by rigid transformation prior to registration
+registration_prealignment = "image";            % image. Pre-align multiple light-sheet images by rigid transformation prior to registration
 
 atlas_file = "ara_nissl_25.nii";                % ara_nissl_25.nii and/or average_template_25.nii and/or a specific atlas .nii file in /data/atlas
 points_file = [];                               % Name of points file to guide registration

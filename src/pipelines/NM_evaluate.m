@@ -266,7 +266,7 @@ switch main_plot
             end
             
             % Create visualization volume
-            vox_results.(plot_type) = create_stats_volume2(df_stats,voxel_imgs,...
+            vox_results.(plot_type) = create_stats_volume(df_stats,voxel_imgs,...
                 markers,string(plot_type));
             save(plot_path,'-append','-struct','vox_results',plot_type)
             vox = vox_results.(plot_type);
