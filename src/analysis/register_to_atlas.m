@@ -1,3 +1,4 @@
+
 function reg_params = register_to_atlas(config, mov_img_path, ref_img_path, num_points)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
@@ -15,9 +16,10 @@ params = config.registration_parameters;
 output_directory = config.output_directory;
 use_mask = config.mask_cerebellum_olfactory;
 direction = config.registration_direction;
-points_file = config.points_file;
+use_points = config.use_points;
 atlas_file = config.atlas_file;
 home_path = fileparts(which('NM_config.m'));
+cen_structure = config.prealign_annotation_index;
 
 % Unless testing, use all points
 if nargin<4 || isempty(num_points)
@@ -29,10 +31,10 @@ cleanup_tmp(config)
 
 % Location of parameters
 if isempty(params)
-    if isempty(points_file)
-        params = "default";
-    else
+    if isequal(use_points, "true")
         params = "points";
+    else
+        params = "default";
     end
 end
 
@@ -57,16 +59,16 @@ for i = 1:length(mov_img_path)
     
     % Standardize and save into array
     mov_img_array{i} = standardize_nii(mov_img, config.mov_res,...
-        config.mov_orientation, config.mov_hemisphere, false, 25, 'ail',...
-        config.ref_hemisphere,'double');
+        config.mov_orientation, config.mov_hemisphere, false, 25, config.ref_orientation, ...
+        config.ref_hemisphere, 'double');
 end
 for i = 1:length(ref_img_path)
     ref_img = read_img(ref_img_path{i});
     
     % Standardize and save into array
-    ref_img_array{i} = standardize_nii(ref_img, config.ref_res,...
-        config.ref_orientation, config.ref_hemisphere, false, 25, 'ail',...
-        config.ref_hemisphere,'double');
+    ref_img_array{i} = standardize_nii(double(ref_img), config.ref_res,...
+        config.ref_orientation, config.ref_hemisphere, false, 25, config.ref_orientation, ...
+        config.ref_hemisphere, 'double');
 end
 size_mov = size(mov_img_array{1});
 size_ref = size(ref_img_array{1});
@@ -108,12 +110,11 @@ end
 
 % Load registration points
 points = [];
-if ~isempty(points_file)
+if isequal(use_points,"true")
     fprintf('\t Loading points to guide registration\n');
 
     % Load points from BigWarpJ .csv file
-    [mov_points,ref_points] = load_points_from_bdv(output_directory, points_file,...
-        atlas_type, mov_img);
+    [mov_points,ref_points] = load_points_from_bdv(output_directory, atlas_type, mov_img);
 
     % Trim points if not using all
     if isequal(num_points,'all')
@@ -127,13 +128,40 @@ end
 mask = [];
 if isequal(use_mask,"true") && contains(direction,"atlas")
     load(fullfile(home_path,'data','annotation_data','olf_cer.mat'),'bw_mask')
-    mask = standardize_nii(single(~bw_mask), 25,'ail',config.hemisphere, true);
+    mask = standardize_nii(single(~bw_mask), 25,config.ref_orientation,config.hemisphere, true,...
+        25, config.ref_orientation, config.ref_hemisphere, 'double');
+end
+
+% If pre-aligning by structure index, load annotations and find centroid of
+% the given structure. Then use centroid positions as input for points
+% registration
+cen_points = [];
+if ~isempty(cen_structure)
+    assert(length(cen_structure), "Can only center on 1 annotation index")
+    assert(isequal(config.annotation_mapping, 'atlas'), "Can only support annotation "+...
+        "centering when annotations are mapped to the atlas")
+
+    % Get ref_img centroid
+    cen_points.ref_points = size(ref_img_array{1})/2;
+
+    % Load annotations. These should be in the .mat file
+    av = load(fullfile(config.home_path, 'data', 'annotation_data', config.annotation_file));
+    assert(ismember(cen_structure,av.annotationIndexes), "Annotation index is not in the annotation file. " +...
+        "Make sure to choose an index at the bottom of the structure hierarchy.")
+    A = av.annotationVolume;
+
+    % Standardize and get centroid
+    A = standardize_nii(A, av.resolution, av.orientation, av.hemisphere, true, 25, config.ref_orientation,...
+                config.ref_hemisphere,'double');
+    A = A == cen_structure;
+    cen_points.mov_points = regionprops3(A, 'Centroid').Centroid([2,1,3]);
+    cen_points.index = cen_structure;
 end
 
 % Perform pairwise registration
 reg_params = elastix_registration(mov_img_array,ref_img_array,...
-    parameter_paths,points,mask,config.output_directory,...
-    direction, [config.mov_prealign, config.ref_prealign]);
+    parameter_paths, points, mask, config.output_directory,...
+    direction, [config.mov_prealign, config.ref_prealign], cen_points);
 
 % Create new variable or attach to existing
 reg_params.mov_img_path = mov_img_path;
@@ -190,9 +218,9 @@ end
 
 
 function [reg_params, reg_img, status] = elastix_registration(mov_img,ref_img,...
-    parameter_paths,points,mask,outputDir,direction,prealign)
-
+    parameter_paths,points,mask,outputDir,direction,prealign, cen_points)
 % Single channel, pairwise registration
+home_path = fileparts(which('NM_config.m'));
 
 % Here mask is assumed to be only on the true atlas image
 if isequal(direction,'atlas_to_image') || isequal(direction,'atlas_to_mri')
@@ -209,6 +237,27 @@ if ~isempty(points)
     use_points = true;
     mov_points = points.mov_points;
     ref_points = points.ref_points;
+end
+
+% Pre-align by annotation index
+pre_mov_annotation = false; pre_ref_annotation = false;
+if ~isempty(cen_points) && isequal(atlas, "mov")
+    fprintf('\t Pre-aligning reference images to match structure index %d\n', cen_points.index);    
+    
+    % Align images based on overlapping centroid positions using landmark registration
+    pre_align_path = {fullfile(home_path,'data','elastix_parameter_files',...
+        'atlas_registration','pre-align_annotation','ElastixParameterAffinePoints.txt')};
+
+    % Create temporary directory for saving images
+    outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
+    if ~isfolder(outputDir)
+        mkdir(outputDir)
+    end
+    
+    [reg_params,reg_img,status]=elastix(mov_img,ref_img,outputDir,pre_align_path,...
+        'fp',cen_points.ref_points,'mp',cen_points.mov_points,'threads',[]);
+
+    pre_mov_annotation = true;
 end
 
 % If multiple moving channels, apply rigid registration to pre-align
@@ -295,7 +344,10 @@ end
 
 
 function [pre_tforms,img_array] = pre_align_rigid(img_array,outputDir)
-% Rigid pre-alignment of all images in array to match first image
+% Rigid pre-alignment of images. Align multiple channels to each other. Or
+% align images based on overlapping centroid positions using landmark
+% registration
+
 
 % Location of parameter files
 home_path = fileparts(which('NM_config'));
@@ -325,28 +377,28 @@ end
 end
 
 
-function [mov_points,atlas_points] = load_points_from_bdv(output_directory,points_file,atlas_type,mov_img)
+function [mov_points,atlas_points] = load_points_from_bdv(output_directory,atlas_type,mov_img)
 % Function to load points from FIJI's Big Data Viewer
 
-files = dir(fullfile(output_directory, '**', '*.csv'));
-files = files(arrayfun(@(s) isequal(s.name,points_file),files),:);
+% Update output directory to save points files
+output_directory = fullfile(output_directory, 'points_selection');
+if ~isfolder(output_directory)
+    mkdir(output_directory)
+end
+
+files = dir(fullfile(output_directory, '*.csv'));
 
 if isempty(files)
-    files = dir(fullfile(output_directory, '*.csv'));
-    if isempty(files)
-        fprintf("\t Generating default 50 point landmarks file for %s atlas. "+...
-            "Use this as a basis for point selection using Fiji's Big Warp package\n",atlas_type);
-        generate_default_points(output_directory,atlas_type)
-        % Save also moving image
-        save_name = fullfile(output_directory,'landmarks_img_target.tif');
-        saveastiff(uint16(mov_img),char(save_name));        
-        pause(5)
-        error("Exiting")
-    else
-        error("Could not locate points file %s",points_file)
-    end
+    fprintf("\t Generating default 50 point landmarks file for %s atlas and placing into points_selection directory. "+...
+        "Use this as a basis for point selection using Fiji's Big Warp package\n",atlas_type);
+    generate_default_points(output_directory,atlas_type)
+    % Save also moving image
+    save_name = fullfile(output_directory,'landmarks_img_target.tif');
+    saveastiff(uint16(mov_img),char(save_name));        
+    pause(5)
+    error("Exiting")
 elseif length(files) >1
-    error("Multiple files detected with the name %s in the output directory",points_file)
+    error("Multiple csv files detected in the points_selection directory")
 end
 
 pts_path = fullfile(files(1).folder,files(1).name);
@@ -356,6 +408,9 @@ pts = pts(:,3:end);
 %moving x,y,z then atlas x,y,z
 mov_points = pts(:,1:3);
 atlas_points = pts(:,4:6);
+
+assert(~all(isnan(atlas_points),'all'), "Not all target points contain coordinates")
+assert(~all(isnan(mov_points),'all'), "Not all moving points contain coordinates")
 
 end
 

@@ -29,6 +29,8 @@ else
         "directories specified than there are markers")
     all_files = cell(1,length(config.img_directory));
     for i = 1:length(config.img_directory)
+        assert(isfolder(config.img_directory(i)), "Directory %s dose not exist",...
+            config.img_directory(i));
         all_files{i} = dir(fullfile(config.img_directory(i),'*.*'));
     end
     all_files = cat(1,all_files{:});

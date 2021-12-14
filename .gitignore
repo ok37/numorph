@@ -5,6 +5,7 @@ templates/*
 data/atlas/*
 data/annotation_data/*
 data/tmp/*
+src/legacy/*
 src/external/*
 src/analysis/3dunet/nuclei/data/*
 src/analysis/3dunet/nuclei/NM_config.mat
@@ -17,3 +18,4 @@ src/analysis/3dunet/nuclei/NM_config.mat
 *.mhd
 *.raw
 *.h5
+*.asv

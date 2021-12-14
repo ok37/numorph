@@ -76,6 +76,7 @@ elseif nargin > 1 && isequal(main_stage,'evaluate')
             output_directory = output_directory(idx);
         end
         
+        disp(output_directory)
         [samples,groups,results_path,s_fields] = munge_results(output_directory);
         
         assert(~isempty(samples),"No samples found for input %s",sample)
@@ -133,7 +134,7 @@ check_variable_lengths(main_stage)
 if ~isequal(use_processed_images,"false")
     process_directory = fullfile(output_directory,use_processed_images);
     if ~exist(process_directory,'dir')
-        error("Could not locate processed image directory %s.\n" + ...
+        warning("Could not locate processed image directory %s.\n" + ...
             "If not running any processing steps, set use_processed_images "+...
             "to ""false""", process_directory)
     else

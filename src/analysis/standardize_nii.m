@@ -39,10 +39,18 @@ if nargin<6 || isempty(out_res)
     out_res = 25;
 end
 if nargin<7 || isempty(out_or)
-    out_or = 'ail';
+    if isequal(in_hem,'left')
+        out_or = 'ail';
+    elseif isequal(in_hem, 'right')
+        out_or = 'pir';
+    elseif isequal(in_hem, 'both')
+        out_or = 'pls';
+    else
+        out_or = in_or;
+    end
 end
 if nargin<8 || isempty(out_hem)
-    out_hem = "left";
+    out_hem = in_hem;
 end
 if nargin<9 || isempty(out_type)
     out_type = class(img);
@@ -58,15 +66,17 @@ if is_mask
         img = flip(img,1);
     end
     img = double(img);
+else
+    img = double(img);
 end
-    
-% Transform atlas_img to match sample orientation
-img = adjust_hemisphere(img,in_hem,out_hem,in_or);
-    
+
 % Permute and resize
 img = permute_orientation(img,char(in_or),out_or);
 
-if is_mask
+% Transform atlas_img to match sample orientation
+img = adjust_hemisphere(img,in_hem,out_hem,in_or);
+
+if ~is_mask
     img = imresize3(img,round(res_adj.*size(img)));
     
     % Rescale intensities

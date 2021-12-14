@@ -48,8 +48,17 @@ annotationData.name = string(fname);
 annotationData.annotationVolume = annotations;
 annotationData.annotationIndexes = unique(annotationData.annotationVolume);
 annotationData.resolution = out_resolution;
-annotationData.orientation = 'ail';
 annotationData.hemisphere = hemisphere;
+
+if isequal(hemisphere, 'left')
+    annotationData.orientation = 'ail';
+elseif isequal(hemisphere, 'right')
+    annotationData.orientation = 'pir';
+elseif isequal(hemisphere, 'both')
+    annotationData.orientation = 'pls';
+else
+    annotationData.orientation = 'none';
+end
 
 % Save files
 home_path = fileparts(which('NM_config'));

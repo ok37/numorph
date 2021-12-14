@@ -13,7 +13,7 @@ function img = check_alignment(config, ranges, spacing, use_table)
 % range of slices in the slices (e.g. 1:100). Accepts only single tile 
 % position.
 %
-% spacing: (1x3 integer) Aamount of downsampling for each dimension in each
+% spacing: (1x3 integer) Amount of downsampling for each dimension in each
 % stack. (default: [3,3,20])
 %
 % use_table: (logical) Check translations from alignment table. Otherwise,

@@ -199,7 +199,6 @@ direction = config.registration_direction;
 reg_file = fullfile(config.output_directory,'variables','reg_params.mat');
 mask_var = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat')); 
 reg_params = []; 
-I_mask = [];
 run_registration = true;
 
 if isequal(config.register_images,"false") && isempty(config.annotation_file)
@@ -231,35 +230,6 @@ elseif isequal(config.registration_direction,"atlas_to_mri")
     config.mov_direction = "atlas"; config.ref_direction = "mri";
 else
     error("Unrecognized registration direction specified.")
-end
-
-% Check for custom annotations
-if ~isempty(config.annotation_file)
-     if isequal(config.annotation_mapping,"image")
-         % Matches images, save as .mat
-         if isfile(config.annotation_file)
-             I_mask = read_img(config.annotation_file);
-             run_registration = false;
-         else
-             error("Could not locate custom annotation file %s",config.custom_annotation_file)
-         end
-     elseif endsWith(config.annotation_file,'.mat')
-         % Does not match target image; still perform registration
-         I_mask = load(fullfile(config.home_path, 'data', 'annotation_data',...
-             config.annotation_file));
-         I_mask = I_mask.annotationVolume;
-     else
-         error("Specify .mat file in /data/annotation_data or run munge_atlas "+...
-             "to generate new annotation file")
-     end
-elseif ~isequal(config.atlas_file, "default")
-    % Read custom annotation .mat file, which should have the same name as
-    % the atlas file
-    [~, atlas_prefix] = fileparts(config.atlas_file);
-    config.annotation_file = strcat(atlas_prefix,'.mat');
-    I_mask = load(fullfile(config.home_path, 'data', 'annotation_data',...
-             config.annotation_file));
-    I_mask = I_mask.annotationVolume;
 end
 
 % Attempt to load registration parameters
@@ -418,114 +388,17 @@ if run_registration
     fprintf('%s\t Registration completed! \n',datetime('now'))
 end
 
-% Save a copy of registered images if previous image does not exist
+ % Save a copy of registered images if previous image does not exist
  if isequal(config.save_registered_images,"true") && run_registration &&...
  isempty(dir(fullfile(reg_dir,sprintf('*MOV*%s*.nii',reg_params.(direction).mov_channels(1)))))
     fprintf('%s\t Transforming and saving registered images \n',datetime('now'))
-    save_registered_images(config,reg_params)
-end
+    save_registered_images(config, reg_params)
+ end
 
-% Return if not calculating mask
-% Note: Mask is only calculated if mapping annotations to light-sheet images
-% All other
-if isequal(config.use_annotation_mask,"false")   
-    fprintf('%s\t Not using annotations. Skipping mask generation \n',datetime('now'))
-    if isfile(mask_var)
-        warning("An annotation mask from previosuly calculated parameters already exists")
-    end
-    return
-elseif ~isequal(config.ref_direction,"image")
-    warning('%s\t Annotation generated only when mapping to light-sheet images. Skipping... \n',...
-        datetime('now'))
-    return
-end
-    
-%%%%%%% Now working on making an annotation mask to overlay light-sheet images
-% Get which structures
-if isempty(config.use_structures)
-    structures = "full";
-elseif ~isnumeric(config.use_structures)
-    [~,structures] = fileparts(config.use_structures);
-else
-    % Get unique annotations in the volume and their indexes
-    [C, ~, ic] = unique(I_mask(:));
-    C(~ismember(C,config.use_structures)) = 0;    
-    I_mask = reshape(C(ic),size(I_mask));
-    structures = "indexed";
-end
-annot_marker = config.markers(config.registration_channels);
-target_res = config.resample_resolution;
-target_or = config.orientation;
-
-% Permute mask to match atlas file
-if ~isempty(I_mask)
-    % Custom mask
-    if isequal(config.annotation_mapping, config.mov_direction)
-        %I_mask = permute_orientation(I_mask,target_or,'ail');        
-        %new_size = size(I_mask).*target_res/25;
-        %I_mask = imresize3(I_mask,new_size,'Method','nearest');
-    elseif isequal(config.annotation_mapping,"image")
-         fprintf('%s\t Saving custom annotations that are already mapped to images \n',datetime('now'))
-         save(mask_var,'I_mask','-v7.3')
-         
-        % Measure structure volumes and save into summary structure
-        fprintf('%s\t Measuring structure volumes \n',datetime('now'))
-        volumes = measure_structure_volumes(config);
-        save_to_summary(config.res_name,volumes,'volumes')
-        return
-    else
-        error("Custom annotations not mapped to either moving or reference images.")
-    end
-    
-elseif isequal(config.mov_direction,"atlas")
-    % Generate mask for selected structures from atlas
-    fprintf('%s\t Generating mask for selected structures \n',datetime('now'))
-    I_mask = gen_mask(config.structures, config.hemisphere, 'ail', 25);
-    
-else
-    warning("No valid annotations to map for this registration direction.")
-    return
-end
-
-% Transform annotations
-fprintf('%s\t Applying transformation to annotation mask \n',datetime('now'))
-
-% Adjust sizes and spacing
-reg_trans = reg_params.(direction);
-size1 = reg_trans.ref_size; s = 1;
-for j = 1:length(reg_trans.TransformParameters)
-    reg_trans.TransformParameters{j}.FinalBSplineInterpolationOrder = 0;
-    reg_trans.TransformParameters{j}.Size = size1;
-    reg_trans.TransformParameters{j}.Spacing = [s,s,s];
-end
-
-% Transform atlas
-I_mask_trans = transformix(I_mask,reg_trans,[s,s,s], []);
-fprintf('%s\t Annotations generated! \n',datetime('now'))
-
-% Save mask as variable only if mapped to image
-if isequal(direction,"atlas_to_image") || isequal(direction,"mri_to_image")
-    I_mask = permute_orientation(I_mask_trans,'ail',config.orientation); 
-    save_name = fullfile(config.output_directory,'variables',strcat(config.sample_id,'_mask.mat'));
-    save(config.res_name,'-append','I_mask')
-    save(save_name,'I_mask','-v7.3')
-end
-
-% Save a copy in registered directory
-if isequal(config.save_registered_images,"true")
-    fprintf('%s\t Saving annotation mask to registered directory \n',datetime('now'))
-    annot_file = fullfile(reg_dir,sprintf('%s_MASK_%s_%d_%s.nii',...
-        config.sample_id,strjoin(annot_marker,"_"),....
-        target_res,structures));
-    I_mask = permute_orientation(I_mask_trans,'ail',target_or);
-    I_mask = imresize3(I_mask,25/target_res,'Method','nearest');
-    niftiwrite(uint16(I_mask),annot_file)
-end
-
-% Measure structure volumes and save into summary structure
-fprintf('%s\t Measuring structure volumes \n',datetime('now'))
-volumes = measure_structure_volumes(config);
-save_to_summary(config.res_name,volumes,'volumes')
+ % Registration complete. Now calculate mask if specified
+ if isequal(config.use_annotation_mask, "true")
+     get_mask_from_parameters(config, reg_params)
+ end
 
 end
 
@@ -788,6 +661,8 @@ annotations = cen_classes(:,4);
 save(path_classes,'-append','annotations')
 classes = cen_classes(:,5);
 save(path_classes,'-append','classes')
+res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
+save(res_name, '-append','classes')
 counts = measure_cell_counts(config);
 save_to_summary(config.res_name,counts,'counts')
 

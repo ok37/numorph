@@ -67,7 +67,15 @@ end
 % Load table if variable exists
 location = char(location);
 path_table = [];
-if isstruct(config) && isfile(fullfile(config.output_directory,'variables','path_table.mat'))
+
+% For sshfs: if base directory specified, do not quick load from saved
+% image paths. Ideally this would be updated to automatically use the base
+% directory
+if isstruct(config) && isfield(config,'base_directory') &&... 
+~isempty(config.base_directory) && isfolder(config.base_directory)
+    quick_load = false;
+    save_table = false;
+elseif isstruct(config) && isfile(fullfile(config.output_directory,'variables','path_table.mat'))
     var_location = fullfile(config.output_directory,'variables','path_table.mat');  
     load(var_location,'path_table')
     if ~isequal(location,"raw") && ~isfield(path_table,location) 

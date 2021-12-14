@@ -1,121 +1,150 @@
-function I_final = create_image_slices(config, path_table, filename, save_flag)
-% Create overlay of centroids with cell-type
+function stacks = create_image_slices(config, class_idx, spacing, disk_r)
+%--------------------------------------------------------------------------
+% Create centroid overlay for full image stack. This function is to get a
+% downsampled overlay for the entire image dataset. Data is read from
+% results structure. 
+%--------------------------------------------------------------------------
+% Usage:
+% stack = create_image_slices(config, classes, resampling, spacing)
+%
+%--------------------------------------------------------------------------
+% Inputs:
+% config: Configuration structure from analysis stage.
+%
+% class_idx: Classes to display. For displaying only centroids or if 
+% classes haven't been calculated, specify this as 'nuclei'. Leaving empty 
+% will generate stacks for all classes. Otherwise, specify specific class
+% indexes. (default: [])
+%
+% spacing: (1x3 integer) Amount of downsampling for each dimension in each
+% stack (e.g.: [10,10,100]). (default: 10% of each axis dimension)
+%
+% disk_r: (int) Radius of disk of element to mark centroids. (default: 1)
+%--------------------------------------------------------------------------
+% Outputs:
+% stacks: Cell array of output stacks (optional). If no output specified, 
+% image stacks will be saved to config output folder. If output is specified, image 
+% stacks are not saved.
+%
+%--------------------------------------------------------------------------
 
-classes = 1:3;      % Classes to display. Note can only display 3
-spacing = 0.1;      % Spacing fraction between z planes
-resampling = 0.1;   % Downsampling amount
+% Defaults
+if nargin < 2
+    class_idx = [];
+end
+
+if nargin < 3
+    spacing = [];
+end
+
+if nargin < 4
+    disk_r = 1;
+end
+
+% Resolve whether to save
+save_flag = true;
+if nargout == 1
+    save_flag = false;
+else
+    save_directory = fullfile(config.output_directory, 'samples','stacks');
+    if ~isfolder(save_directory)
+        mkdir(save_directory)
+    end
+    fprintf("Saving image stacks to %s\n", save_directory);
+end
 
 % Check config stage
 if ~isequal(config.stage,"analyze")
     error("Analysis configuration structure required")
 end
 
-% Get centroids filename
-if nargin<3 || isempty(filename)
-    % Use classes if present
-    files = dir(fullfile(config.output_directory,"*.csv"));
-    names = {files.name};
-    if any(contains(names,'classes'))
-        files = files(contains(names,'classes'));
-        s1 = arrayfun(@(s) strsplit(s.name,{'classes','.csv'}),files,...
-            'UniformOutput',false);
-        use_classes = true;
-        
-    elseif any(contains(names,'centroids'))
-        files = files(contains(names,'centroids'));
-        s1 = arrayfun(@(s) strsplit(s.name,{'centroids','.csv'}),files,...
-            'UniformOutput',false);
-        use_classes = false;
-    else
-        error("Could not locate centroids or classes file in the output directory")
-    end
-    
-    s1 = cellfun(@(s) str2double(s(2)),s1);
-    files = files(s1 == max(s1));
-    filename = fullfile(files(1).folder,files(1).name);
-else
-    [~,file] = fileparts(filename);
-    if contains(file,'classes')
-        use_classes = true;
-    else
-        use_classes = false;
-    end
-end
-
-if nargin<4
-    save_flag = false;
-end
-
-% Read centroids
-centroids = readmatrix(filename);
-
-% Get z positions
-min_z = min(path_table.z);
-max_z = max(path_table.z);
-
-z_positions = length(unique(path_table.z));
-z_positions = ceil(z_positions*spacing);
-z_positions = linspace(min_z,max_z,z_positions);
-
-% Subset centroids
-centroids(:,1:3) = centroids(:,1:3);
-idx = any(centroids(:,3) == z_positions,2);
-centroids = centroids(idx,:);
-
-% Get position and value
-if use_classes
-    centroids = centroids(ismember(centroids(:,end),classes),:);
-    val = centroids(:,end);
-else
-    val = ones(size(centroids,1),1)+1;
-end
-pos = centroids(:,1:3);
+% Get path_table
+path_table = path_to_table(config);
 
 % Get dimensions
 tempI = imread(path_table.file{1});
-dims = round(size(tempI)*resampling);
+dims = [size(tempI),length(unique(path_table.z))];
 
-I_final = zeros([dims(1), dims(2), 3, length(z_positions)],'uint8');
-se = strel('disk',10);
+% Rescale dims
+if isempty(spacing)
+    new_dims = round(dims*0.1);
+    spacing = round(dims./new_dims);
+    dims = new_dims;
+else
+    dims = round(dims./spacing);
+end
 
-for z = 1:length(z_positions)
-    R = zeros(size(tempI),'uint8');
-    G = zeros(size(tempI),'uint8');
-    B = zeros(size(tempI),'uint8');
-    
-    
-    pos1 = pos(pos(:,3) == z_positions(z),:);
-    val1 = val(pos(:,3) == z_positions(z),:);
-    
-    for i = 1:size(pos1,1)
-        if val1(i) == 2
-            R(pos1(i,1),pos1(i,2)) = 254;
-        end
-        if val1(i) == 3
-            G(pos1(i,1),pos1(i,2)) = 254;
-        end
-        if val1(i) == 4
-            B(pos1(i,1),pos1(i,2)) = 254;
+% Query results structure
+results_path = fullfile(config.output_directory, strcat(config.sample_id, '_results.mat'));
+if ~isfile(results_path)
+    error("No results structure in the output directory")
+else
+    results = load(results_path);
+    if ~isfield(results, 'centroids')
+        error("No centroid information was found in the results structure. Re-run cell detection")
+    else
+        centroids = results.centroids(:,1:3);
+        rm_idx = false(1,size(centroids,1));
+    end
+
+    class_names = "nuclei";
+    if ~isfield(results, 'classes')
+        warning("No cell-type classifications were found in the results structure. Labeling only nuclei")
+        classes = ones(1,size(centroids,1));
+        classes(1:10000) = 2;
+    else
+        classes = results.classes;
+        if isequal(class_idx, 'nuclei')
+            classes = ones(1,size(centroids,1));
+        elseif ~ismepty(classes)
+            rm_idx = rm_idx | ismember(classes, class_idx);
+            class_names = config.markers(class_idx);
+
         end
     end
-    R = imdilate(R,se);
-    G = imdilate(G,se);
-    B = imdilate(B,se);
-    
-    R = imresize(R,[dims(1) dims(2)]);
-    G = imresize(G,[dims(1) dims(2)]);
-    B = imresize(B,[dims(1) dims(2)]);
-        
-    I_final(:,:,:,z) = cat(3,R,G,B);
 end
 
-if save_flag
-    fprintf('%s\t Writing .tif image \n',datetime('now'))
-    save_name = sprintf('%s_%d_%d.tif',config.sample_id,spacing);
-    options.color = true;
-    options.overwrite = true;
-    options.verbose = false;
-    saveastiff(I_final,save_name,options);
+% Get z positions
+z_positions = floor(linspace(min(path_table.z), max(path_table.z), dims(3)));
+
+% Remove centroids outside of bounds
+centroids(:,1:2) = round(centroids(:,1:2)./spacing(1:2));
+for i = 1:2
+    rm_idx = rm_idx | (centroids(:,i) < 1)';
+    rm_idx = rm_idx | (centroids(:,i) > dims(i))';
 end
+rm_idx = rm_idx | ~ismember(centroids(:,3),z_positions)';
+centroids(:,3) = floor(centroids(:,3)./spacing(3));
+
+% Subset centroids and classes
+centroids = centroids(~rm_idx,:);
+classes = classes(~rm_idx);
+se = strel('disk',disk_r);
+
+% Generate stacks
+stacks = cell(1,length(unique(classes)));
+
+for i = 1:length(unique(classes))
+    stack = zeros(dims, 'logical');
+    sub = centroids(classes == i, :);
+    idx = sub2ind(dims, sub(:,1), sub(:,2), sub(:,3));
+    stack(idx) = true;
+    stack = imdilate(stack,se);
+
+    % Save stacks to output folder
+    if save_flag
+        filepath = fullfile(save_directory, sprintf("%s_%s_%d_stack.tif",...
+            config.sample_id, class_names(i), dims(1)));
+        options.overwrite = true;
+        options.verbose = true;
+        options.compress = 'lzw';
+        saveastiff(uint8(stack*255), char(filepath), options);
+    else
+        stacks{i} = uint8(stack*255);
+    end
+end
+
+% Merge to array
+stacks = cat(4,stacks{:});
 
 end

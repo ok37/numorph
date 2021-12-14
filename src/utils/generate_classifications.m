@@ -146,8 +146,8 @@ switch keydata.Key
             ud.c = 'b';
         end
         ud = display_slice(f, vs, ud);
-    case 'a'
-        % Adjust intensity
+    case 'uparrow'
+        % Increase intensity
         if isequal(ud.c,'c')
             ud.thresh{1}(1,2) = ud.thresh{1}(1,2)*0.9;
             ud.thresh{2}(1,2) = ud.thresh{2}(1,2)*0.9;
@@ -159,6 +159,22 @@ switch keydata.Key
             ud.thresh{2}(1,2) = ud.thresh{2}(1,2)*0.9;
         else 
             ud.thresh{3}(1,2) = ud.thresh{3}(1,2)*0.9;
+        end
+        ud = display_slice(f, vs, ud);
+
+    case 'downarrow'
+        % Decrease intensity
+        if isequal(ud.c,'c')
+            ud.thresh{1}(1,2) = min(1, ud.thresh{1}(1,2)*1.1);
+            ud.thresh{2}(1,2) = min(1, ud.thresh{2}(1,2)*1.1);
+            ud.thresh{3}(1,2) = min(1, ud.thresh{3}(1,2)*1.1);
+            
+        elseif isequal(ud.c,'r')
+            ud.thresh{1}(1,2) = min(1, ud.thresh{1}(1,2)*1.1);
+        elseif isequal(ud.c,'g')
+            ud.thresh{2}(1,2) = min(1, ud.thresh{2}(1,2)*1.1);
+        else 
+            ud.thresh{3}(1,2) = min(1, ud.thresh{3}(1,2)*1.1);
         end
         ud = display_slice(f, vs, ud);
 

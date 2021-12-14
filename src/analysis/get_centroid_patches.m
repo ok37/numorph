@@ -26,6 +26,9 @@ function [patches, ftable, cen_sub, cen_idx] = get_centroid_patches(centroids, p
 %
 %--------------------------------------------------------------------------
 
+% Defaults
+is_cortex = false;
+
 % Get params from config structure
 patch_size = config.patch_size(1);                      
 class_size = config.patch_size(2);
@@ -61,9 +64,12 @@ if isempty(low_thresh)
 end
 
 if ~isequal(centroids,'load')
+    % Merge centroid centroids structure to matrix
+    centroids = [centroids.coordinates, centroids.annotations, centroids.intensities];
+
     % Subset cells above minimum intensity threshold
     k_idx = zeros(size(centroids,1),1);
-    for i = 1:length(markers)+a
+    for i = 1+a:length(markers)
        idx = i + 4;
        thresh = prctile(centroids(:,idx),low_thresh*100);
        k_idx = k_idx | centroids(:,idx)>=thresh;
@@ -144,8 +150,11 @@ cen_idx = cen_idx(cen_idx_save);
 cen_sub = cen_sub(cen_idx_save,:);
 
 % Adjust intensity
-for i = 1:length(markers)    
-    patches{i} = im2uint8(imadjustn(patches{i}));
+for i = 1:length(markers)
+    min_int = prctile(double(patches{i}(:)),0.02)/65535;
+    max_int = prctile(double(patches{i}(:)),99.98)/65535;
+    in_int = [min_int, max_int];
+    patches{i} = im2uint8(imadjustn(patches{i}, in_int));
 end
 
 patches = cat(4,patches{:});
@@ -171,10 +180,17 @@ writematrix(patch_info,patch_name)
 
 % Save patch features
 % Get layer and structure info
-structures = string(bin_annotation_structures(cen_sub(:,4),'cortex'));
-layers = string(bin_annotation_structures(cen_sub(:,4),'layers'));
-feature_table = array2table([layers,structures],'VariableNames',{'Layer', 'Structure'});
-feature_table = horzcat(feature_table,ftable);
+
+% For cortex
+if is_cortex
+    structures = string(bin_annotation_structures(cen_sub(:,4),'cortex'));
+    layers = string(bin_annotation_structures(cen_sub(:,4),'layers'));
+    feature_table = array2table([layers,structures],'VariableNames',{'Layer', 'Structure'});
+    feature_table = horzcat(feature_table,ftable);
+else
+    feature_table = ftable;
+end
+
 table_name = fullfile(save_directory,sprintf('%s_patch_features.csv',config.sample_id));
 writetable(feature_table,table_name)
 

@@ -92,10 +92,10 @@ if args.mat:
     int_threshold = config['config']['min_intensity']
 
     use_mask = config['config']['use_annotation_mask']
+    mask_resolution = config['config']['resample_resolution']
     if use_mask == 'true':
         use_mask = True
         mask_file = config['config']['mask_file']
-        mask_resolution = config['config']['resample_resolution']
     else:
         use_mask = False
 
@@ -185,7 +185,6 @@ total_cells = 0
 total_time = datetime.now()
 
 for n in range(n_chunks):
-    n=7
     print('Working on chunk', n + 1, 'out of', n_chunks)
     startTime = datetime.now()
     z_start = chunk_start[n]

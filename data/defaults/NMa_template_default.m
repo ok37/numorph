@@ -12,15 +12,17 @@ use_processed_images = "stitched";  % false or name of sub-directory in output d
 % Resampling Parameters
 resample_resolution = 25;           % Isotropic resample resolution. This is also the resolution at which registration is performed
 resample_channels = [];             % Resample specific channels. If empty, only registration channels will be resampled
-use_annotation_mask = "true";       % true, false; Use annotation mask for cell counting
-use_structures = "cortex.csv";      % Specify csv file in /annotations detailing which structures to analyze
 
-% For custom annotations
+% For annotations
+use_annotation_mask = "true";       % true, false; Use annotation mask for cell counting
 annotation_mapping = "atlas";       % atlas, image; Specify whether annotation file is mapped to the atlas or light-sheet image
-annotation_file = "ccfv3.mat";      % File for storing structure annotation data. Specify .mat file in /data/annotation_data if annotation_mapping is to the atlas
-                                    % To generate a new .mat file with
-                                    % custom annotations, see 'help
-                                    % munge_atlas'
+annotation_file = "ccfv3.mat";      % File for storing structure annotation data. 
+                                    % Specify .mat file in /data/annotation_data if annotation_mapping is to the atlas. To generate a new .mat file with custom annotations, see 'help munge_atlas'
+                                    % Specify .nii file if annotation_mapping is to the image. Annotations here are already aligned to the image. Specify the full path for each sample in NM_samples.
+
+use_structures = "structure_template.csv";      % Specify csv file in /annotations detailing which structures to analyze
+                                                % Alternatively, specify a numeric array structure indexes 
+annotation_resolution = 25;                     % Isotropic resolution of the annotation file. Only needed when mapping is to the image.
 
 %% Registration Parameters
 registration_direction = "atlas_to_image";      % atlas_to_image, image_to_atlas; Direction to perform registration
@@ -60,7 +62,7 @@ z_normalization = "true";                   % Apply z normalization
 % Support-Vector Machine (svm) classification
 load_patches = "true";                          % Load previous centroid patches
 load_groups = [];                               % Merge patch annotation from different groups for training
-keep_classes = [];                             % Which classes to keep after prediction. Other labeled classes will be discarded
+keep_classes = [];                              % Which classes to keep after prediction. Other labeled classes will be discarded
 patch_size = [50,6];                            % 1x2 integer. [Patch size for viewing, patch size read by classifier]
 n_patches = 1000;                               % integer. Number of patches to generate
 min_class_thresh = 0.5;                         % numeric <1. Remove cells dim in every channel from classifier. (i.e. 0.5 removes cells below 50th percentile for all channels)
