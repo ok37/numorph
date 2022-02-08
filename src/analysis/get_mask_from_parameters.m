@@ -59,8 +59,9 @@ if ~isempty(config.use_structures)
         % Subset structures based on structure index
         id = config.use_structures;
     elseif endsWith(config.use_structures, '.csv')
-        % Subset structures from csv table
+        % Subset structures from csv table        
         files = dir(fullfile(config.home_path, "annotations/*/*"));
+        files = cat(1, files, dir(fullfile(config.home_path, "annotations/*")));
         idx = string({files.name}) == string(config.use_structures);
         id = readmatrix(fullfile(files(idx).folder, files(idx).name));
     else

@@ -1,5 +1,7 @@
-function NM_setup
+function NM_setup(option)
 % Download and verify MATLAB add-ons and external packages used in NuMorph
+
+if isequal(option, 'light'); islight = true; else; islight = false; end
 
 o = weboptions('CertificateFilename','');
 home_path = fileparts(which('NM_config'));
@@ -61,6 +63,52 @@ if ~isfile(atlas_path1) && ~isfile(atlas_path2)
 else
     fprintf("All atlases exist \n\n")
 end
+
+% Check for annotations
+flatview_path = fullfile(home_path, 'data', 'annotation_data', 'flatviewCortex.mat');
+olf_cer_path = fullfile(home_path, 'data', 'annotation_data', 'olf_cer.mat');
+ccfv3_path = fullfile(home_path, 'data', 'annotation_data', 'ccfv3.mat');
+if ~isfile(flatview_path) && ~isfile(olf_cer_path) && ~isfile(ccfv3_path)
+   fprintf("Downloading annotation data...\n")
+    if ~isfile(ccfv3_path)
+       websave(ccfv3_path,"https://bitbucket.org/steinlabunc/numorph/downloads/ccfv3.mat",o);
+    end
+    if ~isfile(olf_cer_path)
+       websave(olf_cer_path,"https://bitbucket.org/steinlabunc/numorph/downloads/olf_cer.mat",o);
+    end
+    if ~isfile(flatview_path)
+       websave(flatview_path,"https://bitbucket.org/steinlabunc/numorph/downloads/flatviewCortex.mat",o);
+    end
+else
+    fprintf("All annotation data exist \n\n")
+end
+
+% Move templates 
+template_path = fullfile(home_path,'templates');
+if ~isfolder(template_path)
+    mkdir(template_path)
+    reload_default_template('process',true)
+    reload_default_template('analyze',true)
+    reload_default_template('evaluate',true)
+    reload_default_template('samples',true)
+else
+    if ~isfile(fullfile(template_path, 'NMp_template.m'))
+        reload_default_template('process',true)
+    end
+    if ~isfile(fullfile(template_path, 'NMa_template.m'))
+        reload_default_template('analyze',true)
+    end
+    if ~isfile(fullfile(template_path, 'NMe_template.m'))
+        reload_default_template('evaluate',true)
+    end
+    if ~isfile(fullfile(template_path, 'NM_samples.m'))
+        reload_default_template('samples',true)
+    end
+end
+addpath(template_path)
+
+% Return if only light installation
+if islight; return;
 
 % Check for elastix
 fprintf("Checking for elastix \n")
@@ -179,30 +227,6 @@ if c_idx ~= 0
             model_files(arrayfun(@(s) endsWith(s.name,'.h5'),model_files)).name)
     end
 end
-
-% Move templates 
-template_path = fullfile(home_path,'templates');
-if ~isfolder(template_path)
-    mkdir(template_path)
-    reload_default_template('process',true)
-    reload_default_template('analyze',true)
-    reload_default_template('evaluate',true)
-    reload_default_template('samples',true)
-else
-    if ~isfile(fullfile(template_path, 'NMp_template.m'))
-        reload_default_template('process',true)
-    end
-    if ~isfile(fullfile(template_path, 'NMa_template.m'))
-        reload_default_template('analyze',true)
-    end
-    if ~isfile(fullfile(template_path, 'NMe_template.m'))
-        reload_default_template('evaluate',true)
-    end
-    if ~isfile(fullfile(template_path, 'NM_samples.m'))
-        reload_default_template('samples',true)
-    end
-end
-addpath(template_path)
 
 fprintf("Setup completed! \n")
 
