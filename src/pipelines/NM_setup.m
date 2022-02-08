@@ -108,7 +108,7 @@ end
 addpath(template_path)
 
 % Return if only light installation
-if islight; return;
+if islight; return; end
 
 % Check for elastix
 fprintf("Checking for elastix \n")
