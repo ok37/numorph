@@ -1,6 +1,6 @@
 function NM_setup(option)
 % Download and verify MATLAB add-ons and external packages used in NuMorph
-
+if nargin < 1; option = 'notlight'; end
 if isequal(option, 'light'); islight = true; else; islight = false; end
 
 o = weboptions('CertificateFilename','');
