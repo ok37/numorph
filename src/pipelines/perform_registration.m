@@ -84,10 +84,10 @@ if run_registration && contains(config.registration_direction,"atlas")
         atlas_hemisphere = 'left';
         atlas_res = 25;
     else
-        [~,fname] = fileparts(config.atlas_file);
-        ann_path = arrayfun(@(s) {char(fullfile(config.home_path,'data','annotation_data',s))},...
-            strcat(fname,'.mat'));
-        a = load(ann_path{1},'hemisphere','resolution');
+        %[~,fname] = fileparts(config.atlas_file);
+        %ann_path = arrayfun(@(s) {char(fullfile(config.home_path,'data','annotation_data',s))},...
+        %    strcat(fname,'.mat'));
+        a = load(fullfile('data','annotation_data',config.annotation_file),'hemisphere','resolution');
         atlas_hemisphere = a.hemisphere;
         atlas_res = a.resolution;
         config.mask_cerebellum_olfactory = "false";
@@ -215,8 +215,7 @@ if run_registration
 end
 
  % Save a copy of registered images if previous image does not exist
- if isequal(config.save_registered_images,"true") && run_registration &&...
- isempty(dir(fullfile(reg_dir,sprintf('*MOV*%s*.nii',reg_params.(direction).mov_channels(1)))))
+ if isequal(config.save_registered_images,"true") %&& run_registration
     fprintf('%s\t Transforming and saving registered images \n',datetime('now'))
     save_registered_images(config, reg_params)
  end

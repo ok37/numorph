@@ -1,4 +1,4 @@
-function results = load_results(input, variable, sample)
+function results = load_results(input, variable, sample, contains_field)
 %--------------------------------------------------------------------------
 % Load results summary for a given sample. 
 %--------------------------------------------------------------------------
@@ -16,13 +16,20 @@ function results = load_results(input, variable, sample)
 % sample: Optional string specifying sample if NM_evaluate structure
 % provided.
 %
+% contains_field: Optional logical. Just check if the field exists without
+% loading data.
+%
 %--------------------------------------------------------------------------
 % Outputs:
 % results: Results structure.
 %
 %--------------------------------------------------------------------------
-if nargin<2 
+if nargin<2
     variable = [];
+end
+
+if nargin<4
+    contains_field = false;
 end
 
 if isstruct(input) && isfield(input, 'results_path') 
@@ -65,6 +72,10 @@ end
 % Load structure
 if endsWith(var_path,'.mat')
     results = load(var_path);
+    if contains_field
+        results = isfield(results, variable);
+        return
+    end
     if ~isempty(variable)
         results = load_sub_variable(results, variable);
     end
@@ -72,6 +83,10 @@ else
     files = dir(fullfile(var_path,"*_results.mat"));
     if length(files) == 1
         results = load(fullfile(files.folder,files.name));
+        if contains_field
+            results = isfield(results, variable);
+            return
+        end
         if ~isempty(variable)
             results = load_sub_variable(results, variable);
         end

@@ -34,6 +34,8 @@ function img = standardize_nii(img, in_res, in_or, in_hem, is_mask,...
 %
 %--------------------------------------------------------------------------
 
+in_hem = string(in_hem); out_hem = string(out_hem);
+
 % Defaults:
 if nargin<6 || isempty(out_res) 
     out_res = 25;
@@ -60,21 +62,24 @@ res_adj = in_res/out_res;
 
 % Image is flipped and rotated if double or single compared to uint16
 % Standardized image is double
-if is_mask
-    if isequal(class(img),'double') || isequal(class(img),'single')
-        img = imrotate(img,90);
-        img = flip(img,1);
-    end
-    img = double(img);
-else
-    img = double(img);
+%if is_mask
+    %if isequal(class(img),'double') || isequal(class(img),'single')
+    %    img = imrotate(img,90);
+    %    img = flip(img,1);
+    %end
+%    img = double(img);
+%else
+%    img = double(img);
+%end
+img = double(img);
+
+% Transform atlas_img to match sample orientation
+if ~isequal(in_hem, out_hem)
+    img = adjust_hemisphere(img, in_hem, out_hem, in_or);
 end
 
 % Permute and resize
 img = permute_orientation(img,char(in_or),out_or);
-
-% Transform atlas_img to match sample orientation
-img = adjust_hemisphere(img,in_hem,out_hem,in_or);
 
 if ~is_mask
     img = imresize3(img,round(res_adj.*size(img)));

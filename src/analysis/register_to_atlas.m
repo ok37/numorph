@@ -1,4 +1,3 @@
-
 function reg_params = register_to_atlas(config, mov_img_path, ref_img_path, num_points)
 % Register images to the reference atlas using elastix via melastix
 % wrapper. Note: the final registration parameters are stored in the
@@ -19,7 +18,8 @@ direction = config.registration_direction;
 use_points = config.use_points;
 atlas_file = config.atlas_file;
 home_path = fileparts(which('NM_config.m'));
-cen_structure = config.prealign_annotation_index;
+cen_structure = [];
+calc_inverse = "false";
 
 % Unless testing, use all points
 if nargin<4 || isempty(num_points)
@@ -158,19 +158,28 @@ if ~isempty(cen_structure)
     cen_points.index = cen_structure;
 end
 
+% Logical to specify whether to prealign
+prealign = false(1,3);
+prealign(1:2) = [config.mov_prealign, config.ref_prealign];
+if config.registration_channels(1) ~= 1
+    prealign(3) = true;
+end
+
 % Perform pairwise registration
 reg_params = elastix_registration(mov_img_array,ref_img_array,...
     parameter_paths, points, mask, config.output_directory,...
-    direction, [config.mov_prealign, config.ref_prealign], cen_points);
+    direction, prealign, cen_points);
 
 % Create new variable or attach to existing
 reg_params.mov_img_path = mov_img_path;
 reg_params.mov_orientation = config.mov_orientation;
+reg_params.mov_hemisphere = config.mov_hemisphere;
 reg_params.mov_res = config.mov_res;
 reg_params.mov_size = size_mov([2 1 3]);
 reg_params.mov_channels = config.mov_channels;
 reg_params.ref_img_path = ref_img_path;
 reg_params.ref_orientation = config.ref_orientation;
+reg_params.ref_hemisphere = config.ref_hemisphere;
 reg_params.ref_res = config.ref_res;
 reg_params.ref_size = size_ref([2 1 3]);
 reg_params.ref_channels = config.ref_channels;
@@ -178,7 +187,6 @@ reg_params.ref_channels = config.ref_channels;
 
 % Calculating inverse deprecated for now
 % Return reg_params
-return
 
 % Calculate the inverse
 if isequal(calc_inverse,"true")
@@ -217,8 +225,8 @@ end
 end
 
 
-function [reg_params, reg_img, status] = elastix_registration(mov_img,ref_img,...
-    parameter_paths,points,mask,outputDir,direction,prealign, cen_points)
+function [reg_params, reg_img, status] = elastix_registration(mov_img, ref_img,...
+    parameter_paths, points, mask,outputDir, direction, prealign, cen_points)
 % Single channel, pairwise registration
 home_path = fileparts(which('NM_config.m'));
 
@@ -240,25 +248,25 @@ if ~isempty(points)
 end
 
 % Pre-align by annotation index
-pre_mov_annotation = false; pre_ref_annotation = false;
-if ~isempty(cen_points) && isequal(atlas, "mov")
-    fprintf('\t Pre-aligning reference images to match structure index %d\n', cen_points.index);    
-    
-    % Align images based on overlapping centroid positions using landmark registration
-    pre_align_path = {fullfile(home_path,'data','elastix_parameter_files',...
-        'atlas_registration','pre-align_annotation','ElastixParameterAffinePoints.txt')};
+%pre_mov_annotation = false; pre_ref_annotation = false;
+%if ~isempty(cen_points) && isequal(atlas, "mov")
+%    fprintf('\t Pre-aligning reference images to match structure index %d\n', cen_points.index);    
+%    
+%    % Align images based on overlapping centroid positions using landmark registration
+%    pre_align_path = {fullfile(home_path,'data','elastix_parameter_files',...
+%        'atlas_registration','pre-align_annotation','ElastixParameterAffinePoints.txt')};
 
-    % Create temporary directory for saving images
-    outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
-    if ~isfolder(outputDir)
-        mkdir(outputDir)
-    end
-    
-    [reg_params,reg_img,status]=elastix(mov_img,ref_img,outputDir,pre_align_path,...
-        'fp',cen_points.ref_points,'mp',cen_points.mov_points,'threads',[]);
-
-    pre_mov_annotation = true;
-end
+%    % Create temporary directory for saving images
+%    outputDir = fullfile(outputDir,sprintf('tmp_reg_%d',randi(1E4)));
+%    if ~isfolder(outputDir)
+%        mkdir(outputDir)
+%    end
+%    
+%    [reg_params,reg_img,status]=elastix(mov_img,ref_img,outputDir,pre_align_path,...
+%        'fp',cen_points.ref_points,'mp',cen_points.mov_points,'threads',[]);
+%
+%    pre_mov_annotation = true;
+%end
 
 % If multiple moving channels, apply rigid registration to pre-align
 pre_mov = false; pre_ref = false;
@@ -268,10 +276,13 @@ if length(mov_img)>1 && prealign(1)
     pre_mov = true;
 end
 
-if length(ref_img)>1 && prealign(2)
+if (length(ref_img)>1 && prealign(2)) || prealign(3)
     fprintf('\t Pre-aligning multiple reference image channels prior to registration\n');    
     [pre_ref_tforms, ref_img] = pre_align_rigid(ref_img,outputDir);
     pre_ref = true;
+    if prealign(3)
+        ref_img = ref_img(end);
+    end
 end
 
 % Create temporary directory for saving images
@@ -342,6 +353,35 @@ end
 
 end
 
+function init_tform = get_initial_transform(roi_img, ref_img)
+% Use phase correlation to estimate and initial x,y,z translation to match
+% a high resolution ROI to a full brain image, typically in the same
+% channel
+mid_slice = round(size(roi_img,3)/2);
+query_slices = mid_slice:size(ref_img,3) - mid_slice;
+
+cc = zeros(1,length(query_slices));
+tform = cell(1,length(query_slices));
+for i = 1:length(query_slices)
+    z = query_slices(i);
+    [tform{i}, cc(i)] = imregcorr(roi_img(:,:,mid_slice), ref_img(:,:,z), 'translation');
+end
+
+z_opt = query_slices(cc == max(cc));
+%Rfixed = imref2d(size(ref_img(:,:,z_opt)));
+%movingReg = imwarp(roi_img(:,:,mid_slice),tform{cc == max(cc)},'OutputView',Rfixed);
+%imshowpair(ref_img(:,:,z_opt),movingReg);
+tform = tform{cc == max(cc)};
+
+t = [1 0 0 0; 0 1 0 0; 0 0 1 0; tform.T(3), tform.T(6), z_opt - mid_slice, 1];
+init_tform.tform = affine3d(t);
+init_tform.Rfixed = imref3d(size(ref_img));
+%tform.Rfixed = imref3d(size(ref_img));
+%vol = imwarp(roi_img,tform, 'OutputView', tform.Rfixed);
+%imshowpair(vol(:,:,z_opt),ref_img(:,:,z_opt));
+
+end
+
 
 function [pre_tforms,img_array] = pre_align_rigid(img_array,outputDir)
 % Rigid pre-alignment of images. Align multiple channels to each other. Or
@@ -360,10 +400,17 @@ if ~isfolder(outputDir)
     mkdir(outputDir)
 end
 
+init_pre_tform = get_initial_transform(img_array{1}, img_array{2});
+
 % Run alignment
 pre_tforms = cell(1,length(img_array)-1);
 for i = 2:length(img_array)
-    [pre_tforms{i-1},img_array{i},status]=elastix(img_array{i},img_array{1},outputDir,pre_align_path,'threads',[]);
+    img1 = img_array{1};
+    img2 = img_array{i};
+    img1 = imwarp(img1, init_pre_tform.tform, 'OutputView', init_pre_tform.Rfixed);
+    %[pre_tforms{i-1},img_array{i},status]=elastix(img1,img2,outputDir,pre_align_path,'threads',[]);
+    [pre_tforms{i-1},img_array{i},status]=elastix(img2,img1,outputDir,pre_align_path,'threads',[]);
+    pre_tforms{i-1}.init_pre_tform = init_pre_tform;
 end
 
 % Remove temporary directory

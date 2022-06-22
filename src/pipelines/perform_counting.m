@@ -27,14 +27,9 @@ if isequal(config.count_nuclei,"false")
 elseif isequal(config.count_nuclei,"true") && isfile(path_centroids)
     fprintf('%s\t Centroids already detected. Skipping cell counting and saving to results structure \n',...
         datetime('now'))
-    load(path_centroids,'centroids')
     results = load(config.res_name);
-    results.centroids = centroids(:,1:3);
-    if size(centroids,2)>3
-        results.annotations = centroids(:,4);
-    else
-        results.annotations = [];
-    end
+    results.centroids = load_var(config,'centroids','coordinates');
+    results.annotations = load_var(config,'centroids','annotations');
     if isfield(results,'classes')
         results = rmfield(results,'classes');
     end

@@ -23,7 +23,7 @@ ext = [".tif",".tiff",".nii",".nrrd",".nhdr",".mhd"];
 
 % Get list of all files in all sub_directories
 if length(config.img_directory) == 1
-    all_files = dir(fullfile(config.img_directory,'**/*.*'));
+    all_files = dir(fullfile(config.img_directory,'*.*'));
 else
     assert(length(config.img_directory)<=length(config.markers),"More image "+...
         "directories specified than there are markers")
@@ -90,7 +90,8 @@ if isfield(config,'channel_num') && ~isempty(config.channel_num)
     c_idx = cellfun(@(s) s(idx),c_idx,'UniformOutput',false);
 end
 
-tiff_folders = unique({tiff_files.folder});
+%tiff_folders = unique({tiff_files.folder});
+tiff_folders = unique(cellfun(@(s) strrep(s, '/@eaDir',''), unique({tiff_files.folder}), 'UniformOutput', false));
 assert(length(tiff_folders) <= length(config.markers), "More .tif folders than image markers detected.")
 
 % Try matching folders by channel number, then by folder name, then by
@@ -185,9 +186,15 @@ for i = 1:length(path_table_series)
         table_series.x = ones(height(table_series),1);
     end
         
-    table_series.z = table_series.z - min(table_series.z)+1; 
+    table_series.z = table_series.z - min(table_series.z)+1;
+
+    % Trim any additional characters appended
+    table_series.file = cellfun(@(s) extractBefore(s,'.tif') + ".tif", table_series.file);
+    %table_series.file = cellfun(@(s) strrep(s, '/@eaDir',''), table_series.file, 'UniformOutput',false);
     
     table_series_final.(config.markers(i)) = table_series;
+
+
 end
 
 end

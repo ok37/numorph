@@ -71,11 +71,12 @@ path_table = [];
 % For sshfs: if base directory specified, do not quick load from saved
 % image paths. Ideally this would be updated to automatically use the base
 % directory
-if isstruct(config) && isfield(config,'base_directory') &&... 
-~isempty(config.base_directory) && isfolder(config.base_directory)
-    quick_load = false;
-    save_table = false;
-elseif isstruct(config) && isfile(fullfile(config.output_directory,'variables','path_table.mat'))
+using_base = false;
+if isfield(config,'base_directory')
+    using_base = true;
+end
+
+if isstruct(config) && isfile(fullfile(config.output_directory,'variables','path_table.mat'))
     var_location = fullfile(config.output_directory,'variables','path_table.mat');  
     load(var_location,'path_table')
     if ~isequal(location,"raw") && ~isfield(path_table,location) 
@@ -128,6 +129,9 @@ switch location
         if ~isempty(path_table) && quick_load
             fprintf("%s\t Quick loading from table \n",datetime('now'))
             path_table_series = path_table.stitched;
+            if using_base
+                path_table_series = append_base(path_table_series, config.base_directory);
+            end
             return
         end
         path_table_series = munge_stitched(config);
@@ -191,8 +195,26 @@ if isequal(location,"raw")
     end
     
     % Check for duplicate files
-    assert(length(unique(path_table_series.file)) == height(path_table_series),"Duplicate files added to multiple channels. "+...
-        "Channel number indexes or unique folders for each marker are needed to import these images")
+    %assert(length(unique(path_table_series.file)) == height(path_table_series),"Duplicate files added to multiple channels. "+...
+    %    "Channel number indexes or unique folders for each marker are needed to import these images")
 end
+
+end
+
+function path_table_series = append_base(path_table_series, base_directory)
+% Replace directory path to match specified base directory
+
+[a, b, c] = fileparts(path_table_series.file);
+parts = strsplit(a{1}, filesep);
+prefix = "";
+for i = 0:length(parts)
+    prefix = fullfile(parts(end-i), prefix);
+    test = fullfile(base_directory, prefix, [b{1},c{1}]);
+    if isfile(test)
+        test = fileparts(test);
+        break
+    end
+end
+path_table_series.file = cellfun(@(s,t) fullfile(char(test), strcat(s,t)), b, c, 'UniformOutput', false);
 
 end

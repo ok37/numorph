@@ -29,6 +29,8 @@ else
         "directories specified than there are markers")
     all_files = cell(1,length(config.img_directory));
     for i = 1:length(config.img_directory)
+        assert(isfolder(config.img_directory(i)), "Directory %s dose not exist",...
+            config.img_directory(i));
         all_files{i} = dir(fullfile(config.img_directory(i),'*.*'));
     end
     all_files = cat(1,all_files{:});
@@ -183,9 +185,15 @@ for i = 1:length(path_table_series)
         table_series.x = ones(height(table_series),1);
     end
         
-    table_series.z = table_series.z - min(table_series.z)+1; 
+    table_series.z = table_series.z - min(table_series.z)+1;
+
+    % Trim any additional characters appended
+    table_series.file = cellfun(@(s) extractBefore(s,'.tif') + ".tif", table_series.file);
+    table_series.file = cellfun(@(s) strrep(s.fi))
     
     table_series_final.(config.markers(i)) = table_series;
+
+
 end
 
 end
@@ -239,7 +247,9 @@ function path_sub = get_table_struct(path_idx, sample_id, marker, channel, posit
 path_sub = cell2struct(fullfile({path_idx.folder},{path_idx.name}),'file');
 
 % Get tile and slice information from images
-
+if length(position_exp) == 1
+    position_exp = horzcat(["", ""],position_exp);
+end
 
 % Scan through each filename for relevant information
 for j = 1:length(path_idx)

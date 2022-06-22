@@ -120,6 +120,12 @@ if measure_cortex
     end
 end
 
+% Statistics run on mutliple samples
+if ~multi || isempty(config.groups)
+    fprintf('%s\t Only 1 sample so skipping statistics...\n',datetime('now'))
+    return
+end
+
 % Get sample info from 
 c =  cellfun(@(s) strsplit(s,'_'),df_results{1}.Properties.VariableNames(10:end),'UniformOutput',false);        
 c = cat(1,c{:});
@@ -148,12 +154,6 @@ if n_groups>2
         fprintf('%s\t Found %d categorical group with %d unique values \n',datetime('now'),...
             i-2, length(unique(groups(:,i))))
     end
-end
-
-% Statistics run on mutliple samples
-if ~multi || isempty(config.groups)
-    fprintf('%s\t Only 1 sample so skipping statistics...\n',datetime('now'))
-    return
 end
 
 % Calculate region statistics

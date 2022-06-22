@@ -93,6 +93,7 @@ end
 if isstring(outputDir)
     outputDir = char(outputDir);
 end
+outputDir = '/tmp';
 
 %If the user supplies one input argument only and this is is a string then
 %we assume it's a request for the help or version so we run it 
@@ -206,7 +207,7 @@ if ~iscell(movingImage)
     movingFname=sprintf('%s_moving',dirName); %TODO: so the file name contains the dir name?
     mhd_write(movingImage,movingFname,elementSpacing);
     if ~strcmp(outputDir,'.')
-        if ~movefile([movingFname,'.*'],outputDir); error('Can''t move files'), end
+        if ~movefile([movingFname,'.*'],outputDir, 'f'); error('Can''t move files'), end
     end
 else
     for i = 1:length(movingImage)
@@ -214,7 +215,7 @@ else
         movingSubImage = movingImage{i};
         mhd_write(movingSubImage,movingFname(i,:),elementSpacing);
         if ~strcmp(outputDir,'.')
-            if ~movefile([movingFname(i,:),'.*'],outputDir); error('Can''t move files'), end
+            if ~movefile([movingFname(i,:),'.*'],outputDir, 'f'); error('Can''t move files'), end
         end
     end
 end
@@ -223,7 +224,7 @@ if ~iscell(fixedImage)
     fixedFname=sprintf('%s_target',dirName);
     mhd_write(fixedImage,fixedFname,elementSpacing);
     if ~strcmp(outputDir,'.') %Don't copy if we're already in the directory
-        if ~movefile([fixedFname,'.*'],outputDir); error('Can''t move files'), end
+        if ~movefile([fixedFname,'.*'],outputDir, 'f'); error('Can''t move files'), end
     end
 else
     for i = 1:length(fixedImage)
@@ -231,7 +232,7 @@ else
         fixedSubImage = fixedImage{i};
         mhd_write(fixedSubImage,fixedFname(i,:),elementSpacing);
         if ~strcmp(outputDir,'.')
-            if ~movefile([fixedFname(i,:),'.*'],outputDir); error('Can''t move files'), end
+            if ~movefile([fixedFname(i,:),'.*'],outputDir,'f'); error('Can''t move files'), end
         end
     end
 end
@@ -244,7 +245,7 @@ if ~isempty(fMask)
     maskFname = [dirName, '_fMask'];
     mhd_write(fMask,maskFname,elementSpacing);
     if ~strcmp(outputDir,'.')
-        if ~movefile([maskFname,'.*'],outputDir); error('Can''t move files'), end
+        if ~movefile([maskFname,'.*'],outputDir, 'f'); error('Can''t move files'), end
     end
 end
 
@@ -254,7 +255,7 @@ if ~isempty(mMask)
     maskMname = [dirName, '_mMask'];
     mhd_write(mMask,maskMname,elementSpacing);
     if ~strcmp(outputDir,'.')
-        if ~movefile([maskMname,'.*'],outputDir); error('Can''t move files'), end
+        if ~movefile([maskMname,'.*'],outputDir, 'f'); error('Can''t move files'), end
     end
 end
 
@@ -287,7 +288,7 @@ elseif ischar(paramFile) && strfind(paramFile,'.yml') && isempty(paramstruct) %r
 
 elseif (ischar(paramFile) && strfind(paramFile,'.txt')) %we have an elastix parameter file
     if ~strcmp(outputDir,'.')
-        copyfile(paramFname,outputDir)
+        copyfile(paramFname,outputDir,'f')
         paramFname{1} = fullfile(outputDir,paramFname);
     end
 
@@ -298,7 +299,7 @@ elseif iscell(paramFile) %we have a cell array of elastix parameter files
             if ~isfile(paramFname{ii})
                 error("Parameter filename path does not exist")
             end
-            copyfile(paramFname{ii},outputDir)
+            copyfile(paramFname{ii},outputDir,'f')
             %So paramFname is now:
             [~,f,e] = fileparts(paramFname{ii});
             paramFname{ii} = fullfile(outputDir,[f,e]);
@@ -320,7 +321,7 @@ if ~isempty(t0)
         if verbose
             fprintf('Copying %s to %s\n',t0{ii},copiedLocations{ii})
         end
-        copyfile(t0{ii},copiedLocations{ii})
+        copyfile(t0{ii},copiedLocations{ii},'f')
     end
 
     %Modify the parameter files so that they chain together correctly

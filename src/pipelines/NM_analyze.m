@@ -65,6 +65,7 @@ if ~isempty(path_table)
 
         for i = 1:length(idx)
             config2 = config;
+            config2.img_directory = config.img_directory(idx);
             config2.markers = config.markers(idx(i));
             config2.channel_num = config.channel_num(idx(i));
             try 

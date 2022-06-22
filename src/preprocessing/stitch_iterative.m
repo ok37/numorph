@@ -461,14 +461,14 @@ I = B(1,:);
 % Check for previous translations and set limits
 if ~iscell(pre_v_tform)
     limit_xy = NaN;
-    pre_v_tform = repmat({[NaN,NaN]},[1 length(B)-1]);
-    shift_threshold = repmat({NaN},[1 length(B)-1]);
+    pre_v_tform = repmat({[NaN,NaN]},[1 size(B,1)-1]);
+    shift_threshold = repmat({NaN},[1 size(B,1)-1]);
 else
     shift_threshold = cellfun(@(s) max(abs(s))+limit_xy, pre_v_tform,'UniformOutput',false);
 end
 
 % Do blended row tiles
-for i = 1:length(B)-1
+for i = 1:size(B,1)-1
     % Update overlap region of the top image 
     overlap_v_max = size(I{1},1)-length(overlap_v_min)+1:size(I{1},1);
     

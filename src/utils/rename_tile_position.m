@@ -116,7 +116,7 @@ if overwrite
     for i = 1:length(files)
         a = fullfile(files(i).folder,files(i).name);
         b = [fullfile(files(i).folder,new_names{i}) '_tmp'];
-        [status, msg] = movefile(a,b);
+        [status, msg] = movefile(a,b,'f');
         if ~status
             disp(msg)
         end
@@ -124,7 +124,7 @@ if overwrite
     for i = 1:length(files)
         b = [fullfile(files(i).folder,new_names{i}) '_tmp'];
         c = fullfile(files(i).folder,new_names{i});
-        [status, msg] = movefile(b,c);
+        [status, msg] = movefile(b,c,'f');
         if ~status
             disp(msg)
         end

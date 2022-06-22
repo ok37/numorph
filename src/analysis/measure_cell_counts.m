@@ -1,6 +1,20 @@
 function counts = measure_cell_counts(config)
-% Calculate number of cells in each structure index for each class for one
-% sample. Input is a NM_analyze config structure.
+%--------------------------------------------------------------------------
+% % Calculate number of cells in each structure index for each class for one
+% sample.
+%--------------------------------------------------------------------------
+% Usage:
+% varargout = load_var(config,variable,var_name)
+%
+%--------------------------------------------------------------------------
+% Inputs:
+% config: analysis config structure.
+%
+%--------------------------------------------------------------------------
+% Outputs:
+% counts: Collected variable.
+%
+%--------------------------------------------------------------------------
 
 % Start from results structure
 res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));

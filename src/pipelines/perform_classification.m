@@ -185,6 +185,8 @@ save(path_classes,'-append','annotations')
 classes = cen_classes(:,5);
 save(path_classes,'-append','classes')
 res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
+save(res_name, '-append','centroids')
+save(res_name, '-append','annotations')
 save(res_name, '-append','classes')
 counts = measure_cell_counts(config);
 save_to_summary(config.res_name,counts,'counts')

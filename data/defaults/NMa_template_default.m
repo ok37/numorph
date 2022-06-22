@@ -31,6 +31,7 @@ registration_channels = 1;                      % integer; Which light-sheet cha
 registration_prealignment = "image";            % image. Pre-align multiple light-sheet images by rigid transformation prior to registration
 
 atlas_file = "ara_nissl_25.nii";                % ara_nissl_25.nii and/or average_template_25.nii and/or a specific atlas .nii file in /data/atlas
+use_points = "false";                           % Whether to use points to guide registration
 points_file = [];                               % Name of points file to guide registration
 save_registered_images = "true";                % Whether to save registered images
 mask_cerebellum_olfactory = "true";             % Remove olfactory bulbs and cerebellum from atlas ROI

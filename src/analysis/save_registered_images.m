@@ -1,7 +1,6 @@
 function save_registered_images(config,reg_params)
 
 % Get reference and moving images
-hemisphere = config.hemisphere;
 direction = config.registration_direction;
 params = reg_params.(direction);
 if isequal(direction,"atlas_to_image")
@@ -44,8 +43,8 @@ for i = 1:nref
         if i == 2
             fprintf('%s\t Applying pre-alignments to reference images\n',datetime('now'))
         end
-        img = apply_prealignment(img,params.pre_ref_tforms{i-1}, ref,...
-            params.ref_res, params.ref_orientation, config.hemisphere);   
+        img = apply_prealignment(img, params.pre_ref_tforms{i-1},...
+            params.ref_res, params.ref_orientation, params.ref_hemisphere);   
     else
         img = convert_nii_16(img, ref, true);
         [nrows,ncols,nslices] = size(img);
@@ -60,25 +59,36 @@ for i = 1:nmov
         sprintf("%s_MOV_%s_%d.nii",config.sample_id,...
         params.mov_channels(i),params.mov_res));
     img = read_img(params.mov_img_path(i));
+
+    % Apply transformation
+    img = standardize_nii(img, params.mov_res, params.mov_orientation, params.mov_hemisphere, false, ...
+        25, params.ref_orientation, config.hemisphere);
     
     % Apply pre-alignment if they exist
     if i>1 && isfield(params,'pre_mov_tforms')
         if i == 2
             fprintf('%s\t Applying pre-alignments to moving images\n',datetime('now'))
         end
-        img = apply_prealignment(img,params.pre_mov_tforms{i-1}, mov,...
-            params.mov_res, params.mov_orientation, config.hemisphere);
+        img = apply_prealignment(img,params.pre_mov_tforms{i-1}, ...
+            params.mov_res, params.mov_orientation, params.mov_hemisphere);
     else
-        img = convert_nii_16(img, mov, hemisphere, true);
+        %img = convert_nii_16(img, mov, hemisphere, true);
     end
     
     % Apply transformation
-    img = standardize_nii(img, params.mov_res, params.mov_orientation,...
-        config.hemisphere, false);
     img = transformix(double(img), params, [1,1,1], []);
 
+    % Revert from low-res WB to high-res ROI
+    if isfield(params, 'pre_ref_tforms')
+        if isfield(params.pre_ref_tforms{1}, 'init_pre_tform')
+           tform = pre_ref_tforms{1}.init_pre_tform;
+            
+
+        end
+    end
+
     % Permute and resize to match reference
-    img = permute_orientation(img,'ail',char(params.ref_orientation));
+    %img = permute_orientation(img,'ail',char(params.ref_orientation));
     img = imresize3(img,[nrows,ncols,nslices]);
     
     niftiwrite(uint16(img),fname)
@@ -135,15 +145,9 @@ function img = apply_prealignment(img, tforms, resolution, orientation, hemisphe
 % Standardize image
 [nrows, ncols, nslices] = size(img);
 
-img = standardize_nii(img, resolution, orientation, hemisphere, false);
-img = doulbe(img);
-
 % Apply transformation
 img = transformix(img, tforms, [1,1,1], []);
 
-% Resize and permute to original
-img = permute_orientation(img,'ail',char(orientation));
-img = imresize3(img,[nrows, ncols, nslices]);
-img = uint16(img);
+
 
 end

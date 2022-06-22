@@ -93,14 +93,14 @@ if remove_outliers
 
     s1 = abs(h_disp_matrix-median(h_disp_matrix(:,2:end),'all')) > thresh;
     s1(:,1) = 0;
-    h_disp_matrix(s1) = median(h_disp_matrix(:,2:end),'all');
+    h_disp_matrix(s1) = round(median(h_disp_matrix(:,2:end),'all'));
     s1 = abs(v_disp_matrix-median(v_disp_matrix(2:end,:),'all')) > thresh;
     s1(1,:) = 0;
-    v_disp_matrix(s1) = median(v_disp_matrix(2:end,:),'all');
+    v_disp_matrix(s1) = round(median(v_disp_matrix(2:end,:),'all'));
 end
 
 % Use minimum spanning tree to get final z displacement matrix
-z_disp_matrix = min_span_tree_2(v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix);
+z_disp_matrix = round(min_span_tree_2(v_disp_matrix, h_disp_matrix, q_v_disp_matrix, q_h_disp_matrix));
 
 fprintf('%s\t Final displacement matrix: %s \n',datetime('now'),mat2str(z_disp_matrix))
 save(fullfile(char(output_directory),'variables','z_disp_matrix'),'z_disp_matrix')
