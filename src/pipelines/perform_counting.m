@@ -83,7 +83,14 @@ centroids = readmatrix(path_save);
 coordinates = centroids(:,1:3);
 save(path_centroids,'-v7.3','coordinates')
 if size(centroids,2)>3
+    %%%% Note here I'm subtracting 1 from annotations. This was a big that
+    %%%% I missed as generate_chunks adds 1 to all columns instead of
+    %%%% nuclei coordinates. Instead of re-counting all nuclei, I'm taking
+    %%%% a shortcut here by just subtracting 1 from the annotation column.
     annotations = centroids(:,4);
+    if isequal(config.count_method,"3dunet")
+        annotations = annotations-1;
+    end
     save(config.res_name,'annotations','-append')
     save(path_centroids,'annotations','-append')
 end
@@ -92,6 +99,6 @@ save(config.res_name,'centroids','-append')
 
 % Save to results structure
 counts = measure_cell_counts(config);
-save_to_summary(config.res_name,counts,'counts')
+save_to_summary(config.res_name, counts, 'counts')
 
 end

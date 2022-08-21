@@ -11,6 +11,12 @@ markers = config.markers;
 % Keep only groups of interest
 groups = cat(1,config.groups{:});
 par_idx = ismember(groups(:,2),config.compare_groups);
+for i = 1:length(par_idx)
+    if ~par_idx(i)
+        error("Group %s is not a specified group for comparison", groups(i,2));
+    end
+end
+
 config.samples = config.samples(par_idx);
 config.groups = config.groups(par_idx);
 group_delimiters = cat(2,config.samples,cat(1,config.groups{:}));
@@ -18,16 +24,22 @@ group_delimiters = cat(2,config.samples,cat(1,config.groups{:}));
 % Create new table with annotations of interest
 df_temp = readtable(config.template_file);
 df_temp = df_temp(df_temp.index>0,:);
-s_idx = df_temp.index;
 
 % Load any custom structure tables
 if isequal(compare_structures_by,'table')
+    if isempty(config.structure_table)
+        error("A custom structure table needs to be specified. " +...
+        "Otherwise, set compare_structures_by to 'index' to compare each unique annotation")
+    end
     fname = fullfile(config.home_path,'annotations','custom_annotations',config.structure_table);    
     df_subset = readtable(fname);
     s_idx = df_subset.index;
     if ~any(ismember(s_idx,0))
         s_idx = cat(1,0,s_idx);
     end
+else
+    counts = table2array(df_results{1}(:,9:end));
+    s_idx = table2array(df_temp(sum(counts,2) > 0,1));
 end
 
 % Check if paried t-test
@@ -52,19 +64,18 @@ end
 % Get stats
 df_stats = pairwise_comparison(df_results,s_idx,markers,group_delimiters,...
     config.compare_groups,min_cell_number,paired,config.custom_class);
+df_stats = df_stats(cellfun(@(s) ~isempty(s), df_stats));
 
 % Combine and save table
 var_names = {'Volume','Counts','Density','Cortex'};
-[~,bin_header] = fileparts(config.structure_table);
-save_name = fullfile(results_path,sprintf('%s_%s_stats.xls',config.prefix,bin_header));
 for i = 1:length(df_stats)
     df_save = cat(2,df_temp,df_stats{i});
     if i ~= 4
-        df_save = df_save(ismember(df_save.index,df_subset.index),:);
+        df_save = df_save(ismember(df_save.index,s_idx),:);
     else
         df_save = df_save(ismember(df_save.index,df_results{3}.index),:);
     end
-    writetable(df_save,save_name,'Sheet',var_names{i},'WriteMode','overwritesheet');
+    writetable(df_save,config.stats_results,'Sheet',var_names{i},'WriteMode','overwritesheet');
 end
 
 end
@@ -107,7 +118,7 @@ if ~isempty(df_results{2})
     df_header(1:4) = repmat(group_names,1,2) + "_" + df_header(1:4);
     
     % Convert to table
-    df_stats{1}  = array2table(round(sub_stats,3),'VariableNames',df_header);
+    df_stats{1}  = array2table(sub_stats,'VariableNames',df_header);
 end
 
 % Let's look at count stats
@@ -142,7 +153,7 @@ if ~isempty(df_results{1})
         df_header(1:4) = repmat(group_names,1,2) + "_" + df_header(1:4);
         
         % Convert to table
-        stats{i} = array2table(round(sub_stats,3),'VariableNames',df_header);
+        stats{i} = array2table(sub_stats,'VariableNames',df_header);
     end
     df_stats{2} = cat(2,stats{:});
 end
@@ -177,7 +188,7 @@ if ~isempty(df_results{1}) && ~isempty(df_results{2})
         df_header(1:4) = repmat(group_names,1,2) + "_" + df_header(1:4);
         
         % Convert to table
-        stats{i} = array2table(round(sub_stats,3),'VariableNames',df_header);
+        stats{i} = array2table(sub_stats,'VariableNames',df_header);
     end
     df_stats{3} = cat(2,stats{:});
 end
@@ -215,7 +226,7 @@ if ~isempty(df_results{3})
     stats(df_cortex.index,:) = sub_stats(1:size(sub_stats,1),:);
 
     % Convert to table
-    df_stats{4}  = array2table(round(stats,3),'VariableNames',df_header(2:end));
+    df_stats{4}  = array2table(stats,'VariableNames',df_header(2:end));
 end
 
 

@@ -103,20 +103,20 @@ if isfile(count_results)
     fprintf('%s\t Loading cell counts \n',datetime('now'))    
     df_results{1} = readtable(count_results,'PreserveVariableNames',true);
 else
-    %error('Could not locate %s in results directory',count_results)
+    error('Could not locate %s in results directory',count_results)
 end
 if isfile(vol_results)
     fprintf('%s\t Loading structure volumes \n',datetime('now'))    
     df_results{2} = readtable(vol_results);
 else
-    %error('Could not locate %s in results directory',vol_results)
+    error('Could not locate %s in results directory',vol_results)
 end
 if measure_cortex
     if isfile(cortex_results)
         fprintf('%s\t Loading cortex measurements \n',datetime('now'))    
         df_results{3} = readtable(cortex_results);
     else
-        %error('Could not locate %s in results directory',cortex_results)
+        error('Could not locate %s in results directory',cortex_results)
     end
 end
 
@@ -162,7 +162,23 @@ config.samples = config.samples';
 calc_table_stats(df_results, config);
 
 % Calculate voxel image
-%calc_voxel_stats(config)
+if isequal(config.calculate_voxel_stats, "true")
+    fprintf('%s\t Calculating voxel-level statistics\n',datetime('now'))
+
+    % Check if voxel volumes are present in each results directory
+    for i = 1:length(config.results_path)
+        var_names = who('-file',config.results_path(i));
+        if ~ismember('voxel_volume',var_names)
+            fprintf('%s\t Creating a voxel volume for sample %s\n',datetime('now'), config.samples(i));
+            results = load(config.results_path(i));
+            results = create_voxel_volume(results);
+            save(config.results_path(i), '-struct', 'results')
+        end
+    end
+
+    % Calculate voxel statistics
+    calc_voxel_stats(config)
+end
 
 % Calculate flatmap stats
 if measure_cortex

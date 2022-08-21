@@ -29,6 +29,11 @@ if isequal(config.main_stage, 'analyze')
 end
 config.home_path = fileparts(which('NM_config'));
 
+%%%%% Some defaults here
+config.measure_cortex = "false"; % Set this to false for the time being
+config.sum_all_classes = "true"; % We should always want to count total nuclei
+config.paired = "false";         % This worked previously but buggy now. Easier to calculate state outside of matlab
+
 % Default to run full pipeline
 if nargin<2
     step = 'stats';
@@ -68,12 +73,13 @@ else
 end
 
 % Name summary file
-if isequal(config.compare_structures_by,'table') && ~isempty(config.structure_table)
-    [~,a] = fileparts(config.structure_table);
-    config.stats_results = fullfile(config.results_directory,config.prefix,'tables',sprintf('%s_%s_stats.xls',config.prefix,a));
+if isequal(config.compare_structures_by,'table')
+    [~,b] = fileparts(config.structure_table);
 else
-    config.stats_results = fullfile(config.results_directory,config.prefix,'tables',strcat(config.prefix,'_summary_stats.xls'));
+    [~,b] = fileparts(config.template_file);
 end
+b = erase(b,"_structure_template");
+config.stats_results = fullfile(config.results_directory,config.prefix,'tables',sprintf('%s_%s_summary_stats.xls',config.prefix,b));
 
 %% Run single step and return if specified
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -83,8 +89,8 @@ if isequal(step,'stats')
     return
 elseif isequal(step,'plot')
     % Using apps as main method for plotting
+    visualize_results(config,varargin);
     return
-    %visualize_results(config,varargin);
 end
 
 end

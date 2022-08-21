@@ -336,7 +336,6 @@ for n in range(n_chunks):
     if not cen:
         continue
 
-
     cent = np.concatenate(cen)
     cent = cent[cent[:, 2].argsort()]
 
@@ -397,8 +396,5 @@ for n in range(n_chunks):
             np.savetxt(f, cent.round().astype(int), delimiter=",", fmt='%u')
 
 # One final pass on all centroids to remove potentially touching nuclei in z
-
-
-
 print('Total nuclei counted: ', total_cells)
 print('Total time elapsed: ', datetime.now() - total_time)

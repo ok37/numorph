@@ -17,7 +17,7 @@ function counts = measure_cell_counts(config)
 %--------------------------------------------------------------------------
 
 % Start from results structure
-res_name = fullfile(config.output_directory,strcat(config.sample_id,'_results.mat'));
+res_name = fullfile(config.output_directory, strcat(config.sample_id,'_results.mat'));
 var_names = whos('-file',res_name);
 
 % Check for centroid

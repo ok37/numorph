@@ -8,14 +8,13 @@ function df_results = combine_volumes(config,vol_results)
 % Read annotation indexes
 df_temp = readtable(config.template_file);
 df_temp = df_temp(df_temp.index>0,:);
-annotation_indexes = df_temp.index;
 
 % Read results structures
-df_volumes = zeros(length(annotation_indexes),length(config.results_path));
+df_volumes = zeros(length(df_temp.index),length(config.results_path));
 for i = 1:length(config.results_path)
     var_names = who('-file',config.results_path(i));
 
-    % Check for count results
+    % Check for structure mask to determine if volumes were calculated
     if ~any(ismember(var_names,'I_mask'))
         fprintf("%s\t No mask information found for sample %s. Skipping...\n",...
             datetime('now'),config.samples(i))
@@ -26,18 +25,25 @@ for i = 1:length(config.results_path)
          summary.volumes = measure_structure_volumes(config.results_path(i));
          save(config.results_path(i),'-append','summary')
     end
-    df_volumes(summary.volumes(:,1),i) = summary.volumes(:,2);
+    volumes = summary.volumes(ismember(summary.volumes(:,1),df_temp.index),:);
+    [~,idx] = ismember(volumes(:,1), df_temp.index);
+    df_volumes(idx(idx>0),i) = volumes(:,2);
 end
 
 % Sum according to structure level order
 ids = df_temp.id;
 path = df_temp.structure_id_path;
-df_new = zeros(size(df_volumes));
+df_summed = zeros(size(df_volumes));
 for i = 1:length(ids)
+    if ids(i) == 15666
+        a = 1;
+    end
+
+
     idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
-    df_new(i,:) = sum(df_volumes(idx,:),1);
+    df_summed(i,:) = sum(df_volumes(idx,:),1);
 end
-df_volumes = df_new;
+df_volumes = df_summed;
 
 % Create header name
 df_header = config.samples + "_" + "Volume";

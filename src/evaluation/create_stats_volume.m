@@ -1,21 +1,25 @@
-function vox = create_stats_volume(df_stats, voxel_imgs, markers, plot_type)
+function vox = create_stats_volume(config, df_stats, voxel_imgs, markers, plot_type)
 % Create a new annotation volume where each structure index is colored with
 % a new field from the summary stats table
 home_path = fileparts(which('NM_config.m'));
-av = load(fullfile(home_path,'data','annotation_data','ccfv3.mat'));
-downsample_factor = 0.1;
-nmarkers = length(markers);
+av = load(fullfile(home_path,'data','annotation_data',config.annotation_file));
+downsample_factor = av.resolution/100;
+
+isccfv3 = false;
+if isequal(config.annotation_file, 'ccfv3.mat') || isempty(config.annotation_file)
+    isccfv3 = true;
+end
 
 % Permute the annotation volume based on desired brain orientation
 if isequal(plot_type,"sagittal")
-    av.annotationVolume = permute(av.annotationVolume,[1,3,2]);
+    av.annotationVolume = permute_orientation(av.annotationVolume,[1,3,2]);
 elseif isequal(plot_type, "axial")
-    av.annotationVolume = permute(av.annotationVolume,[3,2,1]);
+    av.annotationVolume = permute_orientation(av.annotationVolume,[3,2,1]);
 end
 
 % Add annotation info for all structures
-temp_tbl = readtable(fullfile(home_path,'annotations','structure_template.csv'));
-vox.info = table2struct(temp_tbl(:,1:9));
+temp_tbl = readtable(fullfile(home_path,'annotations',config.template_file));
+vox.info = table2struct(temp_tbl);
 
 % Subset slices to reduce data sizes and make things smoother
 [nrows,ncols,nslices] = size(av.annotationVolume);
@@ -25,14 +29,19 @@ av.annotationVolume = imresize3(av.annotationVolume,[nrows,ncols,nslices],'Metho
 % Begin building visualization structure
 % Add structure info + initial slice positions
 vox.z = round(size(av.annotationVolume,3)/2);
-vox.bregma = (540/1320)*downsample_factor;
 vox.marker_names = markers;
 
 % Add colors with indexes for major structure divisions in Allen reference
-c = load(fullfile(home_path,'src','utils','allen_ccf_colormap_2017.mat'));
-vox.av_colors = c.cmap;
-vox.av_cmap_labels = ["Isocortex","OLF","HPF","CTXsp","STR","PAL","TH","HY","MB","HB","CB","FT"];
-vox.av_cmap_pos = [5,379,454,555,573,608,641,715,806,882,1014,1101];
+if isccfv3
+    vox.bregma = (540/1320)*downsample_factor;
+    c = load(fullfile(home_path,'src','utils','allen_ccf_colormap_2017.mat'));
+    vox.av_colors = c.cmap;
+    vox.av_cmap_labels = ["Isocortex","OLF","HPF","CTXsp","STR","PAL","TH","HY","MB","HB","CB","FT"];
+    vox.av_cmap_pos = [5,379,454,555,573,608,641,715,806,882,1014,1101];
+else
+    rgb = arrayfun(@(s) hex2rgb(char(s)), string({vox.info.color_hex_triplet}), 'UniformOutput', false)';
+    vox.av_colors = cell2mat(rgb);
+end
 
 % Create voxel images
 for i = 1:length(markers)
@@ -74,8 +83,14 @@ for i = 1:length(f)
     end
 end
 
-[aV,aI] = bin_annotation_structures(av.annotationVolume,df_stats_new.info,'true');
+if isccfv3
+    [aV,aI] = bin_annotation_structures(av.annotationVolume, df_stats_new.info, 'true');
+else
+    aV = av.annotationVolume;
+    aI = av.annotationIndexes;
+end
 binnedMask = ismember(aV,aI);
+
 % Potentially edit
 vox.av = aV+1;
 vox.indexes = aI;
@@ -146,4 +161,17 @@ vox.markers(idx).colors(5) = {brewermap(201,'*RdBu')};
 vox.markers(idx).colors(6:7) = {brewermap(401,'*plasma')};    
 vox.markers(idx).colors(8) = {brewermap(5,'Purples')};
     
+end
+
+
+function img = permute_volume_orientation(plot_type, img, orientation)
+
+if isequal(plot_type,"coronal")
+    img = permute_orientation(img, orientation, "sra");
+elseif isequal(plot_type,"sagittal")
+    img = permute_orientation(img, orientation, "sal");
+elseif isequal(plot_type,"axial")
+    img = permute_orientation(img, orientation, "als");
+end
+
 end

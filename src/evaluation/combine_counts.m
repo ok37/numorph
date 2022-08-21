@@ -68,26 +68,35 @@ for n = 1:length(config.results_path)
     end
     
     % Create count matrix
-    counts = zeros(height(df_temp),length(types_ind));
+    counts = zeros(length(df_temp.id),length(types_ind));
 
-    % Apply thresholds and count cells in each structure for each channel
-    % First channel cell intensities start at column 5
+    % Sum cell counts for each unique structure annotation
     u_idx = unique(annotations);
     for i = 1:length(u_idx)
+        row_idx = df_temp.id == u_idx(i);
         df_sub = ct(annotations == u_idx(i));
         if using_classes
             for j = 1:length(classes)
-                counts(u_idx(i),j) = sum(df_sub == classes(j));
+                counts(row_idx,j) = sum(df_sub == classes(j));
             end
         else
-            counts(u_idx(i)) = length(df_sub);
+            counts(row_idx) = length(df_sub);
         end
     end
 
     % Sum according to structure level order, except for background
     ids = df_temp.id;
     path = df_temp.structure_id_path;
-    for i = 2:length(ids)
+
+    % Ignore root index when summing counts
+    if df_temp.index(1) == 0
+        start_idx = 2;
+    else
+        start_idx = 1;
+    end
+
+    % Sum along structure tree depth
+    for i = start_idx:length(ids)
         idx = cellfun(@(s) contains(s,string("/"+ids(i)+"/")), path);
         counts(i,:) = sum(counts(idx,:),1);
     end
@@ -108,6 +117,7 @@ for n = 1:length(config.results_path)
     
     % Combine 
     counts = cat(2,total_counts,counts,custom);
+    counts(isnan(counts)) = 0;
         
     % Create header name
     df_header = config.samples(n) + "_" + config.groups{n}(2) + "_" + types_all + "_Counts";

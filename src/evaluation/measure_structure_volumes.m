@@ -21,5 +21,7 @@ indexes = unique(I_mask(:));
 sums = histcounts(I_mask(:),'BinLimits',[1,max(indexes)],'BinMethod','integers');
 volumes = sums*mm';
 fprintf('%s\t Total structure volume: %.2f mm^3\n',datetime('now'),total_volume)
-volumes = [1:length(volumes);volumes]';
+volumes = [1:max(indexes);volumes]';
+volumes = volumes(ismember(volumes(:,1),indexes),:);
+
 end

@@ -4,7 +4,10 @@ function calc_voxel_stats(config)
 %--------------------------------------------------------------------------
 
 fdr_thresh = 0.05;
-generate_flatmaps = true;
+generate_flatmaps = false;
+if isequal(config.measure_cortex, "true")
+    generate_flatmaps = true;
+end
 
 % Load voxel volumes
 n_samples = length(config.results_path);
@@ -42,8 +45,6 @@ if isequal(config.sum_all_classes,"true")
 end
 
 % Add custom classes
-cust = {};
-f_cust = {};
 if ~isempty(config.custom_class)
     n_single = length(config.class_names(config.keep_classes));
     cust = cell(1,length(imgs));    
@@ -60,20 +61,25 @@ if ~isempty(config.custom_class)
             f_cust{i}(isnan(f_cust{i})) = 0;
         end
     end
+    imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), sums, imgs, cust, 'UniformOutput', false);
+else
+    imgs = cellfun(@(r,s) cell2mat(cat(2,r,s)), sums, imgs, 'UniformOutput', false);
 end
 
-imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), sums, imgs, cust, 'UniformOutput', false);
-f_imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), f_sums, f_imgs, f_cust, 'UniformOutput', false);
-
-% Assign samples to groups
+% Assign samples to groups for voxel volumes
 group_delimiters = cat(2,config.samples,cat(1,config.groups{:}));
 set1 = group_delimiters(group_delimiters(:,3) == config.compare_groups(1),1);
 vox1 = imgs(ismember(config.samples,set1));
-f_vox1 = f_imgs(ismember(config.samples,set1));
 
 set2 = group_delimiters(group_delimiters(:,3) == config.compare_groups(2),1);
 vox2 = imgs(ismember(config.samples,set2));
-f_vox2 = f_imgs(ismember(config.samples,set2));
+
+% Do the same here for flatmaps
+if generate_flatmaps
+    f_imgs = cellfun(@(r,s,t) cell2mat(cat(2,r,s,t)), f_sums, f_imgs, f_cust, 'UniformOutput', false);
+    f_vox1 = f_imgs(ismember(config.samples,set1));
+    f_vox2 = f_imgs(ismember(config.samples,set2));
+end
 
 img_sizes = size(voxel_volume{1});
 
@@ -81,77 +87,62 @@ img_sizes = size(voxel_volume{1});
 n_classes = size(imgs{1},2);
 config.class_names = arrayfun(@(s) strrep(s,'./',''),config.class_names);
 
-% Get samples
 for i = 1:n_classes
+    % Calculate statistics for the voxel volume
     vox_res = ones(prod(img_sizes),3);
-    fvox_res = ones(1360*1360,3);
-    
-    % Seperate groups
-    set1 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox1,'UniformOutput',false)));
-    set2 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox2,'UniformOutput',false)));
-    
-    f_set1 = cat(2,cell2mat(cellfun(@(s) s(:,i),f_vox1,'UniformOutput',false)));
-    f_set2 = cat(2,cell2mat(cellfun(@(s) s(:,i),f_vox2,'UniformOutput',false)));
-    
-    % Calculate means
-    m_set1 = mean(set1,2);
-    m_set2 = mean(set2,2);
-    m_fset1 = mean(f_set1,2);
-    m_fset2 = mean(f_set2,2);
-    
-    % Threshold counts
-    if max([f_set1,f_set2],[],'all') <=1
-        idx = find(m_set1>0.03 & m_set2>0.03);
-       
-       % Threshold counts
-        fidx = find(m_fset1>0.03 & m_fset2>0.03);
-    else
-        idx = find(m_set1>config.minimum_cell_number &...
-           m_set2>config.minimum_cell_number);
-       
-           % Threshold counts
-        fidx = find(m_fset1>config.minimum_cell_number &...
-           m_fset2>config.minimum_cell_number);
-    end
-
-   % Fold change
-    vox_res(:,1) = 0;
-    vox_res(idx,1) = (m_set2(idx)-m_set1(idx))./m_set1(idx); 
-
-   % Fold change
-    fvox_res(:,1) = 0;
-    fvox_res(fidx,1) = (m_fset2(fidx)-m_fset1(fidx))./m_fset1(fidx); 
-
-    % p value
-    [~,p] = ttest2(set1(idx,:)',set2(idx,:)');
-    vox_res(idx,2) = -log10(p);
-    
-    [~,fp] = ttest2(f_set1(fidx,:)',f_set2(fidx,:)');
-    fvox_res(fidx,2) = -log10(fp);
-
-    % Adjusted p value. Apply threshold to adjusted p value
-    [~,~,~, adj_p] = fdr_bh(p);
-    adj_p = -log10(adj_p);
-    adj_p(adj_p<-log10(fdr_thresh)) = -log10(fdr_thresh);
-    vox_res(idx,3) = adj_p;
-    
-    [~,~,~, adj_fp] = fdr_bh(fp);
-    adj_fp = -log10(adj_fp);
-    adj_fp(adj_fp<-log10(fdr_thresh)) = -log10(fdr_thresh);
-    fvox_res(fidx,3) = adj_fp;
-    
-    % Reshape and save to file
+    vox_res = calc_voxel_stats_worker(config, i, vox_res, vox1, vox2, fdr_thresh);
     vox_res = reshape(vox_res,[img_sizes,3]);
-    fvox_res = reshape(fvox_res,[1360,1360,3]);
     
     % Save file
     fname = fullfile(config.vox_directory,sprintf("%s_%s_voxels.nii",...
         config.prefix,config.class_names(i)));
     niftiwrite(vox_res,fname)
-    
-    fname = fullfile(config.flat_directory,sprintf("%s_%s_flatmap.nii",...
-        config.prefix,config.class_names{i}));
-    niftiwrite(fvox_res,fname)
+
+
+    % Calculate flatmap statistics
+    if generate_flatmaps
+        fvox_res = ones(1360*1360,3);
+        fvox_res = calc_voxel_stats_worker(config, i, fvox_res, fvox1, fvox2, fdr_thresh);
+        fvox_res = reshape(fvox_res,[1360,1360,3]);
+         fname = fullfile(config.flat_directory,sprintf("%s_%s_flatmap.nii",...
+             config.prefix,config.class_names{i}));
+         niftiwrite(fvox_res,fname)
+    end
 end
+
+end
+
+
+function vox_res = calc_voxel_stats_worker(config, i, vox_res, vox1, vox2, fdr_thresh)
+
+% Seperate groups
+set1 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox1,'UniformOutput',false)));
+set2 = cat(2,cell2mat(cellfun(@(s) s(:,i),vox2,'UniformOutput',false)));
+
+% Calculate means
+m_set1 = mean(set1,2);
+m_set2 = mean(set2,2);
+
+% Threshold counts
+if max([m_set1,m_set2],[],'all') <=1
+    idx = find(m_set1>0.03 & m_set2>0.03);       
+else
+    idx = find(m_set1>config.minimum_cell_number &...
+       m_set2>config.minimum_cell_number);       
+end
+
+% Fold change
+vox_res(:,1) = 0;
+vox_res(idx,1) = (m_set2(idx)-m_set1(idx))./m_set1(idx); 
+
+% p value
+[~,p] = ttest2(set1(idx,:)',set2(idx,:)');
+vox_res(idx,2) = -log10(p);
+
+% Adjusted p value. Apply threshold to adjusted p value
+[~,~,~, adj_p] = fdr_bh(p);
+adj_p = -log10(adj_p);
+adj_p(adj_p<-log10(fdr_thresh)) = -log10(fdr_thresh);
+vox_res(idx,3) = adj_p;
 
 end

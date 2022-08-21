@@ -52,9 +52,9 @@ fprintf("%s\t Working on sample %s \n",datetime('now'),config.sample_id)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate table containing image information
 if isfield(config,'mri_directory') && ~isempty(config.mri_directory)
-    [path_table, path_table_nii] = path_to_table(config);
+    [path_table, path_table_nii] = path_to_table(config, config.use_processed_images, false);
 else
-    path_table = path_to_table(config);
+    path_table = path_to_table(config, config.use_processed_images, false);
     path_table_nii = [];
 end
 
