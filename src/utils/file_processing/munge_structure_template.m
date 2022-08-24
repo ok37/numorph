@@ -1,4 +1,4 @@
-function munge_structure_template(csv_path, filename)
+function munge_structure_template(csv_path)
 %--------------------------------------------------------------------------
 % Munge a custom structure template to define structure annotations and
 % save in a standardized format. The following variables (columns) are
@@ -18,16 +18,11 @@ function munge_structure_template(csv_path, filename)
 % csv_path: (string) Full path to csv containing structure annotation
 % information.
 %
-% filename: (string) Output filename. (default: csv_path file +
-% _structure_template.csv).
-%
 %--------------------------------------------------------------------------
 
 % Create default filename if not provided
-if nargin <2
-    [~, filename] = fileparts(csv_path);
-    filename = strcat(filename,'_structure_template.csv');
-end
+[~, filename] = fileparts(csv_path);
+filename = strcat(filename,'_structure_template.csv');
 
 % Template csv must contain these columns
 required_vars = {'index', 'acronym', 'name', 'depth', 'parent_structure_id'};

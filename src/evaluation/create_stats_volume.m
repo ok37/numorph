@@ -5,21 +5,23 @@ home_path = fileparts(which('NM_config.m'));
 av = load(fullfile(home_path,'data','annotation_data',config.annotation_file));
 downsample_factor = av.resolution/100;
 
+% Add annotation info for all structures
+temp_tbl = readtable(fullfile(home_path,'annotations',config.template_file));
+vox.info = table2struct(temp_tbl);
+
+% Load atlas
 isccfv3 = false;
 if isequal(config.annotation_file, 'ccfv3.mat') || isempty(config.annotation_file)
     isccfv3 = true;
 end
 
 % Permute the annotation volume based on desired brain orientation
-if isequal(plot_type,"sagittal")
-    av.annotationVolume = permute_orientation(av.annotationVolume,[1,3,2]);
-elseif isequal(plot_type, "axial")
-    av.annotationVolume = permute_orientation(av.annotationVolume,[3,2,1]);
+av.annotationVolume = permute_volume_orientation(av.annotationVolume, ...
+    plot_type, av.orientation);
+    vox.ishemisphere = false;
+if isequal(av.hemisphere,'left') || isequal(av.hemisphere,'right')
+    vox.ishemisphere = true;
 end
-
-% Add annotation info for all structures
-temp_tbl = readtable(fullfile(home_path,'annotations',config.template_file));
-vox.info = table2struct(temp_tbl);
 
 % Subset slices to reduce data sizes and make things smoother
 [nrows,ncols,nslices] = size(av.annotationVolume);
@@ -46,13 +48,8 @@ end
 % Create voxel images
 for i = 1:length(markers)
     img = voxel_imgs([voxel_imgs.marker] == markers(i)).data;
-    if isequal(plot_type,"coronal")
-        img = permute_orientation(img,"ail","sra");
-    elseif isequal(plot_type,"sagittal")
-        img = permute_orientation(img,"ail","sal");
-    elseif isequal(plot_type,"axial")
-        img = permute_orientation(img,"ail","als");
-    end
+    img = permute_volume_orientation(img, plot_type, av.orientation);
+
     for j = 1:size(img,4)
         if j == 1
             a = squeeze(img(:,:,:,j));
@@ -72,7 +69,8 @@ for i = 1:length(f)
     if isequal(f{i},'Cortex')
         continue
     end
-    s = trim_to_deepest_structure(df_stats.(f{i}));
+    s = trim_to_deepest_structure(df_stats.(f{i}), av.annotationIndexes(2:end));
+    
     if i == 1
         df_stats_new.info = s.info;
         df_stats_new.category = string(f{i});
@@ -94,6 +92,7 @@ binnedMask = ismember(aV,aI);
 % Potentially edit
 vox.av = aV+1;
 vox.indexes = aI;
+vox.idx_trimmed = s.info.index;
 vox.binMask = binnedMask;
 
 % Precompute annotation indexes for each slice
@@ -125,7 +124,7 @@ for i = 1:length(df_stats_new.stats)
     vox = add_stats_to_vs(vox,df_stats_new.stats(i).stats,marker,df_stats_new.category(i),idx);
 end
 
-% Update indexes to match volume
+% Update indexes to match those in the saved annotation volume
 vox.indexes = vox.indexes+1;
 
 end
@@ -164,7 +163,7 @@ vox.markers(idx).colors(8) = {brewermap(5,'Purples')};
 end
 
 
-function img = permute_volume_orientation(plot_type, img, orientation)
+function img = permute_volume_orientation(img, plot_type, orientation)
 
 if isequal(plot_type,"coronal")
     img = permute_orientation(img, orientation, "sra");
