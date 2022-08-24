@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SAMPLES="NF1R3M1R"	#or specify multiple samples like "TEST1 TEST2..."
+SAMPLES="TEST1"	#or specify multiple samples like "TEST1 TEST2..."
 STAGE="stitch"
 
 for sample in $SAMPLES
