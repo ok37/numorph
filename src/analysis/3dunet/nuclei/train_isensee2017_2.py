@@ -1,12 +1,12 @@
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 import glob
-import argparse
+
 from unet3d.data import write_data_to_file, open_data_file
 from unet3d.generator import get_training_and_validation_generators
 from unet3d.model.isensee2017 import isensee2017_model
 from unet3d.training import load_old_model, train_model
-
-model_name = "test_model"
 
 config = dict()
 config["image_shape"] = (112, 112, 32)  # This determines what shape the images will be cropped/resampled to.
@@ -42,10 +42,10 @@ config["validation_patch_overlap"] = 0  # if > 0, during training, validation pa
 config["training_patch_start_offset"] = (16, 16, 6)  # randomly offset the first patch index by up to this offset
 config["skip_blank"] = True  # if True, then patches without any target will be skipped
 
-config["data_file"] = os.path.join(os.getcwd(), "models", model_name + "_data.h5")
-config["model_file"] = os.path.join(os.getcwd(), "models", model_name + "_model.h5")
-config["training_file"] = os.path.join(os.getcwd(), "models", model_name + "_training_ids.pkl")
-config["validation_file"] = os.path.join(os.getcwd(), "models", model_name + "_validation_ids.pkl")
+config["data_file"] = os.path.abspath("nuclei_isensee_data2.h5")
+config["model_file"] = os.path.abspath("isensee_2017_model2.h5")
+config["training_file"] = os.path.abspath("isensee_training_ids2.pkl")
+config["validation_file"] = os.path.abspath("isensee_validation_ids2.pkl")
 config["overwrite"] = True  # If True, will previous files. If False, will use previously written files.
 
 
@@ -119,15 +119,4 @@ def main(overwrite=True):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Model training options')
-    parser.add_argument('--g', metavar='g', type=str, nargs='+',
-                        help='GPU tag')
-    args = parser.parse_args()
-    gpu_idx = args.g[0] if args.g is not None else '0'
-    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_idx
-
-    save_directory = os.path.join(os.getcwd(), 'models')
-    if not os.path.isdir(save_directory):
-        os.mkdir(save_directory)
-
     main(overwrite=config["overwrite"])

@@ -1,4 +1,4 @@
-function preprocess_3dunet(part,file_delimiter,n)
+function preprocess_3dunet(part, file_delimiter, n)
 %--------------------------------------------------------------------------
 % Preprocess images for running 3dunet. Normalize images. Identify nuclei 
 % borders, fills, and centroids. Perform morphological operations on
@@ -30,7 +30,7 @@ function preprocess_3dunet(part,file_delimiter,n)
 %
 % file_delimiter: (string) Keep only files with this delimiter in the
 % filename. (i.e. "final" keeps only images with "final" in name).
-% (default: [], use all files)
+% (default: "", use all files)
 %
 % n: (int) Limit number of images read (for testing purposes). (default:
 % [], use all images)
@@ -38,7 +38,7 @@ function preprocess_3dunet(part,file_delimiter,n)
 %--------------------------------------------------------------------------
 
 final_size = [112 112 32];      % Final patch size. Images will be cropped or padded
-shuffle_images = false;         % Shuffle images
+shuffle_images = false;     % Shuffle images
 
 rescale_centroids = true;      % Resample patches to specific resolution and rewrite centroids   
 capture_res = [1.21,1.21,4];  % Resolution at which images were acquired
@@ -50,6 +50,7 @@ normalize_images = true;    % Perform min/ax normalization
 remove_background = false;  % Perform background subtraction
 write_edges = false;        % Add edge labels as index=2
 size_threshold = 0;
+
 
 % Create preprocessed directory
 home_path = fileparts(which('preprocess_3dunet'));
@@ -77,7 +78,7 @@ for i = 1:length(folders)
     files = files(arrayfun(@(s) contains(s.name,'.nii'),files));
     
     % Trim files if delimiter is provided
-    if nargin>1
+    if nargin>1 && file_delimiter ~= ""
         files = files(arrayfun(@(s) contains(s.name,file_delimiter),files));
     end
     
@@ -106,6 +107,7 @@ end
 if nargin>2
     idx = randperm(n_images);
     img_files = img_files(idx(1:n),:);
+    n_images = size(img_files,1);
 end
 
 % Load images, normalize, and save
@@ -113,7 +115,11 @@ n_cells = 0;
 pixels = zeros(1,n_images);
 for i = 1:n_images
     % Read image
-    [~,img_name] = fileparts(img_files{i,1});
+    try 
+        [~,img_name] = fileparts(img_files{i,1});
+    catch
+        a = 1;
+    end
     fprintf('%s\n',img_name)
     I = niftiread(img_files{i,1});
     I = uint16(I);
@@ -219,7 +225,7 @@ end
 
 
 fprintf('Preprocessed %d cells in %d images \n',n_cells,i)
-fprintf('Percent of pixels: %f \n',mean(pixels)*100)
+fprintf('Percent of images with true pixels: %f \n',mean(pixels)*100)
 
 end
 

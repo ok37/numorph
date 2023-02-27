@@ -247,9 +247,14 @@ for idx2 = 1:min(2,nb_sections)
                 config,z_pos,adj_params,defaults);
             
             % Store translations
-            h_tform1 = h_tform'; v_tform1 = v_tform';
-            m.h_stitch_tforms(:,z_pos) = [h_tform1{:}]'; 
-            m.v_stitch_tforms(:,z_pos) = [v_tform1{:}]';
+            if ~isempty(h_tform)
+                h_tform1 = h_tform';
+                m.h_stitch_tforms(:,z_pos) = [h_tform1{:}]'; 
+            end
+            if ~isempty(v_tform)
+                v_tform1 = v_tform';
+                m.v_stitch_tforms(:,z_pos) = [v_tform1{:}]';
+            end
         end
     else
         %From middle to bottom
@@ -266,9 +271,14 @@ for idx2 = 1:min(2,nb_sections)
                 config,z_pos,adj_params,defaults);
            
             % Store translations
-            h_tform1 = h_tform'; v_tform1 = v_tform';
-            m.h_stitch_tforms(:,z_pos) = [h_tform1{:}]'; 
-            m.v_stitch_tforms(:,z_pos) = [v_tform1{:}]';
+            if ~isempty(h_tform)
+                h_tform1 = h_tform';
+                m.h_stitch_tforms(:,z_pos) = [h_tform1{:}]'; 
+            end
+            if ~isempty(v_tform)
+                v_tform1 = v_tform';
+                m.v_stitch_tforms(:,z_pos) = [v_tform1{:}]';
+            end
         end
     end
 end
@@ -347,6 +357,7 @@ B = A(:,1,:);
 % Calculate horizontal translations
 for i = 1:nrows 
     if ncols == 1
+        pre_h_tform = {};
         continue
     end
     for j = 1:ncols-1
@@ -454,8 +465,13 @@ min_width = min(cellfun(@(s) size(s,2),B(:,1)));
 B = cellfun(@(s) s(:,1:min_width), B,'UniformOutput',false);
 
 % Identify horizontally stitched images minimum height
-min_height = ceil(abs(cellfun(@(s) max(0,abs(min(s(:,2)))),pre_h_tform)));
-max_height = ceil(abs(cellfun(@(s) max(0,max(s(:,2))),pre_h_tform)));
+if ncols == 1
+    min_height = zeros(nrows,1);
+    max_height = zeros(nrows,1);
+else
+    min_height = ceil(abs(cellfun(@(s) max(0,abs(min(s(:,2)))),pre_h_tform)));
+    max_height = ceil(abs(cellfun(@(s) max(0,max(s(:,2))),pre_h_tform)));
+end
 I = B(1,:);
 
 % Check for previous translations and set limits
@@ -480,7 +496,7 @@ for i = 1:size(B,1)-1
     end
 
     mov_img = B{i+1,1}(overlap_v_min,1:min_width);
-    if max_height(i+1)>0
+    if length(max_height) > 1 && max_height(i+1)>0
         mov_img(1:max_height(i),:) = 0;
         %B{i+1,:}(1:max_height(i)-1,:) = 0;
     end
@@ -529,7 +545,7 @@ for i = 1:size(B,1)-1
     
     % Create adjusted blending weights
     y1 = y0 + final_tform.T(6);
-    if isequal(config.blending_method(k),"sigmoid")
+    if isequal(config.blending_method,"sigmoid")
         w_v_adj = 1-1./(1 + exp(config.sd*(overlap_v_min1-y1)))';
     else
         w_v_adj = (overlap_v_min1/v_overlap)';

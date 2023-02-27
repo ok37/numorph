@@ -1,12 +1,15 @@
-function z_adj = calculate_adjusted_z(path_table, nrows, ncols, markers, overlap, lowerThresh, output_directory)
+function z_adj = calculate_adjusted_z(path_table, config, nrows, ncols)
 %--------------------------------------------------------------------------
 % Calculate adjusted z positions for iterative 2D image stitching based on
 % cross-correlation of overlapping horizontal and vertial regions in
 % adjacent tiles.
 %--------------------------------------------------------------------------
-
-z_positions = 0.02;
-z_window = 10;
+markers = config.markers;
+lowerThresh = config.lowerThresh;
+output_directory = config.output_directory;
+overlap = config.overlap;
+z_positions = config.z_positions;
+z_window = config.z_window;
 remove_outliers = true;
 
 % If no window selected, set all displacements to zero and return 

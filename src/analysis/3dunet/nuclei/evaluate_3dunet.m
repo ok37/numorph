@@ -1,9 +1,8 @@
-
 %% Evaluate 3DUnet performace
 % Evaluation options
 evaluation_method = '3dunet';
-resolution = '121';
-true_directory = 'true_filled';
+part = '075';
+true_directory = 'validation';
 trim_edges = 'true';
 threshold = 0.5;
 edge_threshold = 0.25;
@@ -15,8 +14,8 @@ conn_comp = 26;
 int_thresh = 1100;
 
 %%%%%%
-addpath(genpath('functions'))
-files = dir(fullfile('data',true_directory,resolution));
+addpath(genpath('matlab_functions'))
+files = dir(fullfile('data',true_directory,part));
 f_files = files(arrayfun(@(s) s.name(1) == 'f',files));
 l_files = files(arrayfun(@(s) s.name(1) == 'l',files));
 
@@ -36,11 +35,11 @@ for i = 1:length(l_files)
             % Calculate 3DUnet Predicted Centroids
             % 3DUnet assumed to given as probability image that needs to be
             % binarized and centroids calculated
-            prediction_location = fullfile(pwd,'results','validation_results',...
+            prediction_location = fullfile(pwd,'predictions',...
                 sprintf('f%d',i),'prediction.nii');
             
             % Read and trim prediction
-            prediction = niftiread(prediction_location);
+            prediction = double(niftiread(prediction_location));
 
             % If 4 dimensions, subtract edge binary from fill binary
             if ndims(prediction) == 4
@@ -101,7 +100,7 @@ for i = 1:length(l_files)
             data = flip(data,1);
             label = flip(label,1); 
     
-            centroids = cubic_centroid(i,resolution);
+            centroids = cubic_centroid(i,part);
             centroids = round(centroids);
             
             % Create arbitrary prediction image. Doesn't affect total error
@@ -128,7 +127,7 @@ for i = 1:length(l_files)
             data = flip(data,1);
             label = flip(label,1); 
             
-            centroids = clearmap_centroid(i,resolution);
+            centroids = clearmap_centroid(i,part);
             centroids = round(centroids);
                         % Create arbitrary prediction image. Doesn't affect total error
             % rate
@@ -242,7 +241,8 @@ end
 fprintf('\nMultiple Centroids: %f\n',mean(mult))
 fprintf('Missed Centroids: %f\n',mean(miss))
 fprintf('Merged Centroids: %f\n',mean(merge))
-fprintf('Total Error: %f\n',mean(total_error))
-fprintf('Uncertainty: %f\n',mean(uncertainty))
-disp(precision)
-disp(recall)
+fprintf('Empty Centroids: %f\n',mean(empty))
+%fprintf('Uncertainty: %f\n',mean(uncertainty))
+fprintf('Precision per image: %s\n',sprintf("%.3f ", precision))
+fprintf('Recall per image: %s\n',sprintf("%.3f ", recall))
+fprintf('Average Total Error: %f\n',mean(total_error))

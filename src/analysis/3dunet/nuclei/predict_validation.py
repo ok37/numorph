@@ -11,19 +11,13 @@ from unet3d.prediction import patch_wise_prediction
 from nuclei.img_utils import patch_wise_prediction2, prediction_to_centroids
 
 parser = argparse.ArgumentParser(description='Predict from validation dataset.')
-parser.add_argument('--r', metavar='r', type=str, nargs='+',
-                    help='Resolution tag')
+parser.add_argument('--r', metavar='m', type=str, nargs='+',
+                    help='Prediction resolution tag')
 parser.add_argument('--g', metavar='g', type=str, nargs='+',
                     help='GPU tag')
 parser.add_argument('--m', metavar='m', type=str, nargs='+',
-                    help='Model tag')
+                    help='Model name')
 args = parser.parse_args()
-
-if args.g:
-    gpu_idx = args.g[0]
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_idx)
-else:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 if args.r:
     resolution = args.r[0]
@@ -31,21 +25,30 @@ else:
     resolution = '075'
 
 if args.m:
-    model_idx = args.m[0]
+    model_name = args.m[0]
 else:
-    model_idx = '2'
+    model_name = '075_121_model.h5'
+model_name = model_name + '.h5' if not model_name.endswith('.h5') else model_name
 
-model_path = '/home/ok37/repos/3dunet-centroid/nuclei/isensee_2017_model' + model_idx + '.h5'
-#model_path = '/home/ok37/repos/3dunet-centroid/nuclei/128_model_121.h5'
+if args.g:
+    gpu_idx = args.g[0]
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_idx)
+else:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+model_path = os.path.join(os.getcwd(), 'models', model_name)
 
 # %% Run
 def main(resolution, model_path):
     model = load_old_model(model_path)
 
     # Get images
+    print("Loading validation data with fully segmented images")
     images = get_validation_folders(resolution)
 
     # Run prediction
+
+    print("Running prediction using model " + os.path.basename(model_path))
     predictions = []
     for i in range(len(images)):
         data = images[i].get_fdata()
@@ -67,7 +70,11 @@ def main(resolution, model_path):
         predictions.append(np.squeeze(prediction))
 
     # Save results
-    save_directory = os.path.join(os.getcwd(), 'results', 'validation_results')
+    save_directory = os.path.join(os.getcwd(), 'predictions')
+
+    if not os.path.isdir(save_directory):
+        os.mkdir(save_directory)
+
     save_prediction_results(images, predictions, save_directory)
 
     return
@@ -76,17 +83,12 @@ def main(resolution, model_path):
 # %% Read Images
 def get_validation_folders(resolution):
     img_path = os.path.join(os.getcwd(), 'data', 'validation', resolution)
-    img_folders = os.listdir(img_path)
-
-    img_folders = [os.path.join(img_path, f) for f in sorted(img_folders)]
+    files = os.listdir(img_path)
+    files = [f for f in files if f[0] == "f"]
 
     images = []
-    for f in range(len(img_folders)):
-        files = os.listdir(img_folders[f])
-        file = os.path.join(img_folders[f], files[0])
-
-        img = nib.load(file)
-        images.append(img)
+    for f in files:
+        images.append(nib.load(os.path.join(img_path, f)))
 
     return images
 
